@@ -336,6 +336,10 @@ The attestation is provenance and integrity verification: it proves the bytes
 were produced by this repository's workflow from a specific revision. It does
 not by itself say anything about the behavior of that revision.
 
+GitHub does not issue attestations for user-owned private repositories, so while
+the repository is private the workflow skips that step and the release ships the
+archive and its checksum only.
+
 ## Repository Layout
 
 ```text

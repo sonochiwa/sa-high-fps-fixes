@@ -77,6 +77,9 @@ jobs:
           $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $archive).Hash.ToLowerInvariant()
           "$hash  $archiveName" | Set-Content -LiteralPath $checksum -Encoding ascii
 
+          # Build provenance attestation is not available to user-owned private
+          # repositories, so it is skipped there and the notes say so.
+          $attested = "${{ github.event.repository.private }}" -ne 'true'
           $notes = @(
               "High FPS Fixes corrects behavior in GTA San Andreas 1.0 US that the original"
               "game ties to the rendered frame rate, without imposing an FPS cap. Every fix"
@@ -87,11 +90,19 @@ jobs:
               ""
               "### Verifying the download"
               ""
-              'The archive was built by GitHub Actions from tag `${{ github.ref_name }}`. Compare it with the published SHA-256 file or verify its signed build provenance:'
-              ""
-              '```text'
-              "gh attestation verify $archiveName -R $env:GITHUB_REPOSITORY"
-              '```'
+              if ($attested) {
+                  'The archive was built by GitHub Actions from tag `${{ github.ref_name }}`. Compare it with the published SHA-256 file or verify its signed build provenance:'
+                  ""
+                  '```text'
+                  "gh attestation verify $archiveName -R $env:GITHUB_REPOSITORY"
+                  '```'
+              } else {
+                  'The archive was built by GitHub Actions from tag `${{ github.ref_name }}`. Compare it with the published SHA-256 file:'
+                  ""
+                  '```text'
+                  "certutil -hashfile $archiveName SHA256"
+                  '```'
+              }
           ) -join [Environment]::NewLine
           [IO.File]::WriteAllText(
               (Join-Path build release-notes.md),
@@ -104,6 +115,7 @@ jobs:
           "checksum=$checksum" >> $env:GITHUB_OUTPUT
 
       - name: Attest release archive
+        if: ${{ !github.event.repository.private }}
         uses: actions/attest@v4
         with:
           subject-path: ${{ steps.package.outputs.archive }}

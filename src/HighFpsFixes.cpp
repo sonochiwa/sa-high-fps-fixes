@@ -449,11 +449,6 @@ constexpr uintptr_t kBikeBalanceInput = 0x006B9605;
 constexpr uintptr_t kBikeBalanceInputReturn = 0x006B960D;
 constexpr uintptr_t kBikeBalanceForceCall = 0x006B97A1;
 constexpr uintptr_t kBikeWheelTurnForceCall = 0x006D7B17;
-constexpr uintptr_t kBikeBalanceController = 0x006B93DA;
-constexpr uintptr_t kBikeBalanceControllerReturn = 0x006B93DF;
-constexpr uintptr_t kBikeBalanceControllerSkip = 0x006B97A6;
-constexpr uintptr_t kBikeBalanceTimeStepA = 0x006B95E7;
-constexpr uintptr_t kBikeBalanceTimeStepB = 0x006B95FA;
 constexpr size_t kMatrixRight = 0x00;
 constexpr size_t kMatrixUp = 0x10;
 // The three writers of CRideAnimData::LeanAngle, each `fstp [esi+0x648]`.
@@ -1113,13 +1108,6 @@ constexpr std::array<uint8_t, 20> kExpectedDoorIntegration{
     0xD9, 0x56, 0x0C
 };
 
-constexpr std::array<uintptr_t, 4> kBikeTurnForceSites{
-    0x006B96EF,  // CBike::ProcessControl, balance
-    0x006BC2C3,  // CBike::ProcessControl, later branch
-    0x006D7B17,  // CVehicle wheel processing
-    0x006D7BA3   // CVehicle wheel processing
-};
-
 // Physics sleep counter. `CPhysical::m_nFakePhysics` at +0xB8 is incremented
 // once per rendered frame and, above 10, the entity has its move and turn speed
 // reset and its physics skipped for the frame.
@@ -1199,8 +1187,6 @@ constexpr uint32_t kSirenTapMilliseconds = 150;
 // on and 320 ms off at the 25 FPS the game was tuned for.
 constexpr unsigned kHudTicksPerFlash = 8;
 constexpr unsigned kDefaultHudFlashIntervalMs = 320;
-constexpr unsigned kMinHudFlashIntervalMs = 40;
-constexpr unsigned kMaxHudFlashIntervalMs = 5000;
 
 // The swinging chassis simulation is tuned for 25 FPS, not 30.
 constexpr float kSwingReferenceTimeStep = 2.0f;
@@ -1251,7 +1237,6 @@ constexpr std::array<uint8_t, 6> kExpectedFxCreateParticles{
 // opened on thirty frames a second, which is what it emitted when the game was
 // built. At 30 FPS or below every frame is open and nothing changes at all.
 constexpr uintptr_t kFxAddParticle = 0x004AA440;
-constexpr uintptr_t kFxBloodSystem = 0x00A9AE00;
 
 // sub esp,8 / push esi / push edi
 constexpr std::array<uint8_t, 5> kExpectedFxAddParticle{
@@ -1447,20 +1432,6 @@ constexpr char kDefaultIni[] =
     "# Created by sonochiwa\n"
     "# Source code: https://github.com/sonochiwa/sa-high-fps-fixes\n"
     "\n"
-    "[general]\n"
-    "isEnabled=1\n"
-    "enableLogging=1\n"
-    "traceVehicleState=0\n"
-    "traceWatchOffset=76\n"
-    "traceWatchMode=0\n"
-    "traceWatchHits=4000\n"
-    "traceWatchSamples=100\n"
-    "traceWatchReports=60\n"
-    "traceWatchArmDelay=3\n"
-    "tracePlayerPed=0\n"
-    "traceCycleSkill=0\n"
-    "traceChainsaw=0\n"
-    "\n"
     "[camera]\n"
     "stuntJumpCamera=1\n"
     "aimCameraShake=1\n"
@@ -1483,8 +1454,6 @@ constexpr char kDefaultIni[] =
     "taskTimers=1\n"
     "\n"
     "[vehicles]\n"
-    "bikeTurnForce=0\n"
-    "bikeBalanceControl=0\n"
     "bikeLeanTarget=1\n"
     "groundFriction=1\n"
     "turnAirResistance=1\n"
@@ -1495,7 +1464,7 @@ constexpr char kDefaultIni[] =
     "railWheelSpin=1\n"
     "burnout=1\n"
     "swingingChassis=1\n"
-    "disableSwingingCompletely=0\n"
+    "disableSwingingCompletely=1\n"
     "sirenTap=1\n"
     "heliRotorSpeed=1\n"
     "skimmerResistance=1\n"
@@ -1524,17 +1493,9 @@ constexpr char kDefaultIni[] =
     "\n"
     "[particles]\n"
     "emissionRate=1\n"
-    "sizeMult=1.0\n"
-    "lifeMult=1.0\n"
-    "alphaMult=1.0\n"
-    "particlesPerSecond=0\n"
-    "bloodParticlesPerSecond=0\n"
     "\n"
     "[hud]\n"
-    "flashRate=1\n"
-    "moneyCounter=1\n"
-    "hudTimers=1\n"
-    "flashIntervalMs=320\n"
+    "hudTiming=1\n"
     "disableFlashing=0\n"
     "\n"
     "[world]\n"
@@ -1637,7 +1598,6 @@ std::array<SitePatch, 6> g_moveSpeedSnapPatches{};
 SitePatch g_turnAirResistancePatch{};
 SitePatch g_groundFrictionPatch{};
 SitePatch g_bikeLeanTargetPatch{};
-std::array<SitePatch, 4> g_bikeTurnForcePatches{};
 // Scratch for the six move speed snap thunks. The game is single threaded
 // through vehicle processing, and each thunk writes it and reads it back before
 // the next instruction.
@@ -1835,20 +1795,6 @@ bool ReadSetting(const char* section, const char* key, bool defaultValue) {
 
 int ReadNumber(const char* section, const char* key, int defaultValue) {
     return GetPrivateProfileIntA(section, key, defaultValue, g_iniPath.c_str());
-}
-
-float ReadFloat(const char* section, const char* key, float defaultValue) {
-    char buffer[64]{};
-    char fallback[64]{};
-    std::snprintf(fallback, sizeof(fallback), "%.6f", defaultValue);
-    GetPrivateProfileStringA(section, key, fallback, buffer, sizeof(buffer),
-                             g_iniPath.c_str());
-    char* end = nullptr;
-    const double value = std::strtod(buffer, &end);
-    if (end == buffer || !std::isfinite(value)) {
-        return defaultValue;
-    }
-    return static_cast<float>(value);
 }
 
 bool WriteBytes(uintptr_t address, const uint8_t* bytes, size_t size) {
@@ -2605,11 +2551,7 @@ using FxAddParticleFn = void(__fastcall*)(void* self, void* edx, const void* pos
                                           int32_t createLocal);
 
 bool g_particleRateGate = true;
-float g_particleSizeMult = 1.0f;
-float g_particleLifeMult = 1.0f;
-float g_particleAlphaMult = 1.0f;
 uint32_t g_particleBudget = 0;
-uint32_t g_bloodParticleBudget = 0;
 
 // One entry per call site, found by the return address of the call into
 // `FxSystem_c::AddParticle`. Open addressing, and a full table fails open: a
@@ -2720,7 +2662,6 @@ struct ParticleBudgetState {
     double credit;
 };
 ParticleBudgetState g_generalBudget{};
-ParticleBudgetState g_bloodBudget{};
 
 bool ParticleBudgetAllows(ParticleBudgetState& state, uint32_t perSecond,
                           bool freshEvent) {
@@ -2748,28 +2689,6 @@ bool ParticleBudgetAllows(ParticleBudgetState& state, uint32_t perSecond,
     return freshEvent;
 }
 
-bool ScalesParticles() {
-    return std::fabs(g_particleSizeMult - 1.0f) > 0.0001f
-        || std::fabs(g_particleLifeMult - 1.0f) > 0.0001f
-        || std::fabs(g_particleAlphaMult - 1.0f) > 0.0001f;
-}
-
-// `FxPrtMult_c` is seven floats: red, green, blue, alpha, size, rotation, life.
-const void* ScaleParticleMults(const void* mults, float* scratch) {
-    if (!mults) {
-        return mults;
-    }
-    __try {
-        std::memcpy(scratch, mults, sizeof(float) * 7);
-    } __except (EXCEPTION_EXECUTE_HANDLER) {
-        return mults;
-    }
-    scratch[3] = std::clamp(scratch[3] * g_particleAlphaMult, 0.0f, 1.0f);
-    scratch[4] = std::max(scratch[4] * g_particleSizeMult, 0.0f);
-    scratch[6] = std::max(scratch[6] * g_particleLifeMult, 0.0f);
-    return scratch;
-}
-
 __declspec(noinline) void __fastcall HookedFxAddParticle(
     void* self, void* edx, const void* pos, const void* vel, float timeSince,
     const void* mults, float rotZ, float lightMult, float lightMultLimit,
@@ -2790,24 +2709,10 @@ __declspec(noinline) void __fastcall HookedFxAddParticle(
         return;
     }
 
-    if (g_particleBudget != 0 || g_bloodParticleBudget != 0) {
-        bool isBlood = false;
-        __try {
-            isBlood = self == *reinterpret_cast<void* const*>(kFxBloodSystem);
-        } __except (EXCEPTION_EXECUTE_HANDLER) {
-            isBlood = false;
-        }
-        ParticleBudgetState& state = isBlood ? g_bloodBudget : g_generalBudget;
-        const uint32_t perSecond =
-            isBlood ? g_bloodParticleBudget : g_particleBudget;
-        if (!ParticleBudgetAllows(state, perSecond, freshEvent)) {
-            return;
-        }
-    }
-
-    float scratch[7];
-    if (ScalesParticles()) {
-        mults = ScaleParticleMults(mults, scratch);
+    if (g_particleBudget != 0
+        && !ParticleBudgetAllows(g_generalBudget, g_particleBudget,
+                                 freshEvent)) {
+        return;
     }
 
     reinterpret_cast<FxAddParticleFn>(g_fxAddParticlePatch.gateway)(
@@ -3429,11 +3334,6 @@ volatile LONG g_bikeBalanceWindowSequence{};
 SitePatch g_bikeBalanceInputPatch{};
 SitePatch g_bikeBalanceForcePatch{};
 SitePatch g_bikeWheelTurnTracePatch{};
-SitePatch g_bikeBalanceControllerPatch{};
-std::array<AbsoluteOperandPatch, 2> g_bikeBalanceTimeStepPatches{{
-    {kBikeBalanceTimeStepA, {0xD9, 0x05, 0x5C, 0xCB, 0xB7, 0x00}},
-    {kBikeBalanceTimeStepB, {0xD9, 0x05, 0x5C, 0xCB, 0xB7, 0x00}},
-}};
 
 // Cumulative, exception-free telemetry for the wheel-contact turn force that
 // supplies the excess backward pitch on a ramp. Unlike the hardware data
@@ -3496,75 +3396,7 @@ __declspec(naked) void BikeWheelTurnTraceThunk() {
     }
 }
 
-struct BikeBalanceCadenceState {
-    uintptr_t bike{};
-    float elapsed{};
-};
-
-std::array<BikeBalanceCadenceState, 32> g_bikeBalanceCadence{};
-float g_bikeBalanceTimeStep{kOriginalTimeStep};
-
 using ThisCallVoidFn = void(__thiscall*)(void*);
-
-int32_t __cdecl ShouldRunBikeBalanceController(uintptr_t bike) {
-    const float timeStep = ReadGameFloat(kTimerTimeStep, kOriginalTimeStep);
-    if (!std::isfinite(timeStep) || timeStep <= 0.0f
-        || timeStep >= kOriginalTimeStep) {
-        g_bikeBalanceTimeStep = kOriginalTimeStep;
-        return 1;
-    }
-
-    BikeBalanceCadenceState* state = nullptr;
-    for (auto& candidate : g_bikeBalanceCadence) {
-        if (candidate.bike == bike) {
-            state = &candidate;
-            break;
-        }
-        if (!state && candidate.bike == 0) {
-            state = &candidate;
-        }
-    }
-    if (!state) {
-        state = &g_bikeBalanceCadence[0];
-    }
-    if (state->bike != bike) {
-        *state = {bike, 0.0f};
-    }
-
-    state->elapsed += timeStep;
-    if (state->elapsed < kOriginalTimeStep) {
-        return 0;
-    }
-    g_bikeBalanceTimeStep = state->elapsed;
-    state->elapsed = 0.0f;
-    return 1;
-}
-
-// The stock controller is a discrete 30 Hz loop. Its local calculation uses
-// exponential factors, but it samples collision response once per rendered
-// frame; at high FPS that misses the post-impact pitch it is supposed to
-// remove. This keeps collision physics at full rate and runs only the complete
-// balance block at its original cadence with its accumulated elapsed timestep.
-__declspec(naked) void BikeBalanceControllerThunk() {
-    __asm {
-        pushfd
-        pushad
-        mov eax, esi
-        push eax
-        call ShouldRunBikeBalanceController
-        add esp, 4
-        mov [esp + 0x1C], eax
-        popad
-        popfd
-        test eax, eax
-        jz skipController
-        mov eax, dword ptr ds:[0x008D323C]
-        jmp kBikeBalanceControllerReturn
-    skipController:
-        lea ebx, [esi + 0xA4]
-        jmp kBikeBalanceControllerSkip
-    }
-}
 
 bool IsThePlayerVehicle(const void* entity) {
     __try {
@@ -5271,68 +5103,6 @@ void __cdecl FilterBikeLeanTarget(float* target, uintptr_t bike) {
     }
 }
 
-// The force keeps its full magnitude and is delivered on the frames an original
-// 30 FPS run would have delivered it on. Dividing it by the timestep ratio was
-// tried first and put the bike on its side: balance is not linear, and one
-// correction large enough to overcome the resting contact does not survive being
-// split into sixteen, however well the per-second total matches.
-//
-// The decision is made once per game frame and shared by every call site, so a
-// frame's forces all land together or are all skipped together.
-uint32_t g_turnForceLastFrame{};
-float g_turnForceCarry{};
-int32_t g_turnForceTick = 1;
-
-int32_t __cdecl ShouldApplyTurnForce() {
-    __try {
-        const uint32_t frame = *reinterpret_cast<const uint32_t*>(kFrameCounter);
-        if (frame != g_turnForceLastFrame) {
-            g_turnForceLastFrame = frame;
-            g_turnForceCarry += TimeStepRatio();
-            if (g_turnForceCarry >= 1.0f) {
-                g_turnForceCarry -= std::floor(g_turnForceCarry);
-                g_turnForceTick = 1;
-            } else {
-                g_turnForceTick = 0;
-            }
-        }
-        return g_turnForceTick;
-    } __except (EXCEPTION_EXECUTE_HANDLER) {
-        return 1;
-    }
-}
-
-void __cdecl ScaleTurnForceVector(float* force) {
-    __try {
-        if (ShouldApplyTurnForce() != 0) {
-            return;
-        }
-        force[0] = 0.0f;
-        force[1] = 0.0f;
-        force[2] = 0.0f;
-    } __except (EXCEPTION_EXECUTE_HANDLER) {
-        return;
-    }
-}
-
-// Entered by a `call`, so `[esp]` is the return address and the force vector
-// starts at `[esp+4]`. After `pushfd` and `pushad` that is `[esp+0x28]`. The
-// tail is a `jmp`, so `CPhysical::ApplyTurnForce` returns straight to the
-// original caller and `ecx`, which carries `this`, is restored by `popad`.
-__declspec(naked) void ScaledApplyTurnForceThunk() {
-    __asm {
-        pushfd
-        pushad
-        lea eax, [esp + 0x28]
-        push eax
-        call ScaleTurnForceVector
-        add esp, 4
-        popad
-        popfd
-        jmp kApplyTurnForce
-    }
-}
-
 // Scales a force vector the caller pushed by value. Identity at or below
 // 30 FPS, where the ratio is 1.0 or greater and the original already applied
 // the full force once per frame.
@@ -6431,11 +6201,9 @@ bool InstallHudFlashRateFix() {
         return false;
     }
 
-    g_hudFlashIntervalMs = static_cast<unsigned>(std::clamp(
-        ReadNumber("hud", "flashIntervalMs",
-                   static_cast<int>(kDefaultHudFlashIntervalMs)),
-        static_cast<int>(kMinHudFlashIntervalMs),
-        static_cast<int>(kMaxHudFlashIntervalMs)));
+    // 320 ms on and 320 ms off is what `frameCounter & 8` produced at the 25 FPS
+    // the HUD was drawn for, so there is nothing here for a player to tune.
+    g_hudFlashIntervalMs = kDefaultHudFlashIntervalMs;
     g_hudDisableFlashing = ReadSetting("hud", "disableFlashing", false);
 
     // Seed the clock before the game can read it, then redirect the reads.
@@ -6597,48 +6365,6 @@ bool InstallBikeBalanceTrace() {
     Log("Vehicle state trace: recording stock bike balance inputs and force.");
     return true;
 }
-
-void RestoreBikeBalanceTimeStepOperands() {
-    for (auto& patch : g_bikeBalanceTimeStepPatches) {
-        if (patch.installed) {
-            WriteBytes(patch.instruction + 2, patch.expected.data() + 2, 4);
-            patch.installed = false;
-        }
-    }
-}
-
-bool InstallBikeBalanceControlFix() {
-    constexpr std::array<uint8_t, 5> expectedController{
-        0xA1, 0x3C, 0x32, 0x8D, 0x00
-    };
-    for (const auto& patch : g_bikeBalanceTimeStepPatches) {
-        if (!MemoryMatches(patch.instruction, patch.expected)) {
-            Log("Bike balance control fix skipped: timestep operands do not match GTA SA 1.0 US.");
-            return false;
-        }
-    }
-    if (!InstallJump(g_bikeBalanceControllerPatch, kBikeBalanceController,
-                     &BikeBalanceControllerThunk, expectedController)) {
-        Log("Bike balance control fix skipped: controller entry does not match GTA SA 1.0 US.");
-        return false;
-    }
-
-    const uintptr_t replacement = reinterpret_cast<uintptr_t>(&g_bikeBalanceTimeStep);
-    for (auto& patch : g_bikeBalanceTimeStepPatches) {
-        if (!WriteBytes(patch.instruction + 2,
-                        reinterpret_cast<const uint8_t*>(&replacement),
-                        sizeof(replacement))) {
-            RestoreBikeBalanceTimeStepOperands();
-            RestoreSite(g_bikeBalanceControllerPatch);
-            Log("Bike balance control fix failed while replacing timestep operands.");
-            return false;
-        }
-        patch.installed = true;
-    }
-    Log("Installed 30 Hz-equivalent bike balance controller cadence.");
-    return true;
-}
-
 
 
 bool InstallTruncCarryGroup(uint8_t group, const char* what) {
@@ -7195,35 +6921,6 @@ bool InstallBreakableObjectLifetimeFix() {
     return true;
 }
 
-bool InstallBikeTurnForceFix() {
-    // `bikeTurnForce` is a bit per site rather than a plain switch, because the
-    // four are not equivalent: scaling all of them together takes the bike off
-    // its balance, so which ones belong in the set is settled by measurement.
-    const int sites = std::clamp(ReadNumber("vehicles", "bikeTurnForce", 0), 0, 15);
-    if (sites == 0) {
-        return false;
-    }
-    for (size_t i = 0; i < kBikeTurnForceSites.size(); ++i) {
-        if ((sites & (1 << i)) == 0) {
-            continue;
-        }
-        if (!RepointCall(g_bikeTurnForcePatches[i], kBikeTurnForceSites[i],
-                         kApplyTurnForce, &ScaledApplyTurnForceThunk)) {
-            for (auto& patch : g_bikeTurnForcePatches) {
-                RestoreSite(patch);
-            }
-            Log("Bike turn force fix skipped: executable bytes do not match GTA SA 1.0 US.");
-            return false;
-        }
-    }
-    char message[96];
-    std::snprintf(message, sizeof(message),
-                  "Installed timestep-scaled bike turn forces, site mask %d.",
-                  sites);
-    Log(message);
-    return true;
-}
-
 bool InstallBikeLeanTargetFix() {
     if (!InstallJump(g_bikeLeanTargetPatch, kBikeLeanTarget,
                      &BikeLeanTargetThunk, kExpectedBikeLeanTarget)) {
@@ -7339,7 +7036,6 @@ bool InstallSirenTapFix() {
 bool InstallParticleEmissionRateFix() {
     ResetParticleSites();
     g_generalBudget = {};
-    g_bloodBudget = {};
     if (!InstallDetour(g_fxAddParticlePatch, kFxAddParticle,
                        &HookedFxAddParticle, kExpectedFxAddParticle.data(),
                        kExpectedFxAddParticle.size())) {
@@ -7472,11 +7168,11 @@ DWORD WINAPI Initialize(void*) {
     g_logPath = ModulePathWithExtension(".log");
     CreateDefaultIniIfMissing();
 
-    g_loggingEnabled = ReadSetting("general", "enableLogging", true);
-    if (!ReadSetting("general", "isEnabled", true)) {
-        Log("Plugin disabled by configuration.");
-        return 0;
-    }
+    // `[general]` is not written to the canonical INI: the plugin is always on
+    // and the log is off, so the file a player opens holds nothing but fix
+    // switches. Every key below is still read when someone adds it by hand,
+    // which is how a report gets turned into a log without shipping one.
+    g_loggingEnabled = ReadSetting("general", "enableLogging", false);
 
     if (reinterpret_cast<uintptr_t>(GetModuleHandleA(nullptr)) != kImageBase) {
         Log("Initialization skipped: unexpected executable image base.");
@@ -7521,10 +7217,6 @@ DWORD WINAPI Initialize(void*) {
                InstallTaskTimersFix);
     InstallFix("vehicles", "restThreshold", "Vehicle rest threshold fix",
                InstallVehicleRestThresholdFix);
-    InstallFix("vehicles", "bikeTurnForce", "Bike turn force fix",
-               InstallBikeTurnForceFix);
-    InstallFix("vehicles", "bikeBalanceControl", "Bike balance control fix",
-               InstallBikeBalanceControlFix, false);
     InstallFix("vehicles", "bikeLeanTarget", "Bike lean target fix",
                InstallBikeLeanTargetFix);
     InstallFix("vehicles", "groundFriction", "Ground friction fix",
@@ -7596,29 +7288,28 @@ DWORD WINAPI Initialize(void*) {
                InstallContinuousWeaponAmmoFix);
     InstallFix("weapons", "chainsawStrikeRate", "Chainsaw strike rate fix",
                InstallChainsawStrikeRateFix);
-    g_particleSizeMult =
-        std::clamp(ReadFloat("particles", "sizeMult", 1.0f), 0.0f, 8.0f);
-    g_particleLifeMult =
-        std::clamp(ReadFloat("particles", "lifeMult", 1.0f), 0.0f, 8.0f);
-    g_particleAlphaMult =
-        std::clamp(ReadFloat("particles", "alphaMult", 1.0f), 0.0f, 8.0f);
+    // A hard ceiling on new particles a second, the way FxLimiter capped them.
+    // Not written to the canonical INI: it trades effects away for frame time
+    // rather than correcting a frame-rate dependence, and `emissionRate`
+    // already restores the intended density. Off unless asked for by hand.
     g_particleBudget = static_cast<uint32_t>(
         std::clamp(ReadNumber("particles", "particlesPerSecond", 0), 0, 100000));
-    g_bloodParticleBudget = static_cast<uint32_t>(std::clamp(
-        ReadNumber("particles", "bloodParticlesPerSecond", 0), 0, 100000));
     g_particleRateGate = ReadSetting("particles", "emissionRate", true);
-    if (g_particleRateGate || g_particleBudget != 0
-        || g_bloodParticleBudget != 0 || ScalesParticles()) {
+    if (g_particleRateGate || g_particleBudget != 0) {
         InstallParticleEmissionRateFix();
     } else {
         Log("Direct particle emission hook not needed by configuration.");
     }
-    InstallFix("hud", "moneyCounter", "HUD money counter fix",
-               InstallMoneyCounterFix);
-    InstallFix("hud", "flashRate", "HUD flash rate fix",
-               InstallHudFlashRateFix);
-    InstallFix("hud", "hudTimers", "HUD timer fix",
-               InstallHudTimersFix);
+    // One switch over three mechanisms: the flash clock, the money counter step
+    // and the 46 timed-text accumulators. They are separate patches but one
+    // symptom to a player, so they are configured together.
+    if (ReadSetting("hud", "hudTiming", true)) {
+        InstallMoneyCounterFix();
+        InstallHudFlashRateFix();
+        InstallHudTimersFix();
+    } else {
+        Log("HUD timing fixes disabled by configuration.");
+    }
     InstallFix("world", "gangWarTimer", "Gang war timer fix",
                InstallGangWarTimerFix);
     InstallFix("world", "fireSpread", "Fire spread fix",
@@ -7788,8 +7479,6 @@ void Shutdown() {
     RestoreDetour(g_applyGravityPatch);
     RestoreSite(g_bikeBalanceForcePatch);
     RestoreSite(g_bikeBalanceInputPatch);
-    RestoreBikeBalanceTimeStepOperands();
-    RestoreSite(g_bikeBalanceControllerPatch);
     for (auto& patch : g_leanWritePatches) {
         RestoreSite(patch);
     }
@@ -7849,9 +7538,6 @@ void Shutdown() {
     RestoreSite(g_turnAirResistancePatch);
     RestoreSite(g_groundFrictionPatch);
     RestoreSite(g_bikeLeanTargetPatch);
-    for (auto& patch : g_bikeTurnForcePatches) {
-        RestoreSite(patch);
-    }
     for (auto& patch : g_heliRotorPatches) {
         RestoreSite(patch);
     }

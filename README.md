@@ -74,8 +74,8 @@ General:
 
 - Optional frame limiting, minimum display refresh rate and automatic FPS
   limiting for specific game cases. All are disabled by default.
-- Can disable the plugin or any individual fix through an INI file.
-- Logs initialization and compatibility failures next to the ASI.
+- Can disable any individual fix through an INI file that holds nothing else.
+- Writes no log and no file of its own unless a diagnostic key is added by hand.
 
 ## Requirements
 
@@ -97,24 +97,22 @@ ASI and INI to uninstall it.
 
 ## Configuration
 
+The shipped INI holds nothing but fix switches: the plugin is always active and
+writes no log. Three groups of keys are read but not written, so a normal
+install has nothing to explain and a diagnostic session is still one line away.
+
+| Hidden key | Section | Default | Meaning |
+| --- | --- | ---: | --- |
+| `enableLogging` | `general` | `0` | `1` writes `HighFpsFixes.log` beside the ASI, listing every fix that installed and every one that was skipped with the reason. Add it when reporting a problem. |
+| `traceVehicleState`, `traceWatchOffset`, `traceWatchMode`, `traceWatchHits`, `traceWatchSamples`, `traceWatchReports`, `traceWatchArmDelay`, `tracePlayerPed`, `traceCycleSkill`, `traceChainsaw` | `general` | `0` | Development traces. They sample vehicle or player state, or count a specific loop, into `HighFpsFixes.trace.log` and the main log. Only useful with the source at hand. |
+| `particlesPerSecond` | `particles` | `0` | A hard ceiling on new particles a second, the way FxLimiter capped them. This trades effects away for frame time rather than correcting a frame-rate dependence, and `emissionRate` already restores the intended density, so it is off unless asked for by hand. |
+
+The shipped file, and what every switch means:
+
 ```ini
 # High FPS Fixes v0.9.0
 # Created by sonochiwa
 # Source code: https://github.com/sonochiwa/sa-high-fps-fixes
-
-[general]
-isEnabled=1
-enableLogging=1
-traceVehicleState=0
-traceWatchOffset=76
-traceWatchMode=0
-traceWatchHits=4000
-traceWatchSamples=100
-traceWatchReports=60
-traceWatchArmDelay=3
-tracePlayerPed=0
-traceCycleSkill=0
-traceChainsaw=0
 
 [camera]
 stuntJumpCamera=1
@@ -138,8 +136,6 @@ stuntCounters=1
 taskTimers=1
 
 [vehicles]
-bikeTurnForce=0
-bikeBalanceControl=0
 bikeLeanTarget=1
 groundFriction=1
 turnAirResistance=1
@@ -150,7 +146,7 @@ wheelFriction=1
 railWheelSpin=1
 burnout=1
 swingingChassis=1
-disableSwingingCompletely=0
+disableSwingingCompletely=1
 sirenTap=1
 heliRotorSpeed=1
 skimmerResistance=1
@@ -179,17 +175,9 @@ chainsawStrikeRate=1
 
 [particles]
 emissionRate=1
-sizeMult=1.0
-lifeMult=1.0
-alphaMult=1.0
-particlesPerSecond=0
-bloodParticlesPerSecond=0
 
 [hud]
-flashRate=1
-moneyCounter=1
-hudTimers=1
-flashIntervalMs=320
+hudTiming=1
 disableFlashing=0
 
 [world]
@@ -218,18 +206,6 @@ forPauseMenu=0
 
 | Setting | Default | Meaning |
 | --- | ---: | --- |
-| `isEnabled` | `1` | Enables all plugin initialization. |
-| `enableLogging` | `1` | Writes `HighFpsFixes.log` beside the ASI. |
-| `traceVehicleState` | `0` | Diagnostic only. Samples the player vehicle at 50 Hz into `HighFpsFixes.trace.log`, including bike pedals, wheel angular velocities and local pitch speed. |
-| `traceWatchOffset` | `76` | Diagnostic only. Which `CPhysical` field the trace watchpoint arms on, as a byte offset. `76` is `m_vecMoveSpeed.z`, `80` is `m_vecTurnSpeed.x`. |
-| `traceWatchMode` | `0` | Diagnostic only. `0` arms it on a stationary ridden bike, `2` on any ridden bike regardless of speed; `0` arms the trace watchpoint on a stationary ridden bike, `1` on the vehicle being pushed. |
-| `traceWatchHits` | `4000` | Diagnostic only. Watchpoint hits per report; lower it to size the window to a short event. |
-| `traceWatchSamples` | `100` | Diagnostic only. Trace samples per report, whichever limit is reached first. |
-| `traceWatchReports` | `60` | Diagnostic only. How many reports before the watchpoint is taken down for good. |
-| `traceWatchArmDelay` | `3` | Diagnostic only. Samples the watched object must stay the same before the breakpoint is armed. |
-| `tracePlayerPed` | `0` | Diagnostic only. Logs the on-foot player's position, move speed and health every 20 ms into the same trace file. |
-| `traceCycleSkill` | `0` | Diagnostic only. Logs the cycle skill counter once a second: how many times the accumulate path was reached, the raw and the carried increment, both counters and the threshold. Patches nothing. |
-| `traceChainsaw` | `0` | Diagnostic only. Logs the chainsaw strike loop once a second: how often the rewind site in `CTaskSimpleFight::ProcessPed` runs, how many of those passes arm a strike, how many strikes reach `FightStrike`, and the combo and move the fight task is in. Installs a counting hook on the one `FightStrike` call while it is on, and nothing otherwise. |
 | `stuntJumpCamera` | `1` | Enables fraction-preserving stunt timers. |
 | `aimCameraShake` | `1` | Uses a local minimum timestep only inside the on-foot aim-camera calculations. 
 | `followCameraRate` | `1` | Divides the follow cameras' turn rate by the real timestep instead of clamping the divisor at 1.0. The clamp only binds above 50 FPS, where it leaves the rate short by the ratio. |
@@ -247,8 +223,6 @@ forPauseMenu=0
 | `drunkSteerDelay` | `1` | Shifts the steering delay line in `CPad::Update` at the original 30 FPS rate. The buffer is a ten deep FIFO of steering samples shifted once per frame, and a script sets how many entries of lag the player gets when drunk, so the lag is measured in frames: nine entries are 300 ms at 30 FPS and 4.5 ms at 2000, which removes the effect entirely. |
 | `jetPackFlame` | `1` | Ramps the jetpack thruster flame by time rather than by frames. `CTaskSimpleJetPack::DoJetPackEffect` moves `m_FxKeyTime` by 0.1 per frame toward 1 while the thrusters fire and back toward 0 when they stop, and hands it to the particle system as its constant time; ten frames is a third of a second at 30 FPS and twenty milliseconds at 500, so the flame snaps between its two states instead of blending. Cosmetic. |
 | `fatCounter` | `1` | Carries the remainder that `CStats::UpdateFatAndMuscleStats` throws away. The counter takes `milliseconds * exerciseRate / 10` in integer arithmetic, and that divide keeps no remainder: at 30 FPS the numerator is 33 times the rate, at 500 FPS it is 2 times the rate, so any exercise rate below five yields zero on every frame and fat never burns off however far the player runs. The divide is done in floating point and the fraction is kept for the next frame. Sits below the `_ftol` that `skillProgress` already repaired, and needs it. |
-| `bikeTurnForce` | `0` | Off. A bit per call site for experiments on the bike balance torque; every setting tried so far destabilizes the bike. |
-| `bikeBalanceControl` | `0` | Off. Experimental scheduling of the bike balance correction; tested on an airborne bike and rejected because the launch speed did not change. |
 | `bikeLeanTarget` | `1` | Measures the lean target over one original frame and blends that stabilized value in continuously above 30 FPS; the correction is exactly zero at the stock rate. The measurement carries the whole velocity vector and projects it onto the bike's right axis only after differencing, so a steady corner still reports its centripetal term. |
 | `groundFriction` | `1` | Scales the per-contact friction budget that holds a vehicle to the ground by the timestep ratio. |
 | `turnAirResistance` | `1` | Raises the `0.99` turn speed damping to the timestep ratio instead of applying it once per frame. |
@@ -259,7 +233,7 @@ forPauseMenu=0
 | `railWheelSpin` | `1` | Scales on-rails wheel rotation by the current timestep. |
 | `burnout` | `1` | Scales burnout wheel speed by the current timestep. |
 | `swingingChassis` | `1` | Rescales the `CDoor::Process` swing tuning against the current frame time. |
-| `disableSwingingCompletely` | `0` | Keeps the body rigid. Off by default since 0.9.9: it existed because the sway was broken at a high frame rate, and `doorSwing` fixed the cause. Set `1` to get the rigid body back. |
+| `disableSwingingCompletely` | `1` | Keeps the body rigid, which is a preference rather than a fix: it suppresses the sway the original game has at 30 FPS as well. Set `0` for the stock behavior, corrected by `doorSwing` and `swingingChassis`. |
 | `sirenTap` | `1` | Detects a horn tap by wall-clock time instead of frame count. |
 | `heliRotorSpeed` | `1` | Scales helicopter rotor acceleration by the current timestep. |
 | `skimmerResistance` | `1` | Scales skimmer water resistance by the current timestep. |
@@ -284,15 +258,7 @@ forPauseMenu=0
 | `continuousWeaponAmmo` | `1` | Limits continuous area-effect weapon ammo use to the original 30 FPS rate. |
 | `chainsawStrikeRate` | `1` | Holds the player's held chainsaw to the original fifteen strikes a second. `CTaskSimpleFight::ProcessPed` keeps the cut going by rewinding the moving-attack animation to `hit - 0.01` every time it passes `chain`, and `melee.dat` places the chainsaw's `hit` and `chain` 0.0033 s apart, which is shorter than one frame even at 30 FPS. The rewind and the strike cannot fall on the same frame, so the loop costs a near constant two to four frames whatever the frame rate: fifteen hits a second at 30 FPS, three times that at 144 FPS, against peds and vehicles alike. A strike is now armed on a millisecond clock every 66.7 ms; the passes in between park the animation just past `hit`, where the strike test cannot fire. No effect at 30 FPS or below. |
 | `emissionRate` | `1` | Opens each direct particle call site in `FxSystem_c::AddParticle` thirty times a second. Almost every one of the 43 sites sits in a per-frame update and adds a fixed number of particles with no timestep, so exhaust smoke, tyre spray, boat wake, water cannon and sandstorm all thicken with the frame rate — about 66 times the intended density at 2000 FPS. A site that was idle on the previous frame is always let through, so intermittent spawns such as shell casings, sparks and debris never lose a particle. No effect at 30 FPS or below. |
-| `sizeMult` | `1.0` | Multiplies every particle's sprite size. Sprite area grows in two dimensions, so this is the strongest performance knob of the three. |
-| `lifeMult` | `1.0` | Multiplies every particle's lifetime. |
-| `alphaMult` | `1.0` | Multiplies every particle's opacity, clamped to `0..1`. |
-| `particlesPerSecond` | `0` | Optional hard ceiling on new non-blood particles per second, independent of `emissionRate`. `0` disables it. This is a performance budget rather than a fix; `emissionRate` already restores the intended density. |
-| `bloodParticlesPerSecond` | `0` | The same ceiling for blood, which gets its own budget so a busy world cannot thin it out. `0` disables it. |
-| `flashRate` | `1` | Drives HUD flashing from a real-time clock instead of the frame counter. |
-| `moneyCounter` | `1` | Scales the HUD money counter step into the current frame and carries the fraction, so it counts at the original rate instead of racing through the difference. |
-| `hudTimers` | `1` | Same carry across all 46 timers behind the HUD's timed text and bars: area and vehicle names, help text, mission title, odd job, busted and wasted, success and failed, the fade state, the wanted stars and the player info bars. Unrelated to `flashRate`, which handles the separate frame-counter blinking. |
-| `flashIntervalMs` | `320` | Full flash period in milliseconds, `40`-`5000`. `320` is the original 25 FPS rate. |
+| `hudTiming` | `1` | One switch over the three HUD timing fixes. The flash clock is driven from real time instead of the frame counter, at the original 320 ms period. The money counter step is scaled into the current frame with the fraction carried, so it counts at the original rate instead of racing through the difference. And the same carry is applied across all 46 timers behind the HUD's timed text and bars: area and vehicle names, help text, mission title, odd job, busted and wasted, success and failed, the fade state, the wanted stars and the player info bars. The timer carry is not an identity at 30 FPS; text stays up about 1% longer than stock. |
 | `disableFlashing` | `0` | `1` keeps the radar and the low-health bar permanently visible. |
 | `gangWarTimer` | `1` | Same carry on the gang war countdown in `CGangWars::Update`. |
 | `fireSpread` | `1` | Evaluates the three random fire events in `CFire::ProcessFire` at the original 30 FPS rate. Each is a per-frame probability with no timestep, so nearby cars catch fire, fires propagate and fires merge as many times more often as there are frames; at 2000 FPS that is about 66 times the shipped rate. The fourth gate, object burn damage, is deliberately left alone because its body carries a timestep that cancels the extra frames. |
@@ -421,11 +387,10 @@ compiles and installs is not a validated fix.
 instruction sites. 22 of them have been checked in game: 18 individually, and
 four more as one group whose combined symptom was confirmed without separating
 which member carries the improvement. That is about 36 percent of the shipped
-fixes validated, and roughly 70 percent of the surveyed work closed — the
-specific instruction signatures in the static survey of the executable have been
-read end to end, and everything they found is either fixed or recorded as a
-rejected lead. `bikeTurnForce` and `bikeBalanceControl` ship disabled and are
-not counted.
+fixes validated, and roughly half of the work this project has mapped out
+closed. Three of the fixes — the HUD flash clock, the money counter and the 46
+timed-text accumulators — share the single `hudTiming` switch, so there are 59
+switches for 61 fixes.
 
 ### Confirmed in game
 
@@ -444,7 +409,7 @@ Each was checked by comparing a capped 30 FPS run against an uncapped one.
 | `bikeLeanTarget` | Standing wobble fell from 12-20 degrees peak to peak to 1.31, and cornering lean was confirmed after the projection order was corrected |
 | `wheelSettle` | A wheel kicked up by a rail reads the same at 30 FPS and uncapped |
 | `doorSwing` | Confirmed 2026-08-25, chassis sway only; vehicle doors not separately checked |
-| `moneyCounter` | Confirmed 2026-08-25 |
+| `hudTiming` | Money counter confirmed 2026-08-25; the flash clock and the 46 text timers it also switches are pending |
 | `scriptObjectSlide` | Confirmed on the airport gates: normal, 30-FPS-compatible duration at high FPS |
 | `fallingGlass` | Confirmed with shattered vehicle glass |
 | `breakableObjectLifetime` | Confirmed at 30 FPS and uncapped; a long-session regression test is still open |
@@ -462,8 +427,8 @@ Each was checked by comparing a capped 30 FPS run against an uncapped one.
 `attachedEntitySpeed`, `aiAircraftSteer`, `upsideDownTimer`, `vehicleTimers`,
 `burnTimers`, `rollOntoWheels`, `suspensionDampingLimit`, `collisionPushOut`,
 `wheelSpin`, `boatEngineSpeed`, `bmxSprintLean`, `bmxLeanSettle`,
-`bikeWheelSpin`, `headBopping`, `jumpOutCarSpeed`, `emissionRate`, `flashRate`,
-`hudTimers`, `gangWarTimer`, `fireSpread`, `scriptObjectRotate`,
+`bikeWheelSpin`, `headBopping`, `jumpOutCarSpeed`, `emissionRate`,
+`gangWarTimer`, `fireSpread`, `scriptObjectRotate`,
 `mapZoomWheel`.
 
 What each one corrects is described in the configuration table above.
@@ -475,7 +440,7 @@ frame rate, an A/B that shows no difference is a real result.
 
 | Fix | Test |
 | --- | --- |
-| `hudTimers` | Trigger help text or a mission title and time how long it stays up. Not an identity at 30 FPS; expect about 1% longer than stock |
+| `hudTiming` | Trigger help text or a mission title and time how long it stays up. Not an identity at 30 FPS; expect about 1% longer than stock |
 | `burnTimers` | Set a car on fire and time it to the explosion |
 | `upsideDownTimer` | Flip a car onto its roof and time it to catching fire |
 | `wheelSpin` | Get a drive wheel off the ground and watch it spin up, then watch a free wheel stop |

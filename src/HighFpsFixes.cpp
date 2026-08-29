@@ -116,6 +116,14 @@ constexpr uintptr_t kPedPushCarReturn = 0x0054965A;
 constexpr uintptr_t kProcessSwimmingResistance = 0x0068A1D0;
 constexpr uintptr_t kSwimResistanceCall = 0x0068B4A8;
 constexpr uintptr_t kSwimResistanceReturn = 0x0068B4B0;
+// Compatibility probes for the sites used by Tweaker, Swim FPS Fix and
+// Framerate Vigilante. Those fixes patch inside ProcessSwimmingResistance,
+// while this plugin wraps its caller, so checking only kSwimResistanceCall
+// would miss them and apply the same correction twice.
+constexpr uintptr_t kSwimDiveScale = 0x0068A42B;
+constexpr uintptr_t kSwimAscentBias = 0x0068A4CA;
+constexpr uintptr_t kSwimVectorSetup = 0x0068A4FC;
+constexpr uintptr_t kSwimVectorTransform = 0x0068A50E;
 constexpr size_t kPedAnimMovingShift = 0x4D8;
 
 // Follow cameras. `CCam::Process_FollowPed_SA` and `CCam::Process_FollowCar_SA`
@@ -408,6 +416,10 @@ constexpr uintptr_t kHeliRotorSlowReturn = 0x006C4F2F;
 constexpr uintptr_t kHeliRotorFastReturn = 0x006C4F3D;
 constexpr uintptr_t kSirenPatch = 0x006E0961;
 constexpr uintptr_t kSirenAnchor = 0x006E0999;
+// The 1.0 US executable uses this trampoline to load the stock horn-history
+// index before continuing at 0x006E0968. Network and NPC vehicles must retain
+// that path because SA-MP writes their synchronized horn/siren state there.
+constexpr uintptr_t kSirenOriginalReturn = 0x00403940;
 constexpr uintptr_t kSirenToggleReturn = 0x006E0999;
 constexpr uintptr_t kSirenHornReturn = 0x006E09E8;
 constexpr uintptr_t kSirenNoHornReturn = 0x006E09F7;
@@ -1270,6 +1282,22 @@ constexpr std::array<uint8_t, 6> kExpectedWheelFriction{
 constexpr std::array<uint8_t, 8> kExpectedSwimResistanceCall{
     0x56, 0x8B, 0xCF, 0xE8, 0x20, 0xED, 0xFF, 0xFF
 };
+constexpr std::array<uint8_t, 6> kExpectedSwimDiveScale{
+    0xD8, 0x0D, 0xF4, 0x8E, 0x85, 0x00
+};
+constexpr std::array<uint8_t, 6> kExpectedSwimAscentBias{
+    0xD8, 0x05, 0xCC, 0x08, 0x87, 0x00
+};
+constexpr std::array<uint8_t, 18> kExpectedSwimVectorSetup{
+    0xD9, 0x5C, 0x24, 0x1C,
+    0xD9, 0x44, 0x24, 0x14,
+    0xD8, 0xC9,
+    0xD9, 0x5C, 0x24, 0x20,
+    0xD8, 0x4C, 0x24, 0x18
+};
+constexpr std::array<uint8_t, 6> kExpectedSwimVectorTransform{
+    0xD9, 0xC1, 0xD8, 0x08, 0xD9, 0xC2
+};
 // fld 1.0 / fcomp ms_fTimeStep / fnstsw / test / jne / fld 1.0 / jmp / fld ts
 constexpr std::array<uint8_t, 33> kExpectedCameraRateClamp{
     0xD9, 0x05, 0x24, 0x86, 0x85, 0x00,
@@ -1686,9 +1714,12 @@ uint32_t g_fakePhysicsLastFrame{0xFFFFFFFF};
 float g_fakePhysicsCarry{};
 int32_t g_fakePhysicsTick{1};
 
-uint32_t g_hornPressLastTime{};
-bool g_hornHasPressed{};
-bool g_hornJustUp{};
+struct HornTapState {
+    uint32_t pressLastTime{};
+    bool hasPressed{};
+};
+
+std::array<HornTapState, 2> g_hornTapStates{};
 
 int g_fpsLimit{};
 int g_refreshRate{};
@@ -1825,6 +1856,14 @@ template <size_t Size>
 bool MemoryMatches(uintptr_t address,
                    const std::array<uint8_t, Size>& expected) {
     return MemoryMatchesRaw(address, expected.data(), expected.size());
+}
+
+bool SwimmingMovementCodeIsUnmodified() {
+    return MemoryMatches(kSwimDiveScale, kExpectedSwimDiveScale)
+        && MemoryMatches(kSwimAscentBias, kExpectedSwimAscentBias)
+        && MemoryMatches(kSwimVectorSetup, kExpectedSwimVectorSetup)
+        && MemoryMatches(kSwimVectorTransform,
+                         kExpectedSwimVectorTransform);
 }
 
 
@@ -2803,7 +2842,11 @@ bool g_swimShiftScaled{};
 void __cdecl ScaleSwimAnimShift(uintptr_t ped) {
     g_swimShiftScaled = false;
     __try {
-        if (!ped) {
+        // Recheck the shared function at run time as well as installation.
+        // Some ASI loaders install scripts-directory plugins after this one;
+        // if Tweaker or Swim FPS Fix appears later, this wrapper remains in
+        // place but becomes an identity instead of double-scaling the shift.
+        if (!ped || !SwimmingMovementCodeIsUnmodified()) {
             return;
         }
         const float timeStep = *reinterpret_cast<float*>(kTimerTimeStep);
@@ -4256,32 +4299,54 @@ void* PadAt(int index) {
 // CVehicle::ProcessSirenAndHorn separates a horn tap from a hold using a
 // per-frame history buffer, so a tap covers fewer real milliseconds as the
 // frame rate rises. This replaces the buffer with a wall-clock threshold.
+//
+// Only local players own a CPad. In particular, a SA-MP remote driver is not
+// the second local player: treating every driver other than Players[0] as pad
+// 1 lets a nearby network vehicle observe the idle second pad, consume player
+// 0's shared tap state and make the siren impossible to toggle. Match both
+// local player slots explicitly and keep independent state for split-screen.
+// All other vehicles continue through the original code: forcing its no-horn
+// branch would erase the counter that SA-MP synchronizes for remote sirens,
+// leaving the lights active while suppressing their sound.
 uintptr_t __cdecl SelectSirenReturnAddress(uintptr_t vehicle) {
     __try {
         void* driver = *reinterpret_cast<void**>(vehicle + kVehicleDriverOffset);
-        void* firstPlayer = *reinterpret_cast<void**>(kWorldPlayers);
-        void* pad = PadAt(driver == firstPlayer ? 0 : 1);
+        int playerIndex = -1;
+        for (int i = 0; i < 2; ++i) {
+            void* player = *reinterpret_cast<void**>(
+                kWorldPlayers + static_cast<uintptr_t>(i) * kPlayerInfoSize);
+            if (player && driver == player) {
+                playerIndex = i;
+                break;
+            }
+        }
+        if (playerIndex < 0) {
+            return kSirenOriginalReturn;
+        }
+
+        void* pad = PadAt(playerIndex);
+        HornTapState& state = g_hornTapStates[playerIndex];
 
         const uint32_t now = *reinterpret_cast<uint32_t*>(
             kTimerTimeInMilliseconds);
         if (reinterpret_cast<PadStateFn>(kPadHornJustDown)(pad)) {
-            g_hornPressLastTime = now;
-            g_hornHasPressed = true;
+            state.pressLastTime = now;
+            state.hasPressed = true;
         }
         const bool horn = reinterpret_cast<PadStateFn>(kPadGetHorn)(pad);
-        g_hornJustUp = !horn && g_hornHasPressed;
 
-        if (horn && now - g_hornPressLastTime >= kSirenTapMilliseconds) {
+        if (horn && now - state.pressLastTime >= kSirenTapMilliseconds) {
             return kSirenHornReturn;
         }
-        if (g_hornJustUp && now - g_hornPressLastTime < kSirenTapMilliseconds) {
-            g_hornJustUp = false;
-            g_hornHasPressed = false;
-            return kSirenToggleReturn;
+        if (!horn && state.hasPressed) {
+            state.hasPressed = false;
+            if (now - state.pressLastTime < kSirenTapMilliseconds) {
+                return kSirenToggleReturn;
+            }
         }
         return kSirenNoHornReturn;
     } __except (EXCEPTION_EXECUTE_HANDLER) {
-        return kSirenNoHornReturn;
+        return kSirenOriginalReturn;
     }
 }
 
@@ -5974,6 +6039,11 @@ bool InstallAimingRifleWalkFix() {
 }
 
 bool InstallSwimmingMovementFix() {
+    if (!SwimmingMovementCodeIsUnmodified()) {
+        Log("Swimming movement fix skipped: another swimming FPS fix has "
+            "modified CTaskSimpleSwim::ProcessSwimmingResistance.");
+        return false;
+    }
     if (!InstallJump(g_swimmingPatch, kSwimResistanceCall,
                      &SwimResistanceThunk, kExpectedSwimResistanceCall)) {
         Log("Swimming movement fix skipped: CTaskSimpleSwim bytes do not match GTA SA 1.0 US.");

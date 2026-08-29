@@ -110,7 +110,7 @@ install has nothing to explain and a diagnostic session is still one line away.
 The shipped file, and what every switch means:
 
 ```ini
-# High FPS Fixes v0.9.1
+# High FPS Fixes v0.9.2
 # Created by sonochiwa
 # Source code: https://github.com/sonochiwa/sa-high-fps-fixes
 
@@ -295,7 +295,7 @@ contains the ZIP archive, a SHA-256 checksum file, and a signed GitHub artifact
 attestation that binds the archive to its source commit and workflow:
 
 ```bat
-gh attestation verify HighFpsFixes-v0.9.1.zip -R sonochiwa/sa-high-fps-fixes
+gh attestation verify HighFpsFixes-v0.9.2.zip -R sonochiwa/sa-high-fps-fixes
 ```
 
 The attestation is provenance and integrity verification: it proves the bytes

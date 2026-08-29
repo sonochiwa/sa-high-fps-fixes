@@ -1456,7 +1456,7 @@ constexpr std::array<std::array<uint8_t, 6>, 4> kExpectedRailWheelSpin{{
 }};
 
 constexpr char kDefaultIni[] =
-    "# High FPS Fixes v0.9.1\n"
+    "# High FPS Fixes v0.9.2\n"
     "# Created by sonochiwa\n"
     "# Source code: https://github.com/sonochiwa/sa-high-fps-fixes\n"
     "\n"
@@ -7249,7 +7249,7 @@ DWORD WINAPI Initialize(void*) {
         return 0;
     }
 
-    Log("Initializing High FPS Fixes v0.9.1.");
+    Log("Initializing High FPS Fixes v0.9.2.");
 
     InstallFix("camera", "stuntJumpCamera", "Stunt jump camera fix",
                InstallStuntJumpCameraFix);

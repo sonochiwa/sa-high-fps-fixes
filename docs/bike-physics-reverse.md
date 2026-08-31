@@ -48,10 +48,11 @@ and a tested 24% asymptotic correction is applied once after the stock launch
 pass, fading continuously to an exact no-op at 30 FPS. During the following
 landing window, false upright rider-fall events and vertical damage knock-offs
 up to intensity 31 are suppressed, while harder or sideways impacts remain
-stock. The BMX suspension damping uses the exact exponential equivalent of one
-30-FPS damping step, preventing the wheels from rebounding farther at high FPS.
-Ordinary wheelies and jumps that did not receive a stock launch impulse are not
-affected.
+stock. The general suspension-damping hook uses the exact exponential
+equivalent of one 30-FPS damping step, preventing the BMX wheels from
+rebounding farther at high FPS without a BMX-only constant override. Ordinary
+wheelies and jumps that did not receive a stock launch impulse are not affected
+by the pitch and landing protection.
 
 ## Generic collision and settling path
 
@@ -208,7 +209,7 @@ mathematical grounds as well as by control-flow context.
 | `wheelFriction` | Yes, while suspension/wheel contacts are processed | Ported from FramerateVigilante; disabling it broke ordinary coast/brake behaviour, so it must remain |
 | `groundFriction` | Yes, for body contacts | Global hook is caller-dependent and suspicious for abandoned contacts, but excluding abandoned bikes did not change the symptom; secondary audit item |
 | `turnAirResistance` | Yes, for angular velocity | Correct exponential conversion of a stock once-per-frame `0.99`; disabling it did not help |
-| `suspensionDampingLimit` | Only through suspension damping | Changes a timestep-based impulse cap, not body penetration; no exit-specific branch found |
+| `suspensionDampingLimit` | Only through suspension damping | Exact exponential conversion at `ApplySpringDampening`; no shared-global rewrite and no exit-specific branch |
 | `moveSpeedSnap` | Only when each speed component is already near zero | Cannot explain active tossing; abandoned-bike A/B did not help |
 | `restThreshold` | Only the near-rest distance comparison | Affects when sleep is considered, not the preceding impact sequence |
 | `physicsSleepRate` | Only the fake-physics/rest counter | Affects settling completion; disabling it did not change the active motion |
@@ -216,11 +217,11 @@ mathematical grounds as well as by control-flow context.
 | `collisionPushOut` | Yes, precisely when normal collision resolution leaves the bike penetrating | Global conversion is questionable, but disabling it did not affect the reported riderless travel |
 
 `collisionPushOut` is not a FramerateVigilante fix. It was introduced by this
-plugin in its initial `0.9.0` commit and is still listed in the README's
-not-yet-checked group. The source argument for it assumes a persistent fixed
-overlap such as riding a rail, while the hook is global and therefore also
-changes fresh dynamic impacts. Those two cases cannot safely share the same
-linear correction.
+plugin in its initial `0.9.0` commit. The source argument for it assumes a
+persistent fixed overlap such as riding a rail, while the hook is global and
+therefore also changes fresh dynamic impacts. Those two cases cannot safely
+share the same linear correction, so the hook is retained only as an opt-in
+diagnostic A/B and is disabled by default.
 
 ## Implementation conclusion
 

@@ -74,6 +74,9 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup>
+    <ClCompile>
+      <TreatWarningAsError>true</TreatWarningAsError>
+    </ClCompile>
     <PostBuildEvent>
       <Command>copy /Y "$(SolutionDir)Config\HighFpsFixes.ini" "$(OutDir)HighFpsFixes.ini"</Command>
     </PostBuildEvent>
@@ -85,6 +88,26 @@
     <None Include="..\Config\HighFpsFixes.ini" />
     <None Include="..\LICENSE" />
     <None Include="..\README.md" />
+    <None Include="modules\bootstrap.inl" />
+    <None Include="modules\configuration.inl" />
+    <None Include="modules\diagnostics.inl" />
+    <None Include="modules\expected_bytes.inl" />
+    <None Include="modules\game_addresses.inl" />
+    <None Include="modules\hud.inl" />
+    <None Include="modules\installers.inl" />
+    <None Include="modules\installers\core_installers.inl" />
+    <None Include="modules\installers\vehicle_installers.inl" />
+    <None Include="modules\installers\world_optional_installers.inl" />
+    <None Include="modules\patching.inl" />
+    <None Include="modules\player.inl" />
+    <None Include="modules\README.md" />
+    <None Include="modules\runtime_features.inl" />
+    <None Include="modules\thunks.inl" />
+    <None Include="modules\thunks\base_thunks.inl" />
+    <None Include="modules\thunks\vehicle_thunks.inl" />
+    <None Include="modules\thunks\world_runtime_thunks.inl" />
+    <None Include="modules\vehicles.inl" />
+    <None Include="modules\weapons_and_particles.inl" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

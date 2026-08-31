@@ -9,8 +9,10 @@ they do not match. Other executable versions are not supported.
 
 Every fix rescales one original engine calculation against the timestep the
 game had at 30 FPS, so behavior at 30 FPS is unchanged and the same result is
-reached at any higher frame rate. The plugin never rewrites GTA's global
-timestep, and it never caps the frame rate unless the optional frame limiting
+reached at any higher frame rate. Ordinary fixes do not rewrite GTA's global
+timestep. The optional experimental abandoned-bike mode scopes an original
+timestep around the bike's stock physics calls and restores it immediately.
+The plugin never caps the frame rate unless the optional frame limiting
 settings are enabled explicitly.
 
 ## Features
@@ -137,6 +139,8 @@ taskTimers=1
 
 [vehicles]
 bikeLeanTarget=1
+bikePitchExperiment=1
+bikePitchExperimentStrength=100
 groundFriction=1
 turnAirResistance=1
 moveSpeedSnap=1
@@ -157,7 +161,7 @@ vehicleTimers=1
 burnTimers=1
 rollOntoWheels=1
 suspensionDampingLimit=1
-collisionPushOut=1
+collisionPushOut=0
 wheelSettle=1
 wheelSpin=1
 boatEngineSpeed=1
@@ -218,13 +222,13 @@ forPauseMenu=0
 | `skillProgress` | `1` | Carries the fraction that `_ftol` discards in all 21 stat counter truncations in `CStats::UpdateStatsWhen*`. Unpatched, every skill that levels through use (stamina, cycling, swimming, lung capacity, driving, flying, motorbike, fat, max health) advances more slowly the higher the frame rate, and stops entirely above about 1000 FPS. |
 | `stuntCounters` | `1` | Same carry applied to the wheelie, stoppie and two-wheel counters in `CPlayerInfo::Process`, and to the grace buffers that let a stunt survive a brief interruption. Unpatched, stunt time accumulates more slowly the higher the frame rate. |
 | `taskTimers` | `1` | Same carry on six ped and player task timers: target evaluation, stealth kill, time in air, the climb timeout and the melee combo window. Each is compared against a threshold in milliseconds, so the truncation moves the threshold. |
-| `pedPushVehicle` | `1` | Delivers the collision impulse a ped applies to a vehicle at the original 30 FPS rate. |
+| `pedPushVehicle` | `1` | Delivers the complete paired ped/vehicle collision response at the original 30 Hz cadence. Both the ped and vehicle vectors, including their vertical components, are either applied together at full stock strength or skipped together. This prevents cars from being over-pushed and prevents repeated small vertical impulses from lifting the player while pushing a fallen bike. At 30 FPS every frame is selected and remains stock. |
 | `drowningDamage` | `1` | Carries the fraction of drowning damage that integer truncation discards into the next frame. Above roughly 150 FPS the unpatched game deals none at all. |
 | `drunkSteerDelay` | `1` | Shifts the steering delay line in `CPad::Update` at the original 30 FPS rate. The buffer is a ten deep FIFO of steering samples shifted once per frame, and a script sets how many entries of lag the player gets when drunk, so the lag is measured in frames: nine entries are 300 ms at 30 FPS and 4.5 ms at 2000, which removes the effect entirely. |
 | `jetPackFlame` | `1` | Ramps the jetpack thruster flame by time rather than by frames. `CTaskSimpleJetPack::DoJetPackEffect` moves `m_FxKeyTime` by 0.1 per frame toward 1 while the thrusters fire and back toward 0 when they stop, and hands it to the particle system as its constant time; ten frames is a third of a second at 30 FPS and twenty milliseconds at 500, so the flame snaps between its two states instead of blending. Cosmetic. |
 | `fatCounter` | `1` | Carries the remainder that `CStats::UpdateFatAndMuscleStats` throws away. The counter takes `milliseconds * exerciseRate / 10` in integer arithmetic, and that divide keeps no remainder: at 30 FPS the numerator is 33 times the rate, at 500 FPS it is 2 times the rate, so any exercise rate below five yields zero on every frame and fat never burns off however far the player runs. The divide is done in floating point and the fraction is kept for the next frame. Sits below the `_ftol` that `skillProgress` already repaired, and needs it. |
 | `bikeLeanTarget` | `1` | Measures the lean target over one original frame and blends that stabilized value in continuously above 30 FPS; the correction is exactly zero at the stock rate. The measurement carries the whole velocity vector and projects it onto the bike's right axis only after differencing, so a steady corner still reports its centripetal term. |
-| `bikePitchExperiment` | `1` | Corrects excessive backward pitch acquired at takeoff. Motorcycles are corrected only in the rear-wheel takeoff phase after the front suspension has cleared the ramp. A BMX bunny hop gets one measured correction after its stock launch physics pass, preventing the small initial angular-speed error from accumulating into several extra degrees before landing. Level-ground wheelies, nose-down pitch, yaw, roll, and 30 FPS or below remain stock. |
+| `bikePitchExperiment` | `1` | Corrects excessive backward pitch acquired at takeoff. Motorcycles are corrected only in the rear-wheel takeoff phase after the front suspension has cleared the ramp. A BMX bunny hop gets one measured correction after its stock launch physics pass, preventing the small initial angular-speed error from accumulating into several extra degrees before landing. Its wheel rebound is handled independently by `suspensionDampingLimit`. Level-ground wheelies, nose-down pitch, yaw, roll, and 30 FPS or below remain stock. |
 | `bikePitchExperimentStrength` | `100` | Percentage of the frame-rate excess removed from positive pitch during that takeoff window. The actual correction is also multiplied by `1 - current timestep / 30-FPS timestep`, so it fades continuously to zero at 30 FPS. Changing this value does not require rebuilding the plugin. |
 | `groundFriction` | `1` | Scales the per-contact friction budget that holds a vehicle to the ground by the timestep ratio. |
 | `turnAirResistance` | `1` | Raises the `0.99` turn speed damping to the timestep ratio instead of applying it once per frame. |
@@ -245,8 +249,8 @@ forPauseMenu=0
 | `vehicleTimers` | `1` | Same carry on the `CCarCtrl::UpdateCarAI` timer and the `CVehicle::FlyingControl` timer. |
 | `burnTimers` | `1` | Same carry on the burn timers of cars, bikes and boats, which count how long a burning vehicle has before it explodes. |
 | `rollOntoWheels` | `1` | Scales the roll-onto-wheels assist in `CAutomobile::ProcessSuspension` by the timestep ratio. Unpatched it applies a fixed righting impulse once per frame with no timestep, so a car resting on its side is pushed upright in proportion to the frame rate. Only fires while a nearly stationary car is on its side. |
-| `suspensionDampingLimit` | `1` | Scales the per-frame suspension damping limit by the timestep ratio. Unpatched the limit is a fixed 0.25 measured in frames, so it clips the damping of Infernus, Cheetah, Super GT, Elegy and a few others at 30 FPS and never clips it at a high frame rate, leaving their suspension about a third stiffer than intended. |
-| `collisionPushOut` | `1` | Scales the penetration push-out in `CPhysical::ProcessShiftSectorList` by the timestep ratio. The function ends by adding the frame's deepest collision point, along the averaged contact normal, times `0.75` or `1.5` straight onto the entity's position, with no timestep anywhere in the product. A one-off impact hides it because the penetration comes from the same frame's movement, but a vehicle riding something it overlaps by a fixed depth — a rail, a kerb, a low wall — is pushed out once per rendered frame, so at 150 FPS it leaves five times as fast and is thrown off instead of eased over. All six multiplies are scaled, capped at the stock value so 30 FPS and below are untouched. Shared by every physical entity, not only vehicles. |
+| `suspensionDampingLimit` | `1` | Wraps `CPhysical::ApplySpringDampening` and converts its damping coefficient to the exact exponential equivalent of one 30-FPS step. The stock global `0.25` stability clamp is left untouched. This fixes both values that hit the clamp at 30 FPS and the smaller accumulated decay error below it, without a polling thread or writable shared constant. |
+| `collisionPushOut` | `0` | Experimental A/B for persistent overlaps. It linearly scales the penetration correction in `CPhysical::ProcessShiftSectorList`, but that correction is a geometric constraint rather than a rate: the stock `1.5` branch deliberately clears the surface in one pass. It is disabled by default because enabling it can leave fresh impacts penetrating and force repeated collision retries. |
 | `wheelSettle` | `1` | Eases the drawn wheel back down in real time. Every vehicle `PreRender` keeps a visual wheel offset separate from the suspension, snaps it up in one step and eases it down with `position += (target - position) * 0.75` once per rendered frame, with no timestep. Three frames cover the move, so a wheel kicked up by a rail or a kerb settles over 100 ms at 30 FPS and over 20 ms at 150 FPS, where it reads as a one-frame flick rather than a bounce. Ten sites: four wheels on cars, two on bikes, two on BMX, and the gear loops on helicopters and planes. Cosmetic — the drawn wheel, not the suspension. |
 | `boatEngineSpeed` | `1` | Scales the boat engine coast down in `CBoat::ProcessControl` by the timestep. The propeller speed of a boat nobody is driving falls by a fixed 5% per frame, while the three branches that drive the same field under control all use the timestep, so an abandoned boat's propeller stops and its engine note dies far sooner at a high frame rate. |
 | `bikeWheelSpin` | `1` | Coasts a bike's free front wheel down in real time. `CBike::ProcessControl` holds two copies of the same five instructions, on the two sides of a rider flag; the copy at `0x6BB59B` multiplies the wheel's angular velocity by the timestep before the pitch angle integrates it and the copy at `0x6BAC77` does not, so the free front wheel spins sixteen times as fast at 500 FPS as at 30. The rear wheel a page below carries the timestep too, which makes that one copy the odd one out of three. The `0.95` decay, the same instruction `wheelSpin` fixes on cars, is raised to the timestep in both copies. Cosmetic; it is the visible wheel spin, not the physics. |
@@ -290,6 +294,10 @@ Open `HighFpsFixes.sln` in Visual Studio 2022 and build `Release|Win32` with the
 v143 toolset. Outputs are written to `build`, and the canonical INI is copied
 there after a successful build.
 
+Pull requests and pushes build both Win32 configurations with warnings treated
+as errors and MSVC code analysis enabled. `tools\validate-project.ps1` also
+checks version synchronization, project module registration and module size.
+
 ## Release Integrity
 
 Tagged releases are compiled and packaged by GitHub Actions. Each release
@@ -313,7 +321,8 @@ archive and its checksum only.
 ```text
 HighFpsFixes.sln              Visual Studio solution
 Config\HighFpsFixes.ini       Canonical release configuration
-src\HighFpsFixes.cpp          The whole plugin
+src\HighFpsFixes.cpp          Translation-unit entry point
+src\modules\                  Implementation grouped by subsystem
 src\HighFpsFixes.vcxproj      Visual Studio project
 build\                        Generated binaries and intermediates
 references\                   Local research material; not published
@@ -329,6 +338,12 @@ fixes replace a frame counter with a wall-clock comparison, carry a fractional
 remainder across frames, or rescale a global tuning value that the engine
 already reads every frame, which needs no code patch at all.
 
+The implementation is split into thematic `.inl` modules but deliberately built
+as one translation unit. The x86 naked thunks refer directly to internal symbols,
+and keeping one translation unit preserves their ABI and instruction-level
+linkage while separating patch infrastructure, game subsystems, diagnostics and
+installation code for maintenance.
+
 Patch sites for GTA San Andreas 1.0 US:
 
 - `0x49C505` and `0x49C6FB`: the two integer conversions in
@@ -339,7 +354,7 @@ Patch sites for GTA San Andreas 1.0 US:
 - `0x61E0CA`: aiming rifle walk step.
 - `0x68A42B`, `0x68A4CA`, `0x68A50E` and `0x6C27AE`: initial dive, ascent,
   swimming movement vectors and player buoyancy.
-- `0x549652`: ped push force applied to a vehicle.
+- `0x5495F8`: paired ped and vehicle collision forces.
 - `0x6D6E69`, `0x6D6EA8`, `0x6D767F`, `0x6D76AB` and `0x6D76CD`: car and bike
   wheel friction.
 - `0x6B523F`, `0x6B524F`, `0x6B525D` and `0x6B5269`: on-rails wheel rotation.

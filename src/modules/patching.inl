@@ -1,0 +1,747 @@
+// ---------------------------------------------------------------------------
+// Patch bookkeeping
+// ---------------------------------------------------------------------------
+
+struct SitePatch {
+    uintptr_t address{};
+    std::array<uint8_t, 48> original{};
+    size_t size{};
+    bool installed{};
+};
+
+struct BytePatch {
+    uintptr_t address{};
+    uint8_t original{};
+    bool installed{};
+};
+
+struct RawPatch {
+    uintptr_t address{};
+    std::array<uint8_t, 8> original{};
+    size_t size{};
+    bool installed{};
+};
+
+struct DetourPatch {
+    uintptr_t address{};
+    std::array<uint8_t, 16> original{};
+    size_t size{};
+    void* gateway{};
+    bool installed{};
+};
+
+struct AbsoluteOperandPatch {
+    uintptr_t instruction{};
+    std::array<uint8_t, 6> expected{};
+    bool installed{};
+};
+
+union AutoLimitFlags {
+    uint32_t value;
+    struct {
+        uint32_t forMissions : 1;
+        uint32_t forMinigames : 1;
+        uint32_t forSchools : 1;
+        uint32_t forCutscenes : 1;
+        uint32_t forScriptedCutscenes : 1;
+        uint32_t forPauseMenu : 1;
+    } flags;
+};
+
+HMODULE g_module{};
+
+SitePatch g_endTimerPatch{};
+SitePatch g_flightTimerPatch{};
+SitePatch g_continuousAmmoPatch{};
+SitePatch g_chainsawStrikePatch{};
+SitePatch g_fightStrikeTracePatch{};
+float g_chainsawRewindOffset{kChainsawStockRewind};
+void* g_chainsawAnim{};
+uint32_t g_chainsawLastCall{};
+float g_chainsawCredit{};
+bool g_traceChainsaw{};
+uint64_t g_chainsawTraceLast{};
+uint32_t g_chainsawCalls{};
+uint32_t g_chainsawArms{};
+uint32_t g_chainsawStrikes{};
+int32_t g_chainsawCombo{-1};
+int32_t g_chainsawMove{-1};
+int32_t g_chainsawStrikeCombo{-1};
+int32_t g_chainsawStrikeMove{-1};
+float g_chainsawAnimStep{};
+float g_chainsawAnimTime{};
+SitePatch g_drowningDamagePatch{};
+SitePatch g_aimingRifleWalkPatch{};
+SitePatch g_pedPushCarPatch{};
+SitePatch g_skimmerResistancePatch{};
+SitePatch g_burnoutPatch{};
+SitePatch g_sirenPatch{};
+std::array<SitePatch, 4> g_fakePhysicsPatches{};
+std::array<SitePatch, 3> g_restThresholdPatches{};
+std::array<SitePatch, 6> g_moveSpeedSnapPatches{};
+SitePatch g_turnAirResistancePatch{};
+SitePatch g_groundFrictionPatch{};
+SitePatch g_bikeLeanTargetPatch{};
+SitePatch g_bikePitchExperimentPatch{};
+std::array<SitePatch, 2> g_bmxRiderFallTracePatches{};
+DetourPatch g_bmxLaunchBunnyHopPatch{};
+DetourPatch g_bikeDamageKnockOffPatch{};
+DetourPatch g_suspensionDampingPatch{};
+// Scratch for the six move speed snap thunks. The game is single threaded
+// through vehicle processing, and each thunk writes it and reads it back before
+// the next instruction.
+float g_scaledMoveSpeedSnap{};
+SitePatch g_scriptsProcessPatch{};
+SitePatch g_scriptSlideObjectPatch{};
+SitePatch g_scriptRotateObjectPatch{};
+std::array<SitePatch, 3> g_fallingGlassPatches{};
+SitePatch g_breakObjectLifetimePatch{};
+SitePatch g_menuBackgroundPatch{};
+std::array<SitePatch, 5> g_wheelFrictionPatches{};
+SitePatch g_swimmingPatch{};
+SitePatch g_climbSpeedPatch{};
+SitePatch g_moneyStepPatch{};
+SitePatch g_followPedCameraPatch{};
+SitePatch g_followCarCameraPatch{};
+SitePatch g_attachedEntitySpeedPatch{};
+SitePatch g_aiAircraftSteerPatch{};
+std::array<SitePatch, kStatTruncSites.size()> g_statTruncPatches{};
+SitePatch g_rollOntoWheelsTurnPatch{};
+SitePatch g_rollOntoWheelsMovePatch{};
+std::array<SitePatch, 5> g_doorSwingPatches{};
+std::array<SitePatch, 6> g_wheelSpinPatches{};
+SitePatch g_boatEngineDampingPatch{};
+std::array<SitePatch, 3> g_swimPitchPatches{};
+SitePatch g_bmxSprintLeanPatch{};
+std::array<SitePatch, 5> g_bikeWheelSpinPatches{};
+std::array<SitePatch, 2> g_jetPackFxPatches{};
+std::array<SitePatch, 2> g_headBopPatches{};
+std::array<SitePatch, 4> g_bmxLeanPatches{};
+std::array<SitePatch, 6> g_jumpOutDampPatches{};
+std::array<SitePatch, 6> g_pushOutPatches{};
+std::array<SitePatch, 10> g_wheelSettlePatches{};
+SitePatch g_mapWheelSamplePatch{};
+SitePatch g_mapZoomInGatePatch{};
+SitePatch g_mapZoomOutGatePatch{};
+std::array<SitePatch, 3> g_fireGatePatches{};
+SitePatch g_drunkSteerPatch{};
+SitePatch g_fatCounterPatch{};
+SitePatch g_buoyancyThresholdPatch{};
+SitePatch g_buoyancyClampedStorePatch{};
+std::array<SitePatch, 4> g_railWheelSpinPatches{};
+std::array<SitePatch, 2> g_heliRotorPatches{};
+BytePatch g_frameLimiterGatePatch{};
+BytePatch g_frameLimitStorePatch{};
+BytePatch g_refreshRatePatch{};
+DetourPatch g_fxCreateParticlesPatch{};
+DetourPatch g_fxAddParticlePatch{};
+DetourPatch g_aimWeaponPatch{};
+
+float g_endTimerFraction{};
+float g_flightTimerFraction{};
+bool g_endTimerActive{};
+bool g_flightTimerActive{};
+bool g_loggingEnabled{true};
+float g_aimTimeStep{1.0f};
+float g_originalTimeStepValue{kOriginalTimeStep};
+bool g_swingingDisabled{};
+
+uint32_t g_breakLifetimeLastFrame{0xFFFFFFFFu};
+float g_breakLifetimeCarry{};
+int g_breakLifetimeTicks{};
+
+// Only the low byte is ever read by the patched instructions, but the counters
+// are full dwords so that a dword read would also see a sane value.
+volatile uint32_t g_hudFlashClock{};
+volatile uint32_t g_hudVisibleClock{};
+unsigned g_hudFlashIntervalMs{kDefaultHudFlashIntervalMs};
+bool g_hudDisableFlashing{};
+std::atomic_bool g_hudFlashActive{};
+std::array<RawPatch, 6> g_hudFlashPatches{};
+
+// 0 watches a stationary ridden bike, 1 watches the vehicle being pushed.
+int g_watchMode = 0;
+volatile uintptr_t g_watchCandidate{};
+volatile float g_leanTargetRaw{};
+float g_leanTargetHeld{};
+volatile DWORD g_gameThreadId{};
+std::atomic_bool g_diagnosticActive{};
+std::string g_diagnosticPath;
+
+uint32_t g_fakePhysicsLastFrame{0xFFFFFFFF};
+float g_fakePhysicsCarry{};
+int32_t g_fakePhysicsTick{1};
+
+struct HornTapState {
+    uint32_t pressLastTime{};
+    bool hasPressed{};
+};
+
+std::array<HornTapState, 2> g_hornTapStates{};
+
+int g_fpsLimit{};
+int g_refreshRate{};
+int g_lastFpsLimit{};
+bool g_isOnPauseMenu{};
+AutoLimitFlags g_autoLimit{};
+
+std::array<AbsoluteOperandPatch, 13> g_aimTimeStepPatches{{
+    {0x0052167A, {0xD9, 0x05, 0x5C, 0xCB, 0xB7, 0x00}},
+    {0x00521752, {0xD8, 0x1D, 0x5C, 0xCB, 0xB7, 0x00}},
+    {0x00521765, {0xD8, 0x25, 0x5C, 0xCB, 0xB7, 0x00}},
+    {0x005217C9, {0xD9, 0x05, 0x5C, 0xCB, 0xB7, 0x00}},
+    {0x005217DE, {0xD9, 0x05, 0x5C, 0xCB, 0xB7, 0x00}},
+    {0x0052191B, {0xD9, 0x05, 0x5C, 0xCB, 0xB7, 0x00}},
+    {0x00521F40, {0xD9, 0x05, 0x5C, 0xCB, 0xB7, 0x00}},
+    {0x0052210A, {0xD9, 0x05, 0x5C, 0xCB, 0xB7, 0x00}},
+    {0x0052233B, {0xD8, 0x0D, 0x5C, 0xCB, 0xB7, 0x00}},
+    {0x00522369, {0xD8, 0x0D, 0x5C, 0xCB, 0xB7, 0x00}},
+    {0x005223AA, {0xD9, 0x05, 0x5C, 0xCB, 0xB7, 0x00}},
+    {0x005224E4, {0xD9, 0x05, 0x5C, 0xCB, 0xB7, 0x00}},
+    {0x005226CF, {0xD9, 0x05, 0x5C, 0xCB, 0xB7, 0x00}},
+}};
+
+struct EmissionCarrySlot {
+    void* blueprint{};
+    float intensity{};
+};
+
+struct AmmoConsumptionSlot {
+    void* weapon{};
+    int32_t weaponType{};
+    uint32_t lastUpdate{};
+    float credit{};
+};
+
+std::array<EmissionCarrySlot, 16> g_weaponFxEmissionCarry{};
+std::array<AmmoConsumptionSlot, 16> g_ammoConsumptionSlots{};
+std::string g_iniPath;
+std::string g_logPath;
+
+// ---------------------------------------------------------------------------
+// Infrastructure
+// ---------------------------------------------------------------------------
+
+std::string ModulePathWithExtension(const char* extension) {
+    std::array<char, MAX_PATH> path{};
+    const DWORD length = GetModuleFileNameA(g_module, path.data(),
+                                            static_cast<DWORD>(path.size()));
+    if (length == 0 || length >= path.size()) {
+        return {};
+    }
+
+    std::string result(path.data(), length);
+    const size_t slash = result.find_last_of("\\/");
+    const size_t dot = result.find_last_of('.');
+    if (dot != std::string::npos && (slash == std::string::npos || dot > slash)) {
+        result.resize(dot);
+    }
+    result += extension;
+    return result;
+}
+
+void Log(const char* message) {
+    if (!g_loggingEnabled || g_logPath.empty()) {
+        return;
+    }
+
+    FILE* file{};
+    if (fopen_s(&file, g_logPath.c_str(), "a") == 0 && file) {
+        SYSTEMTIME time{};
+        GetLocalTime(&time);
+        std::fprintf(file, "[%02u:%02u:%02u] %s\n", time.wHour, time.wMinute,
+                     time.wSecond, message);
+        std::fclose(file);
+    }
+}
+
+bool CreateDefaultIniIfMissing() {
+    if (g_iniPath.empty()) {
+        return false;
+    }
+    if (GetFileAttributesA(g_iniPath.c_str()) != INVALID_FILE_ATTRIBUTES) {
+        return true;
+    }
+
+    HANDLE file = CreateFileA(g_iniPath.c_str(), GENERIC_WRITE, 0, nullptr,
+                              CREATE_NEW, FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (file == INVALID_HANDLE_VALUE) {
+        return false;
+    }
+
+    DWORD written{};
+    constexpr DWORD size = static_cast<DWORD>(sizeof(kDefaultIni) - 1);
+    const bool ok = WriteFile(file, kDefaultIni, size, &written, nullptr) != FALSE
+                 && written == size;
+    CloseHandle(file);
+    return ok;
+}
+
+bool ReadSetting(const char* section, const char* key, bool defaultValue) {
+    return GetPrivateProfileIntA(section, key, defaultValue ? 1 : 0,
+                                 g_iniPath.c_str()) != 0;
+}
+
+int ReadNumber(const char* section, const char* key, int defaultValue) {
+    return GetPrivateProfileIntA(section, key, defaultValue, g_iniPath.c_str());
+}
+
+bool WriteBytes(uintptr_t address, const uint8_t* bytes, size_t size) {
+    DWORD oldProtect{};
+    void* destination = reinterpret_cast<void*>(address);
+    if (!VirtualProtect(destination, size, PAGE_EXECUTE_READWRITE, &oldProtect)) {
+        return false;
+    }
+
+    std::memcpy(destination, bytes, size);
+    FlushInstructionCache(GetCurrentProcess(), destination, size);
+
+    DWORD ignored{};
+    VirtualProtect(destination, size, oldProtect, &ignored);
+    return true;
+}
+
+bool MemoryMatchesRaw(uintptr_t address, const uint8_t* expected, size_t size) {
+    __try {
+        return std::memcmp(reinterpret_cast<const void*>(address), expected,
+                           size) == 0;
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+        return false;
+    }
+}
+
+template <size_t Size>
+bool MemoryMatches(uintptr_t address,
+                   const std::array<uint8_t, Size>& expected) {
+    return MemoryMatchesRaw(address, expected.data(), expected.size());
+}
+
+bool SwimmingMovementCodeIsUnmodified() {
+    return MemoryMatches(kSwimDiveScale, kExpectedSwimDiveScale)
+        && MemoryMatches(kSwimAscentBias, kExpectedSwimAscentBias)
+        && MemoryMatches(kSwimVectorSetup, kExpectedSwimVectorSetup)
+        && MemoryMatches(kSwimVectorTransform,
+                         kExpectedSwimVectorTransform);
+}
+
+
+// Every byte range this plugin has taken, so two fixes cannot claim the same
+// instruction.
+//
+// This exists because it happened. `heliSpinUp` was written on 2026-08-26 after
+// reading `CHeli::ProcessFlyingCarStuff` and finding a timer whose decay
+// carried the timestep while its rise did not. That reading was correct and the
+// fix was a duplicate: `heliRotorSpeed` had been patching the same two
+// addresses, `0x6C4F29` and `0x6C4F37`, since long before, and doing it better.
+// The byte check caught it in game, because the first fix had already replaced
+// the bytes the second was matching against, and nothing shipped broken. But
+// the byte check only catches an overlap when the first patch happens to change
+// the bytes the second expects, which is luck rather than a guarantee.
+//
+// Refusing the second claim outright makes it a rule instead. The log line
+// names both fixes, which is the thing that turns a silent skip into an
+// obvious mistake.
+struct ClaimedRange {
+    uintptr_t begin;
+    uintptr_t end;
+};
+
+std::array<ClaimedRange, 384> g_claimedRanges{};
+size_t g_claimedRangeCount{};
+
+bool ClaimPatchRange(uintptr_t address, size_t size) {
+    const uintptr_t begin = address;
+    const uintptr_t end = address + size;
+    for (size_t i = 0; i < g_claimedRangeCount; ++i) {
+        if (begin < g_claimedRanges[i].end
+            && g_claimedRanges[i].begin < end) {
+            char line[160];
+            std::snprintf(line, sizeof(line),
+                          "Patch site refused: 0x%08X..0x%08X overlaps "
+                          "0x%08X..0x%08X, already patched by another fix.",
+                          static_cast<unsigned>(begin),
+                          static_cast<unsigned>(end),
+                          static_cast<unsigned>(g_claimedRanges[i].begin),
+                          static_cast<unsigned>(g_claimedRanges[i].end));
+            Log(line);
+            return false;
+        }
+    }
+    if (g_claimedRangeCount >= g_claimedRanges.size()) {
+        Log("Patch site refused: the claimed range table is full.");
+        return false;
+    }
+    g_claimedRanges[g_claimedRangeCount++] = {begin, end};
+    return true;
+}
+
+void ReleasePatchRange(uintptr_t address) {
+    for (size_t i = 0; i < g_claimedRangeCount; ++i) {
+        if (g_claimedRanges[i].begin == address) {
+            g_claimedRanges[i] = g_claimedRanges[--g_claimedRangeCount];
+            return;
+        }
+    }
+}
+// Replaces `size` original bytes with a relative branch to `target` and pads
+// the remainder with NOPs. `opcode` is 0xE8 for a call or 0xE9 for a jump.
+bool InstallBranch(SitePatch& patch, uintptr_t address, const void* target,
+                   const uint8_t* expected, size_t size, uint8_t opcode) {
+    if (size < 5 || size > patch.original.size()) {
+        Log("Patch site rejected: the site is larger than a patch record.");
+        return false;
+    }
+    if (!MemoryMatchesRaw(address, expected, size)) {
+        return false;
+    }
+
+    const intptr_t displacement = reinterpret_cast<intptr_t>(target)
+                                - static_cast<intptr_t>(address + 5);
+    if (displacement < std::numeric_limits<int32_t>::min()
+        || displacement > std::numeric_limits<int32_t>::max()) {
+        return false;
+    }
+
+    if (!ClaimPatchRange(address, size)) {
+        return false;
+    }
+
+    patch.address = address;
+    patch.size = size;
+    std::memcpy(patch.original.data(), expected, size);
+
+    std::array<uint8_t, 48> replacement{};
+    replacement.fill(0x90);
+    replacement[0] = opcode;
+    const int32_t relative = static_cast<int32_t>(displacement);
+    std::memcpy(replacement.data() + 1, &relative, sizeof(relative));
+    patch.installed = WriteBytes(address, replacement.data(), size);
+    if (!patch.installed) {
+        ReleasePatchRange(address);
+    }
+    return patch.installed;
+}
+
+template <size_t Size>
+bool InstallJump(SitePatch& patch, uintptr_t address, const void* target,
+                 const std::array<uint8_t, Size>& expected) {
+    return InstallBranch(patch, address, target, expected.data(),
+                         expected.size(), 0xE9);
+}
+
+template <size_t Size>
+bool InstallCall(SitePatch& patch, uintptr_t address, const void* target,
+                 const std::array<uint8_t, Size>& expected) {
+    return InstallBranch(patch, address, target, expected.data(),
+                         expected.size(), 0xE8);
+}
+
+void RestoreSite(SitePatch& patch) {
+    if (patch.installed) {
+        WriteBytes(patch.address, patch.original.data(), patch.size);
+        ReleasePatchRange(patch.address);
+        patch.installed = false;
+    }
+}
+
+bool InstallByte(BytePatch& patch, uintptr_t address, uint8_t value) {
+    __try {
+        patch.original = *reinterpret_cast<const uint8_t*>(address);
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+        return false;
+    }
+    if (!ClaimPatchRange(address, 1)) {
+        return false;
+    }
+    patch.address = address;
+    patch.installed = WriteBytes(address, &value, 1);
+    if (!patch.installed) {
+        ReleasePatchRange(address);
+    }
+    return patch.installed;
+}
+
+void RestoreByte(BytePatch& patch) {
+    if (patch.installed) {
+        WriteBytes(patch.address, &patch.original, 1);
+        ReleasePatchRange(patch.address);
+        patch.installed = false;
+    }
+}
+
+bool InstallRawPatch(RawPatch& patch, uintptr_t address,
+                     const uint8_t* replacement, size_t size) {
+    if (size == 0 || size > patch.original.size()) {
+        return false;
+    }
+    __try {
+        std::memcpy(patch.original.data(),
+                    reinterpret_cast<const void*>(address), size);
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+        return false;
+    }
+    if (!ClaimPatchRange(address, size)) {
+        return false;
+    }
+    patch.address = address;
+    patch.size = size;
+    patch.installed = WriteBytes(address, replacement, size);
+    if (!patch.installed) {
+        ReleasePatchRange(address);
+    }
+    return patch.installed;
+}
+
+void RestoreRawPatch(RawPatch& patch) {
+    if (patch.installed) {
+        WriteBytes(patch.address, patch.original.data(), patch.size);
+        ReleasePatchRange(patch.address);
+        patch.installed = false;
+    }
+}
+
+void RestoreAbsoluteOperandPatches(
+    std::array<AbsoluteOperandPatch, 13>& patches) {
+    for (auto& patch : patches) {
+        if (patch.installed) {
+            WriteBytes(patch.instruction + 2, patch.expected.data() + 2, 4);
+            ReleasePatchRange(patch.instruction + 2);
+            patch.installed = false;
+        }
+    }
+}
+
+bool InstallAimTimeStepOperands() {
+    for (const auto& patch : g_aimTimeStepPatches) {
+        if (!MemoryMatches(patch.instruction, patch.expected)) {
+            return false;
+        }
+    }
+
+    const uintptr_t replacement = reinterpret_cast<uintptr_t>(&g_aimTimeStep);
+    for (auto& patch : g_aimTimeStepPatches) {
+        const uintptr_t operand = patch.instruction + 2;
+        if (!ClaimPatchRange(operand, sizeof(replacement))) {
+            RestoreAbsoluteOperandPatches(g_aimTimeStepPatches);
+            return false;
+        }
+        if (!WriteBytes(operand,
+                        reinterpret_cast<const uint8_t*>(&replacement),
+                        sizeof(replacement))) {
+            ReleasePatchRange(operand);
+            RestoreAbsoluteOperandPatches(g_aimTimeStepPatches);
+            return false;
+        }
+        patch.installed = true;
+    }
+    return true;
+}
+
+bool InstallDetour(DetourPatch& patch, uintptr_t address, const void* target,
+                   const uint8_t* expected, size_t size) {
+    if (size < 5 || size > patch.original.size()) {
+        return false;
+    }
+    if (!MemoryMatchesRaw(address, expected, size)) {
+        return false;
+    }
+    if (!ClaimPatchRange(address, size)) {
+        return false;
+    }
+
+    auto* gateway = static_cast<uint8_t*>(VirtualAlloc(
+        nullptr, size + 5, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE));
+    if (!gateway) {
+        ReleasePatchRange(address);
+        return false;
+    }
+    std::memcpy(gateway, reinterpret_cast<const void*>(address), size);
+    gateway[size] = 0xE9;
+    const int32_t gatewayBack = static_cast<int32_t>(
+        address + size - reinterpret_cast<uintptr_t>(gateway + size + 5));
+    std::memcpy(gateway + size + 1, &gatewayBack, sizeof(gatewayBack));
+
+    const intptr_t displacement = reinterpret_cast<intptr_t>(target)
+                                - static_cast<intptr_t>(address + 5);
+    if (displacement < std::numeric_limits<int32_t>::min()
+        || displacement > std::numeric_limits<int32_t>::max()) {
+        ReleasePatchRange(address);
+        VirtualFree(gateway, 0, MEM_RELEASE);
+        return false;
+    }
+
+    patch.address = address;
+    patch.size = size;
+    patch.gateway = gateway;
+    std::memcpy(patch.original.data(), expected, size);
+    std::array<uint8_t, 16> replacement{};
+    replacement.fill(0x90);
+    replacement[0] = 0xE9;
+    const int32_t relative = static_cast<int32_t>(displacement);
+    std::memcpy(replacement.data() + 1, &relative, sizeof(relative));
+    patch.installed = WriteBytes(address, replacement.data(), size);
+    if (!patch.installed) {
+        ReleasePatchRange(address);
+        VirtualFree(gateway, 0, MEM_RELEASE);
+        patch.gateway = nullptr;
+    }
+    return patch.installed;
+}
+
+void RestoreDetour(DetourPatch& patch) {
+    if (patch.installed) {
+        WriteBytes(patch.address, patch.original.data(), patch.size);
+        ReleasePatchRange(patch.address);
+        patch.installed = false;
+    }
+    if (patch.gateway) {
+        VirtualFree(patch.gateway, 0, MEM_RELEASE);
+        patch.gateway = nullptr;
+    }
+}
+
+// Collects every patch installed by one fix and restores them in reverse order
+// unless Commit is reached. Installers therefore describe only their forward
+// path; an early return cannot leave half of a multi-site fix active.
+class PatchSet {
+public:
+    explicit PatchSet(const char* name) : m_name(name) {}
+
+    ~PatchSet() {
+        if (!m_committed) {
+            Rollback();
+        }
+    }
+
+    bool Track(bool installed, SitePatch& patch) {
+        return installed && Add(&patch, &RestoreSiteEntry);
+    }
+
+    bool Track(bool installed, DetourPatch& patch) {
+        return installed && Add(&patch, &RestoreDetourEntry);
+    }
+
+    bool Track(bool installed, BytePatch& patch) {
+        return installed && Add(&patch, &RestoreByteEntry);
+    }
+
+    bool Track(bool installed, RawPatch& patch) {
+        return installed && Add(&patch, &RestoreRawEntry);
+    }
+
+    bool Commit() {
+        m_committed = true;
+        return true;
+    }
+
+private:
+    struct Entry {
+        void* patch;
+        void (*restore)(void*);
+    };
+
+    static void RestoreSiteEntry(void* patch) {
+        RestoreSite(*static_cast<SitePatch*>(patch));
+    }
+
+    static void RestoreDetourEntry(void* patch) {
+        RestoreDetour(*static_cast<DetourPatch*>(patch));
+    }
+
+    static void RestoreByteEntry(void* patch) {
+        RestoreByte(*static_cast<BytePatch*>(patch));
+    }
+
+    static void RestoreRawEntry(void* patch) {
+        RestoreRawPatch(*static_cast<RawPatch*>(patch));
+    }
+
+    bool Add(void* patch, void (*restore)(void*)) {
+        if (m_count == m_entries.size()) {
+            restore(patch);
+            char line[160];
+            std::snprintf(line, sizeof(line),
+                          "%s refused: patch transaction is too large.",
+                          m_name);
+            Log(line);
+            return false;
+        }
+        m_entries[m_count++] = {patch, restore};
+        return true;
+    }
+
+    void Rollback() {
+        while (m_count != 0) {
+            Entry& entry = m_entries[--m_count];
+            entry.restore(entry.patch);
+        }
+    }
+
+    const char* m_name;
+    std::array<Entry, 128> m_entries{};
+    size_t m_count{};
+    bool m_committed{};
+};
+
+// ---------------------------------------------------------------------------
+// Shared timestep helpers
+// ---------------------------------------------------------------------------
+
+// Framerate Vigilante calls this ratio the "normalizer": it is 1.0 at the
+// original 30 FPS timestep and shrinks proportionally as the frame rate rises.
+float TimeStepRatio() {
+    __try {
+        const float timeStep = *reinterpret_cast<float*>(kTimerTimeStep);
+        if (!std::isfinite(timeStep) || timeStep <= 0.0f) {
+            return 1.0f;
+        }
+        return timeStep / kOriginalTimeStep;
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+        return 1.0f;
+    }
+}
+
+float VectorLength(const float v[3]);
+
+float ReadGameFloat(uintptr_t address, float fallback) {
+    __try {
+        const float value = *reinterpret_cast<const float*>(address);
+        return std::isfinite(value) ? value : fallback;
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+        return fallback;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Stunt jump camera timers
+// ---------------------------------------------------------------------------
+
+int AccumulateMilliseconds(float milliseconds, float& fraction) {
+    if (!std::isfinite(milliseconds) || milliseconds <= 0.0f) {
+        fraction = 0.0f;
+        return 0;
+    }
+
+    const float total = milliseconds + fraction;
+    const int whole = static_cast<int>(total);
+    fraction = total - static_cast<float>(whole);
+    return whole;
+}
+
+int __cdecl AccumulateFlightTimer(float milliseconds) {
+    if (!g_flightTimerActive) {
+        g_flightTimerFraction = 0.0f;
+        g_flightTimerActive = true;
+    }
+    g_endTimerActive = false;
+    return AccumulateMilliseconds(milliseconds, g_flightTimerFraction);
+}
+
+int __cdecl AccumulateEndTimer(float milliseconds) {
+    if (!g_endTimerActive) {
+        g_endTimerFraction = 0.0f;
+        g_endTimerActive = true;
+    }
+    g_flightTimerActive = false;
+    return AccumulateMilliseconds(milliseconds, g_endTimerFraction);
+}

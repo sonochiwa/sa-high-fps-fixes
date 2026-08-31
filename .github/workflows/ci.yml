@@ -1,0 +1,33 @@
+name: Build
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-2022
+    strategy:
+      matrix:
+        configuration: [Debug, Release]
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+
+      - name: Configure MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Validate project structure
+        shell: pwsh
+        run: .\tools\validate-project.ps1
+
+      - name: Build and analyze
+        run: >-
+          msbuild HighFpsFixes.sln /m /t:Rebuild
+          /p:Configuration=${{ matrix.configuration }}
+          /p:Platform=Win32
+          /p:RunCodeAnalysis=true

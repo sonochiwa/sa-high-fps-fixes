@@ -39,6 +39,20 @@ and the bike has meaningful upward velocity. That covers the rear-wheel
 takeoff phase plus the stale contact-timer tail while excluding a level-ground
 wheelie.
 
+A BMX bunny hop has a different takeoff order. `CBmx::LaunchBunnyHopCB` applies
+one move impulse and one turn impulse as an animation event. Matched full-charge
+traces showed that a small excess in local backward angular speed persists
+through the contact-free flight and accumulates into about five to six extra
+degrees of backward tilt before the rear wheel lands. The callback is latched
+and a tested 24% asymptotic correction is applied once after the stock launch
+pass, fading continuously to an exact no-op at 30 FPS. During the following
+landing window, false upright rider-fall events and vertical damage knock-offs
+up to intensity 31 are suppressed, while harder or sideways impacts remain
+stock. The BMX suspension damping uses the exact exponential equivalent of one
+30-FPS damping step, preventing the wheels from rebounding farther at high FPS.
+Ordinary wheelies and jumps that did not receive a stock launch impulse are not
+affected.
+
 ## Generic collision and settling path
 
 | Address | Function/site | Role | Timestep verdict | Current action |

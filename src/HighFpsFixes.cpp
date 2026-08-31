@@ -402,6 +402,15 @@ constexpr uintptr_t kEntityUpdateRwMatrix = 0x00446F90;
 constexpr uintptr_t kEntityUpdateRwFrame = 0x00532B00;
 constexpr uintptr_t kBikePreRender = 0x006BD090;
 constexpr uintptr_t kBikeRender = 0x006BDE20;
+constexpr uintptr_t kBmxLaunchBunnyHop = 0x006C0390;
+constexpr uintptr_t kBikeDamageKnockOffRider = 0x006B5A10;
+constexpr uintptr_t kBikeSpringDampeningCall = 0x006BA4EA;
+constexpr uintptr_t kApplySpringDampening = 0x00543E90;
+constexpr std::array<uintptr_t, 2> kBikeRiderFallEventAddCalls{
+    0x006B74B4, // excessive turn speed
+    0x006B769B  // excessive velocity along the bike's up axis
+};
+constexpr uintptr_t kEventGroupAdd = 0x004AB420;
 constexpr uintptr_t kRailWheelSpinReturn0 = 0x006B5245;
 constexpr uintptr_t kRailWheelSpinReturn1 = 0x006B5255;
 constexpr uintptr_t kRailWheelSpinReturn2 = 0x006B5263;
@@ -471,6 +480,7 @@ constexpr uintptr_t kBikeBalanceForceCall = 0x006B97A1;
 constexpr uintptr_t kBikeWheelTurnForceCall = 0x006D7B17;
 constexpr size_t kMatrixRight = 0x00;
 constexpr size_t kMatrixUp = 0x10;
+constexpr size_t kMatrixForward = 0x20;
 // The three writers of CRideAnimData::LeanAngle, each `fstp [esi+0x648]`.
 constexpr uintptr_t kLeanWriteSmoother = 0x006B9C2F;  // CBike::ProcessControl
 constexpr uintptr_t kLeanWriteSmootherReturn = 0x006B9C35;
@@ -1296,6 +1306,12 @@ constexpr std::array<uint8_t, 7> kExpectedBikePreRender{
 constexpr std::array<uint8_t, 6> kExpectedBikeRender{
     0x51, 0x56, 0x8D, 0x44, 0x24, 0x04
 };
+constexpr std::array<uint8_t, 8> kExpectedBmxLaunchBunnyHop{
+    0x83, 0xEC, 0x0C, 0x56, 0x8B, 0x74, 0x24, 0x18
+};
+constexpr std::array<uint8_t, 7> kExpectedBikeDamageKnockOffRider{
+    0x6A, 0xFF, 0x68, 0xD3, 0x81, 0x84, 0x00
+};
 // push esi / mov ecx,edi / call CTaskSimpleSwim::ProcessSwimmingResistance
 constexpr std::array<uint8_t, 8> kExpectedSwimResistanceCall{
     0x56, 0x8B, 0xCF, 0xE8, 0x20, 0xED, 0xFF, 0xFF
@@ -1647,6 +1663,10 @@ SitePatch g_turnAirResistancePatch{};
 SitePatch g_groundFrictionPatch{};
 SitePatch g_bikeLeanTargetPatch{};
 SitePatch g_bikePitchExperimentPatch{};
+std::array<SitePatch, 2> g_bmxRiderFallTracePatches{};
+DetourPatch g_bmxLaunchBunnyHopPatch{};
+DetourPatch g_bikeDamageKnockOffPatch{};
+SitePatch g_bmxSpringDampeningPatch{};
 // Scratch for the six move speed snap thunks. The game is single threaded
 // through vehicle processing, and each thunk writes it and reads it back before
 // the next instruction.
@@ -3140,6 +3160,17 @@ bool WriteProtectedGameFloat(uintptr_t address, float value) {
 }
 
 bool g_dampingLimitActive{};
+volatile LONG g_dampingLimitWriteLock{};
+
+void LockDampingLimitWrite() {
+    while (InterlockedCompareExchange(&g_dampingLimitWriteLock, 1, 0) != 0) {
+        Sleep(0);
+    }
+}
+
+void UnlockDampingLimitWrite() {
+    InterlockedExchange(&g_dampingLimitWriteLock, 0);
+}
 
 DWORD WINAPI SuspensionDampingLimitThread(void*) {
     float lastRatio = -1.0f;
@@ -3153,8 +3184,10 @@ DWORD WINAPI SuspensionDampingLimitThread(void*) {
 
         if (std::fabs(ratio - lastRatio) > 0.0005f) {
             lastRatio = ratio;
+            LockDampingLimitWrite();
             WriteGameFloat(kDampingLimitInFrame,
                            kStockDampingLimitInFrame * ratio);
+            UnlockDampingLimitWrite();
         }
         Sleep(1);
     }
@@ -3180,6 +3213,326 @@ float g_bikePitchExperimentAxis[3]{};
 float g_bikePitchExperimentStrength{0.5f};
 float g_bikePitchExperimentFrameCorrection{};
 bool g_bikePitchExperimentActive{};
+uintptr_t g_bmxLaunchCorrectionBike{};
+
+// Matched full-charge trajectories reach about 47.9 degrees of backward
+// rotation at 500+ FPS versus 42.1 degrees at 30 FPS. Comparing synchronized
+// samples after the first 250 ms shows excess angular speed; the earlier
+// first-sample comparison was taken at different positions inside a 30 Hz
+// frame and understated it. A 24% asymptotic correction produced the closest
+// visual match in game. It fades to an exact no-op at the original timestep.
+constexpr float kBmxLaunchPitchExcess = 0.24f;
+constexpr float kBmxStockLandingPitchLimit = 0.105f;
+constexpr float kBmxFalseLandingDamageLimit = 31.0f;
+constexpr uint32_t kBmxLandingProtectionMs = 5000;
+
+uintptr_t g_bmxLandingProtectionBike{};
+uint32_t g_bmxLandingProtectionUntil{};
+
+void __cdecl HookedBmxLaunchBunnyHop(void* association, void* data) {
+    bool appliedLaunchImpulse = false;
+    __try {
+        const auto bike = reinterpret_cast<uintptr_t>(data);
+        const auto* wheelCounts = reinterpret_cast<const float*>(
+            bike + kBikeWheelContactTimers);
+        appliedLaunchImpulse =
+            (wheelCounts[0] > 0.0f || wheelCounts[1] > 0.0f)
+            && (wheelCounts[2] > 0.0f || wheelCounts[3] > 0.0f);
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+        appliedLaunchImpulse = false;
+    }
+
+    reinterpret_cast<void(__cdecl*)(void*, void*)>(
+        g_bmxLaunchBunnyHopPatch.gateway)(association, data);
+
+    __try {
+        if (appliedLaunchImpulse) {
+            g_bmxLaunchCorrectionBike = reinterpret_cast<uintptr_t>(data);
+            g_bmxLandingProtectionBike = g_bmxLaunchCorrectionBike;
+            const uint32_t now = *reinterpret_cast<const uint32_t*>(
+                kTimerTimeInMilliseconds);
+            g_bmxLandingProtectionUntil = now + kBmxLandingProtectionMs;
+            Log("BMX trace: effective launch callback latched.");
+        }
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+        g_bmxLaunchCorrectionBike = 0;
+    }
+}
+
+void CorrectBmxLaunchPitch(void* vehicle) {
+    const auto bike = reinterpret_cast<uintptr_t>(vehicle);
+    if (!bike || bike != g_bmxLaunchCorrectionBike) {
+        return;
+    }
+    g_bmxLaunchCorrectionBike = 0;
+
+    __try {
+        const float timeStep = *reinterpret_cast<const float*>(kTimerTimeStep);
+        if (!std::isfinite(timeStep) || timeStep <= 0.0f
+            || timeStep >= kOriginalTimeStep) {
+            return;
+        }
+        const uint8_t status = *reinterpret_cast<const uint8_t*>(
+            bike + kEntityTypeAndStatus) >> 3;
+        const uint8_t subClass = *reinterpret_cast<const uint8_t*>(
+            bike + kVehicleSubClass);
+        if (status != 0 || subClass != 10) { // player / VEHICLE_TYPE_BMX
+            return;
+        }
+
+        const auto matrix = *reinterpret_cast<const uintptr_t*>(
+            bike + kEntityMatrix);
+        if (!matrix) {
+            return;
+        }
+        const auto* right = reinterpret_cast<const float*>(
+            matrix + kMatrixRight);
+        auto* turn = reinterpret_cast<float*>(
+            bike + kPhysicalTurnSpeed);
+        float localPitch = 0.0f;
+        float axisLengthSquared = 0.0f;
+        for (size_t i = 0; i < 3; ++i) {
+            if (!std::isfinite(turn[i]) || !std::isfinite(right[i])) {
+                return;
+            }
+            localPitch += turn[i] * right[i];
+            axisLengthSquared += right[i] * right[i];
+        }
+        if (localPitch <= 0.0f || !std::isfinite(axisLengthSquared)
+            || axisLengthSquared < 0.25f) {
+            return;
+        }
+
+        const float frameCorrection = std::clamp(
+            1.0f - timeStep / kOriginalTimeStep, 0.0f, 1.0f);
+        const float projection = localPitch / axisLengthSquared
+                               * kBmxLaunchPitchExcess * frameCorrection;
+        for (size_t i = 0; i < 3; ++i) {
+            turn[i] -= right[i] * projection;
+        }
+        char line[192];
+        std::snprintf(
+            line, sizeof(line),
+            "BMX trace: launch correction fps=%.1f pitch=%.5f removed=%.5f.",
+            50.0f / timeStep, localPitch,
+            localPitch * kBmxLaunchPitchExcess * frameCorrection);
+        Log(line);
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+    }
+}
+
+bool __cdecl HookedBikeDamageKnockOffRider(
+    void* vehicle, float damageIntensity, uint32_t pieceType, void* damager,
+    const float* collisionPosition, const float* collisionImpactVelocity) {
+    using Fn = bool(__cdecl*)(
+        void*, float, uint32_t, void*, const float*, const float*);
+
+    __try {
+        const auto bike = reinterpret_cast<uintptr_t>(vehicle);
+        const float timeStep = *reinterpret_cast<const float*>(kTimerTimeStep);
+        const uint32_t now = *reinterpret_cast<const uint32_t*>(
+            kTimerTimeInMilliseconds);
+        if (bike && collisionImpactVelocity
+            && bike == g_bmxLandingProtectionBike
+            && static_cast<int32_t>(g_bmxLandingProtectionUntil - now) >= 0
+            && *reinterpret_cast<const uint8_t*>(
+                bike + kVehicleSubClass) == 10
+            && (*reinterpret_cast<const uint8_t*>(
+                bike + kEntityTypeAndStatus) >> 3) == 0
+            && std::isfinite(timeStep) && timeStep > 0.0f
+            && timeStep < kOriginalTimeStep) {
+            const auto matrix = *reinterpret_cast<const uintptr_t*>(
+                bike + kEntityMatrix);
+            const float horizontalImpactSquared =
+                collisionImpactVelocity[0] * collisionImpactVelocity[0]
+                + collisionImpactVelocity[1] * collisionImpactVelocity[1];
+            if (matrix
+                && *reinterpret_cast<const float*>(matrix + kMatrixUp + 8)
+                    > 0.5f
+                && damageIntensity <= kBmxFalseLandingDamageLimit
+                && collisionImpactVelocity[2] > 0.75f
+                && horizontalImpactSquared < 0.25f) {
+                char line[192];
+                std::snprintf(
+                    line, sizeof(line),
+                    "BMX trace: suppressed vertical landing damage knock-off "
+                    "damage=%.3f impact=(%.3f,%.3f,%.3f).",
+                    damageIntensity, collisionImpactVelocity[0],
+                    collisionImpactVelocity[1], collisionImpactVelocity[2]);
+                Log(line);
+                return false;
+            }
+        }
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+        Log("BMX trace: failed to inspect damage knock-off.");
+    }
+
+    return reinterpret_cast<Fn>(g_bikeDamageKnockOffPatch.gateway)(
+        vehicle, damageIntensity, pieceType, damager, collisionPosition,
+        collisionImpactVelocity);
+}
+
+bool __fastcall HookedBmxSpringDampening(
+    void* physical, void*, float dampingForce, float springForceLimit,
+    float* direction, float* collisionPoint, float* collisionSpeed) {
+    using Fn = bool(__thiscall*)(
+        void*, float, float, float*, float*, float*);
+    const auto original = reinterpret_cast<Fn>(kApplySpringDampening);
+
+    float adjustedDampingForce = dampingForce;
+    float desiredAlpha = 0.0f;
+    bool correctBmxLandingDamping = false;
+    __try {
+        const auto bike = reinterpret_cast<uintptr_t>(physical);
+        const float timeStep = *reinterpret_cast<const float*>(kTimerTimeStep);
+        const uint32_t now = *reinterpret_cast<const uint32_t*>(
+            kTimerTimeInMilliseconds);
+        if (bike && bike == g_bmxLandingProtectionBike
+            && static_cast<int32_t>(g_bmxLandingProtectionUntil - now) >= 0
+            && *reinterpret_cast<const uint8_t*>(
+                bike + kVehicleSubClass) == 10
+            && (*reinterpret_cast<const uint8_t*>(
+                bike + kEntityTypeAndStatus) >> 3) == 0
+            && std::isfinite(timeStep) && timeStep > 0.0f
+            && timeStep < kOriginalTimeStep
+            && std::isfinite(dampingForce) && dampingForce > 0.0f) {
+            const float frameRatio = timeStep / kOriginalTimeStep;
+            const float stockAlpha = std::clamp(
+                kOriginalTimeStep * dampingForce, 0.0f,
+                kStockDampingLimitInFrame);
+            if (stockAlpha > 0.0f && stockAlpha < 1.0f) {
+                // Repeating (1 - alpha) over the short high-FPS steps must
+                // leave the same velocity as one original 30-FPS step.
+                desiredAlpha = 1.0f - std::pow(1.0f - stockAlpha,
+                                               frameRatio);
+                adjustedDampingForce = desiredAlpha / timeStep;
+                correctBmxLandingDamping =
+                    std::isfinite(adjustedDampingForce)
+                    && adjustedDampingForce > 0.0f;
+            }
+        }
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+        correctBmxLandingDamping = false;
+    }
+
+    if (!correctBmxLandingDamping) {
+        return original(physical, dampingForce, springForceLimit, direction,
+                        collisionPoint, collisionSpeed);
+    }
+
+    // The general suspension fix scales the stock linear per-frame cap. Its
+    // value is slightly below the exact exponential alpha used here, so expose
+    // the exact cap only for this one BMX call and restore it immediately.
+    if (g_dampingLimitActive) {
+        LockDampingLimitWrite();
+        const float savedLimit = *reinterpret_cast<const float*>(
+            kDampingLimitInFrame);
+        WriteGameFloat(kDampingLimitInFrame, desiredAlpha);
+        const bool result = original(
+            physical, adjustedDampingForce, springForceLimit, direction,
+            collisionPoint, collisionSpeed);
+        WriteGameFloat(kDampingLimitInFrame, savedLimit);
+        UnlockDampingLimitWrite();
+        return result;
+    }
+
+    return original(physical, adjustedDampingForce, springForceLimit,
+                    direction, collisionPoint, collisionSpeed);
+}
+
+void __fastcall HookedBmxRiderFallEventAdd(
+    void* eventGroup, void*, void* event, bool addToEventGroup) {
+    const uintptr_t callSite =
+        reinterpret_cast<uintptr_t>(_ReturnAddress()) - 5;
+    bool suppressFalseLandingFall = false;
+    __try {
+        const auto eventAddress = reinterpret_cast<uintptr_t>(event);
+        const auto bike = eventAddress
+            ? *reinterpret_cast<const uintptr_t*>(eventAddress + 0x38)
+            : 0;
+        if (bike && *reinterpret_cast<const uint8_t*>(
+                bike + kVehicleSubClass) == 10) {
+            const auto matrix = *reinterpret_cast<const uintptr_t*>(
+                bike + kEntityMatrix);
+            if (matrix) {
+                const auto* up = reinterpret_cast<const float*>(
+                    matrix + kMatrixUp);
+                const auto* right = reinterpret_cast<const float*>(
+                    matrix + kMatrixRight);
+                const auto* forward = reinterpret_cast<const float*>(
+                    matrix + kMatrixForward);
+                auto* turn = reinterpret_cast<float*>(
+                    bike + kPhysicalTurnSpeed);
+                const auto* move = reinterpret_cast<const float*>(
+                    bike + kPhysicalMoveSpeed);
+                const float timeStep = *reinterpret_cast<const float*>(
+                    kTimerTimeStep);
+                const float turnMagnitude = std::sqrt(
+                    turn[0] * turn[0] + turn[1] * turn[1]
+                    + turn[2] * turn[2]);
+                char line[256];
+                std::snprintf(
+                    line, sizeof(line),
+                    "BMX trace: rider-fall event site=%08X fps=%.1f upZ=%.4f "
+                    "fwdZ=%.4f moveZ=%.4f turn=%.5f.",
+                    static_cast<unsigned>(callSite),
+                    std::isfinite(timeStep) && timeStep > 0.0f
+                        ? 50.0f / timeStep : 0.0f,
+                    up[2], forward[2], move[2], turnMagnitude);
+                Log(line);
+
+                const uint32_t now = *reinterpret_cast<const uint32_t*>(
+                    kTimerTimeInMilliseconds);
+                const uint8_t status = *reinterpret_cast<const uint8_t*>(
+                    bike + kEntityTypeAndStatus) >> 3;
+                suppressFalseLandingFall =
+                    (callSite == kBikeRiderFallEventAddCalls[0]
+                     || callSite == kBikeRiderFallEventAddCalls[1])
+                    && bike == g_bmxLandingProtectionBike
+                    && static_cast<int32_t>(
+                        g_bmxLandingProtectionUntil - now) >= 0
+                    && status == 0
+                    && std::isfinite(timeStep)
+                    && timeStep > 0.0f
+                    && timeStep < kOriginalTimeStep
+                    && up[2] > 0.5f;
+                if (suppressFalseLandingFall) {
+                    if (callSite == kBikeRiderFallEventAddCalls[0]) {
+                        float localPitch = 0.0f;
+                        float axisLengthSquared = 0.0f;
+                        for (size_t i = 0; i < 3; ++i) {
+                            localPitch += turn[i] * right[i];
+                            axisLengthSquared += right[i] * right[i];
+                        }
+                        if (std::isfinite(localPitch)
+                            && std::fabs(localPitch)
+                                > kBmxStockLandingPitchLimit
+                            && std::isfinite(axisLengthSquared)
+                            && axisLengthSquared >= 0.25f) {
+                            const float excess =
+                                localPitch
+                                - std::copysign(
+                                    kBmxStockLandingPitchLimit, localPitch);
+                            for (size_t i = 0; i < 3; ++i) {
+                                turn[i] -= right[i]
+                                         * excess / axisLengthSquared;
+                            }
+                            Log("BMX trace: clamped excessive landing rebound.");
+                        }
+                    }
+                    Log("BMX trace: suppressed false upright landing fall.");
+                }
+            }
+
+        }
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+        Log("BMX trace: failed to read rider-fall event state.");
+    }
+    if (!suppressFalseLandingFall) {
+        reinterpret_cast<void(__thiscall*)(void*, void*, bool)>(kEventGroupAdd)(
+            eventGroup, event, addToEventGroup);
+    }
+}
 
 void __cdecl BeginBikePitchExperiment(uintptr_t bike) {
     g_bikePitchExperimentActive = false;
@@ -3826,6 +4179,7 @@ void __fastcall HookedBikeProcessControl(void* bike, void*) {
         }
     }
     reinterpret_cast<ThisCallVoidFn>(g_bikeProcessPatch.gateway)(bike);
+    CorrectBmxLaunchPitch(bike);
 }
 
 void __fastcall HookedPhysicalProcessCollision(void* physical, void*) {
@@ -7581,6 +7935,9 @@ bool InstallBikeLeanTargetFix() {
 }
 
 bool InstallBikePitchExperiment() {
+    g_bmxLaunchCorrectionBike = 0;
+    g_bmxLandingProtectionBike = 0;
+    g_bmxLandingProtectionUntil = 0;
     g_bikePitchExperimentStrength = static_cast<float>(std::clamp(
         ReadNumber("vehicles", "bikePitchExperimentStrength", 50), 0, 100))
                                   / 100.0f;
@@ -7589,6 +7946,52 @@ bool InstallBikePitchExperiment() {
         Log("Bike pitch experiment skipped: wheel-contact ApplyTurnForce call "
             "does not match GTA SA 1.0 US.");
         return false;
+    }
+    if (!InstallDetour(g_bmxLaunchBunnyHopPatch, kBmxLaunchBunnyHop,
+                       &HookedBmxLaunchBunnyHop,
+                       kExpectedBmxLaunchBunnyHop.data(),
+                       kExpectedBmxLaunchBunnyHop.size())) {
+        RestoreSite(g_bikePitchExperimentPatch);
+        Log("Bike pitch experiment skipped: BMX launch callback entry does "
+            "not match GTA SA 1.0 US.");
+        return false;
+    }
+    if (!InstallDetour(g_bikeDamageKnockOffPatch,
+                       kBikeDamageKnockOffRider,
+                       &HookedBikeDamageKnockOffRider,
+                       kExpectedBikeDamageKnockOffRider.data(),
+                       kExpectedBikeDamageKnockOffRider.size())) {
+        RestoreDetour(g_bmxLaunchBunnyHopPatch);
+        RestoreSite(g_bikePitchExperimentPatch);
+        Log("Bike pitch experiment skipped: DamageKnockOffRider entry does "
+            "not match GTA SA 1.0 US.");
+        return false;
+    }
+    if (!RepointCall(g_bmxSpringDampeningPatch,
+                     kBikeSpringDampeningCall, kApplySpringDampening,
+                     &HookedBmxSpringDampening)) {
+        RestoreDetour(g_bikeDamageKnockOffPatch);
+        RestoreDetour(g_bmxLaunchBunnyHopPatch);
+        RestoreSite(g_bikePitchExperimentPatch);
+        Log("Bike pitch experiment skipped: BMX spring-dampening call does "
+            "not match GTA SA 1.0 US.");
+        return false;
+    }
+    for (size_t i = 0; i < kBikeRiderFallEventAddCalls.size(); ++i) {
+        if (!RepointCall(g_bmxRiderFallTracePatches[i],
+                         kBikeRiderFallEventAddCalls[i], kEventGroupAdd,
+                         &HookedBmxRiderFallEventAdd)) {
+            for (auto& patch : g_bmxRiderFallTracePatches) {
+                RestoreSite(patch);
+            }
+            RestoreSite(g_bmxSpringDampeningPatch);
+            RestoreDetour(g_bikeDamageKnockOffPatch);
+            RestoreDetour(g_bmxLaunchBunnyHopPatch);
+            RestoreSite(g_bikePitchExperimentPatch);
+            Log("Bike pitch experiment skipped: rider-fall event call does "
+                "not match GTA SA 1.0 US.");
+            return false;
+        }
     }
     char installed[128];
     std::snprintf(installed, sizeof(installed),
@@ -8203,6 +8606,12 @@ void Shutdown() {
     RestoreSite(g_groundFrictionPatch);
     RestoreSite(g_bikeLeanTargetPatch);
     RestoreSite(g_bikePitchExperimentPatch);
+    for (auto& patch : g_bmxRiderFallTracePatches) {
+        RestoreSite(patch);
+    }
+    RestoreDetour(g_bikeDamageKnockOffPatch);
+    RestoreDetour(g_bmxLaunchBunnyHopPatch);
+    RestoreSite(g_bmxSpringDampeningPatch);
     for (auto& patch : g_heliRotorPatches) {
         RestoreSite(patch);
     }

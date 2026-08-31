@@ -11,10 +11,11 @@ make the assembly boundary substantially harder to verify.
 
 The include order is architectural:
 
-1. game addresses, expected instruction bytes and configuration;
+1. game addresses, expected instruction bytes, executable profiles and
+   configuration;
 2. patch infrastructure and gameplay helpers;
 3. subsystem implementations and diagnostics;
-4. naked thunks, installers and bootstrap/shutdown.
+4. C++ thunk helpers, naked assembly bridges, installers and bootstrap/shutdown.
 
 The thunk and installer aggregators are split once more into smaller ordered
 include modules. Keep additions in the closest subsystem file rather than
@@ -23,6 +24,8 @@ growing the aggregators themselves.
 Multi-site fixes must install through `PatchSet`. It owns every successfully
 installed site until `Commit`, rolls back in reverse order on early return, and
 keeps all code, byte and raw-operand patches in the shared range registry.
+Repeated address/thunk groups should use `InstallJumpTable`, keeping their site
+data declarative and their rollback behavior identical.
 
 When adding a fix, keep its game addresses and expected bytes in the matching
 data modules, its C++ implementation in the appropriate subsystem module, its

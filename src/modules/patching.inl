@@ -218,6 +218,18 @@ std::array<AmmoConsumptionSlot, 16> g_ammoConsumptionSlots{};
 std::string g_iniPath;
 std::string g_logPath;
 
+struct ConfigKey {
+    const char* section;
+    const char* key;
+};
+
+std::array<ConfigKey, 128> g_knownConfigKeys{};
+size_t g_knownConfigKeyCount{};
+std::array<std::string, 32> g_configWarnings{};
+size_t g_configWarningCount{};
+std::array<char, 8192> g_iniSectionBuffer{};
+std::array<char, 16384> g_iniEntryBuffer{};
+
 // ---------------------------------------------------------------------------
 // Infrastructure
 // ---------------------------------------------------------------------------
@@ -277,13 +289,140 @@ bool CreateDefaultIniIfMissing() {
     return ok;
 }
 
+void RegisterConfigKey(const char* section, const char* key) {
+    for (size_t i = 0; i < g_knownConfigKeyCount; ++i) {
+        if (_stricmp(g_knownConfigKeys[i].section, section) == 0
+            && _stricmp(g_knownConfigKeys[i].key, key) == 0) {
+            return;
+        }
+    }
+    if (g_knownConfigKeyCount < g_knownConfigKeys.size()) {
+        g_knownConfigKeys[g_knownConfigKeyCount++] = {section, key};
+    }
+}
+
+void AddConfigWarning(const char* section, const char* key,
+                      const char* reason) {
+    if (g_configWarningCount >= g_configWarnings.size()) {
+        return;
+    }
+    std::string warning("Configuration warning: [");
+    warning += section;
+    warning += "] ";
+    warning += key;
+    warning += " ";
+    warning += reason;
+    g_configWarnings[g_configWarningCount++] = warning;
+}
+
 bool ReadSetting(const char* section, const char* key, bool defaultValue) {
-    return GetPrivateProfileIntA(section, key, defaultValue ? 1 : 0,
-                                 g_iniPath.c_str()) != 0;
+    RegisterConfigKey(section, key);
+    std::array<char, 64> value{};
+    GetPrivateProfileStringA(section, key, "", value.data(),
+                             static_cast<DWORD>(value.size()),
+                             g_iniPath.c_str());
+    if (value[0] == '\0') {
+        return defaultValue;
+    }
+    if (std::strcmp(value.data(), "0") == 0) {
+        return false;
+    }
+    if (std::strcmp(value.data(), "1") == 0) {
+        return true;
+    }
+    AddConfigWarning(section, key, "must be 0 or 1; using its default.");
+    return defaultValue;
 }
 
 int ReadNumber(const char* section, const char* key, int defaultValue) {
-    return GetPrivateProfileIntA(section, key, defaultValue, g_iniPath.c_str());
+    RegisterConfigKey(section, key);
+    std::array<char, 64> value{};
+    GetPrivateProfileStringA(section, key, "", value.data(),
+                             static_cast<DWORD>(value.size()),
+                             g_iniPath.c_str());
+    if (value[0] == '\0') {
+        return defaultValue;
+    }
+    char* end{};
+    const long parsed = std::strtol(value.data(), &end, 10);
+    while (end && *end == ' ') {
+        ++end;
+    }
+    if (!end || *end != '\0'
+        || parsed < std::numeric_limits<int>::min()
+        || parsed > std::numeric_limits<int>::max()) {
+        AddConfigWarning(section, key,
+                         "must be an integer; using its default.");
+        return defaultValue;
+    }
+    return static_cast<int>(parsed);
+}
+
+bool IsKnownConfigKey(const char* section, const char* key) {
+    for (size_t i = 0; i < g_knownConfigKeyCount; ++i) {
+        if (_stricmp(g_knownConfigKeys[i].section, section) == 0
+            && _stricmp(g_knownConfigKeys[i].key, key) == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void RegisterConditionalConfigKeys() {
+    constexpr ConfigKey keys[] = {
+        {"vehicles", "bikePitchExperimentStrength"},
+        {"vehicles", "disableSwingingCompletely"},
+        {"particles", "particlesPerSecond"},
+        {"hud", "disableFlashing"},
+        {"general", "traceWatchOffset"},
+        {"general", "traceWatchMode"},
+        {"general", "traceWatchHits"},
+        {"general", "traceWatchSamples"},
+        {"general", "traceWatchArmDelay"},
+        {"general", "traceWatchReports"},
+    };
+    for (const auto& item : keys) {
+        RegisterConfigKey(item.section, item.key);
+    }
+}
+
+void ValidateUnknownConfigKeys() {
+    g_iniSectionBuffer.fill('\0');
+    GetPrivateProfileSectionNamesA(g_iniSectionBuffer.data(),
+                                   static_cast<DWORD>(g_iniSectionBuffer.size()),
+                                   g_iniPath.c_str());
+    for (const char* section = g_iniSectionBuffer.data(); *section;
+         section += std::strlen(section) + 1) {
+        g_iniEntryBuffer.fill('\0');
+        GetPrivateProfileSectionA(section, g_iniEntryBuffer.data(),
+                                  static_cast<DWORD>(g_iniEntryBuffer.size()),
+                                  g_iniPath.c_str());
+        for (const char* entry = g_iniEntryBuffer.data(); *entry;
+             entry += std::strlen(entry) + 1) {
+            const char* equals = std::strchr(entry, '=');
+            if (!equals) {
+                continue;
+            }
+            std::string key(entry, static_cast<size_t>(equals - entry));
+            if (!IsKnownConfigKey(section, key.c_str())) {
+                AddConfigWarning(section, key.c_str(), "is not recognized.");
+            }
+        }
+    }
+}
+
+void ReportConfigWarnings() {
+    if (g_configWarningCount == 0) {
+        return;
+    }
+    const bool loggingWasEnabled = g_loggingEnabled;
+    g_loggingEnabled = true;
+    if (!loggingWasEnabled) {
+        Log("Logging enabled because the INI contains configuration warnings.");
+    }
+    for (size_t i = 0; i < g_configWarningCount; ++i) {
+        Log(g_configWarnings[i].c_str());
+    }
 }
 
 bool WriteBytes(uintptr_t address, const uint8_t* bytes, size_t size) {
@@ -308,6 +447,53 @@ bool MemoryMatchesRaw(uintptr_t address, const uint8_t* expected, size_t size) {
     } __except (EXCEPTION_EXECUTE_HANDLER) {
         return false;
     }
+}
+
+bool CopyMemoryForDiagnostics(uintptr_t address, uint8_t* destination,
+                              size_t size) {
+    __try {
+        std::memcpy(destination, reinterpret_cast<const void*>(address), size);
+        return true;
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+        return false;
+    }
+}
+
+void ReportPatchMismatch(uintptr_t address, const uint8_t* expected,
+                         size_t size) {
+    std::array<uint8_t, 48> actual{};
+    if (size > actual.size()) {
+        size = actual.size();
+    }
+    const bool readable =
+        CopyMemoryForDiagnostics(address, actual.data(), size);
+
+    std::string message("Patch mismatch at 0x");
+    char number[24];
+    std::snprintf(number, sizeof(number), "%08X",
+                  static_cast<unsigned>(address));
+    message += number;
+    message += ": expected";
+    for (size_t i = 0; i < size; ++i) {
+        char byte[5];
+        std::snprintf(byte, sizeof(byte), " %02X", expected[i]);
+        message += byte;
+    }
+    message += readable ? ", found" : ", memory is unreadable";
+    if (readable) {
+        for (size_t i = 0; i < size; ++i) {
+            char byte[5];
+            std::snprintf(byte, sizeof(byte), " %02X", actual[i]);
+            message += byte;
+        }
+    }
+    message += ".";
+
+    // A failed patch is actionable even when routine logging is disabled.
+    // Enable the log from this point onward so the cause and final summary are
+    // available without asking the player to reproduce the failure first.
+    g_loggingEnabled = true;
+    Log(message.c_str());
 }
 
 template <size_t Size>
@@ -392,6 +578,7 @@ bool InstallBranch(SitePatch& patch, uintptr_t address, const void* target,
         return false;
     }
     if (!MemoryMatchesRaw(address, expected, size)) {
+        ReportPatchMismatch(address, expected, size);
         return false;
     }
 
@@ -543,6 +730,7 @@ bool InstallDetour(DetourPatch& patch, uintptr_t address, const void* target,
         return false;
     }
     if (!MemoryMatchesRaw(address, expected, size)) {
+        ReportPatchMismatch(address, expected, size);
         return false;
     }
     if (!ClaimPatchRange(address, size)) {
@@ -682,6 +870,42 @@ private:
     size_t m_count{};
     bool m_committed{};
 };
+
+// Declarative installer for the common "N addresses, N thunks" patch shape.
+// The transaction owns rollback, so callers only describe the patch table and
+// the user-facing result. Two overloads cover a shared signature and a unique
+// signature per site.
+template <size_t Count, size_t Size>
+bool InstallJumpTable(PatchSet& transaction,
+                      std::array<SitePatch, Count>& patches,
+                      const std::array<uintptr_t, Count>& addresses,
+                      const std::array<const void*, Count>& targets,
+                      const std::array<uint8_t, Size>& expected) {
+    for (size_t i = 0; i < Count; ++i) {
+        if (!transaction.Track(
+                InstallJump(patches[i], addresses[i], targets[i], expected),
+                patches[i])) {
+            return false;
+        }
+    }
+    return true;
+}
+
+template <size_t Count, size_t Size>
+bool InstallJumpTable(
+    PatchSet& transaction, std::array<SitePatch, Count>& patches,
+    const std::array<uintptr_t, Count>& addresses,
+    const std::array<const void*, Count>& targets,
+    const std::array<std::array<uint8_t, Size>, Count>& expected) {
+    for (size_t i = 0; i < Count; ++i) {
+        if (!transaction.Track(
+                InstallJump(patches[i], addresses[i], targets[i], expected[i]),
+                patches[i])) {
+            return false;
+        }
+    }
+    return true;
+}
 
 // ---------------------------------------------------------------------------
 // Shared timestep helpers

@@ -3,9 +3,10 @@
 `HighFpsFixes.asi` corrects frame-rate-dependent behavior in GTA San Andreas
 without imposing an FPS cap.
 
-The current build targets only GTA San Andreas 1.0 US (Hoodlum). It validates
-the original instructions at every patch site and leaves the game untouched if
-they do not match. Other executable versions are not supported.
+The current build targets GTA San Andreas 1.0 US Compact and Hoodlum. Both use
+the same address layout; the plugin detects their distinct entry signatures,
+then validates the original instructions at every patch site. Other executable
+versions are left untouched.
 
 Every fix rescales one original engine calculation against the timestep the
 game had at 30 FPS, so behavior at 30 FPS is unchanged and the same result is
@@ -81,7 +82,7 @@ General:
 
 ## Requirements
 
-- GTA San Andreas 1.0 US (Hoodlum executable).
+- GTA San Andreas 1.0 US (Compact or Hoodlum executable).
 - A compatible ASI loader.
 - Windows on x86-compatible hardware.
 
@@ -297,6 +298,17 @@ there after a successful build.
 Pull requests and pushes build both Win32 configurations with warnings treated
 as errors and MSVC code analysis enabled. `tools\validate-project.ps1` also
 checks version synchronization, project module registration and module size.
+
+Before installing into an unfamiliar game directory, the executable can be
+checked without launching it:
+
+```powershell
+.\tools\validate-game.ps1 "C:\Games\GTA San Andreas\gta_sa.exe"
+```
+
+The validator recognizes the Compact and Hoodlum GTA SA 1.0 US profiles and
+checks representative player, vehicle and world patch signatures. Every
+enabled patch still validates its complete byte sequence again at runtime.
 
 ## Release Integrity
 

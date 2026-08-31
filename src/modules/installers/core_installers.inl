@@ -183,19 +183,10 @@ bool InstallWheelFrictionFix() {
         &WheelFrictionBikeBrakeThunk,
     };
 
-    for (const auto address : addresses) {
-        if (!MemoryMatches(address, kExpectedWheelFriction)) {
-            Log("Wheel friction fix skipped: executable bytes do not match GTA SA 1.0 US.");
-            return false;
-        }
-    }
-    for (size_t i = 0; i < addresses.size(); ++i) {
-        if (!patches.Track(InstallJump(g_wheelFrictionPatches[i], addresses[i],
-                                       thunks[i], kExpectedWheelFriction),
-                           g_wheelFrictionPatches[i])) {
-            Log("Wheel friction fix failed while installing hooks.");
-            return false;
-        }
+    if (!InstallJumpTable(patches, g_wheelFrictionPatches, addresses, thunks,
+                          kExpectedWheelFriction)) {
+        Log("Wheel friction fix skipped: executable bytes do not match the active game profile.");
+        return false;
     }
     patches.Commit();
     Log("Installed timestep-scaled car and bike wheel friction.");
@@ -289,19 +280,10 @@ bool InstallRailWheelSpinFix() {
         &RailWheelSpinThunk3,
     };
 
-    for (size_t i = 0; i < addresses.size(); ++i) {
-        if (!MemoryMatches(addresses[i], kExpectedRailWheelSpin[i])) {
-            Log("Rail wheel spin fix skipped: executable bytes do not match GTA SA 1.0 US.");
-            return false;
-        }
-    }
-    for (size_t i = 0; i < addresses.size(); ++i) {
-        if (!patches.Track(InstallJump(g_railWheelSpinPatches[i], addresses[i],
-                                       thunks[i], kExpectedRailWheelSpin[i]),
-                           g_railWheelSpinPatches[i])) {
-            Log("Rail wheel spin fix failed while installing hooks.");
-            return false;
-        }
+    if (!InstallJumpTable(patches, g_railWheelSpinPatches, addresses, thunks,
+                          kExpectedRailWheelSpin)) {
+        Log("Rail wheel spin fix skipped: executable bytes do not match the active game profile.");
+        return false;
     }
     patches.Commit();
     Log("Installed frame-independent on-rails wheel rotation.");
@@ -342,19 +324,10 @@ bool InstallHeliRotorSpeedFix() {
         Log("Helicopter rotor fix skipped: rotor speed operand does not match GTA SA 1.0 US.");
         return false;
     }
-    for (size_t i = 0; i < addresses.size(); ++i) {
-        if (!MemoryMatches(addresses[i], expected[i])) {
-            Log("Helicopter rotor fix skipped: executable bytes do not match GTA SA 1.0 US.");
-            return false;
-        }
-    }
-    for (size_t i = 0; i < addresses.size(); ++i) {
-        if (!patches.Track(InstallJump(g_heliRotorPatches[i], addresses[i],
-                                       thunks[i], expected[i]),
-                           g_heliRotorPatches[i])) {
-            Log("Helicopter rotor fix failed while installing hooks.");
-            return false;
-        }
+    if (!InstallJumpTable(patches, g_heliRotorPatches, addresses, thunks,
+                          expected)) {
+        Log("Helicopter rotor fix skipped: executable bytes do not match the active game profile.");
+        return false;
     }
     patches.Commit();
     Log("Installed frame-independent helicopter rotor acceleration.");

@@ -45,7 +45,7 @@ jobs:
           $stage = Join-Path build "release\HighFpsFixes-v$version"
           Remove-Item -LiteralPath $stage -Recurse -Force -ErrorAction SilentlyContinue
           New-Item -ItemType Directory -Path $stage -Force | Out-Null
-          Copy-Item build\HighFpsFixes.asi, build\HighFpsFixes.ini -Destination $stage
+          Copy-Item build\HighFpsFixes.asi, build\HighFpsFixes.ini, tools\validate-game.ps1 -Destination $stage
 
           $readme = @(
               "High FPS Fixes v$version"
@@ -60,10 +60,12 @@ jobs:
               "     directory."
               "  2. Start the game."
               ""
-              "Requires GTA San Andreas 1.0 US (Hoodlum executable) and an ASI loader such"
+              "Requires GTA San Andreas 1.0 US (Compact or Hoodlum executable) and an ASI loader such"
               "as Silent's ASI Loader or Ultimate ASI Loader. Every fix has its own switch"
               "in HighFpsFixes.ini; the plugin recreates that file beside itself if it is"
               "missing. Remove both files to uninstall."
+              ""
+              "Optional preflight: run validate-game.ps1 against gta_sa.exe before installing."
               ""
               "Source code: https://github.com/sonochiwa/sa-high-fps-fixes"
           ) -join [Environment]::NewLine

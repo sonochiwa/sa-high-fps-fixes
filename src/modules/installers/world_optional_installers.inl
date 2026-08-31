@@ -178,20 +178,11 @@ bool InstallMoveSpeedSnapFix() {
         &MoveSpeedSnapBikeZThunk,
     };
 
-    for (const auto address : kMoveSpeedSnapSites) {
-        if (!MemoryMatches(address, kExpectedMoveSpeedSnap)) {
-            Log("Move speed snap fix skipped: executable bytes do not match GTA SA 1.0 US.");
-            return false;
-        }
-    }
-    for (size_t i = 0; i < kMoveSpeedSnapSites.size(); ++i) {
-        if (!patches.Track(
-                InstallJump(g_moveSpeedSnapPatches[i], kMoveSpeedSnapSites[i],
-                            thunks[i], kExpectedMoveSpeedSnap),
-                g_moveSpeedSnapPatches[i])) {
-            Log("Move speed snap fix failed while installing hooks.");
-            return false;
-        }
+    if (!InstallJumpTable(patches, g_moveSpeedSnapPatches,
+                          kMoveSpeedSnapSites, thunks,
+                          kExpectedMoveSpeedSnap)) {
+        Log("Move speed snap fix skipped: executable bytes do not match the active game profile.");
+        return false;
     }
     patches.Commit();
     Log("Installed a timestep-normalized move speed snap limit for cars and bikes.");
@@ -217,19 +208,10 @@ bool InstallPhysicsSleepRateFix() {
         &TrailerFakePhysicsThunk,
     };
 
-    for (size_t i = 0; i < addresses.size(); ++i) {
-        if (!MemoryMatches(addresses[i], expected[i])) {
-            Log("Physics sleep rate fix skipped: executable bytes do not match GTA SA 1.0 US.");
-            return false;
-        }
-    }
-    for (size_t i = 0; i < addresses.size(); ++i) {
-        if (!patches.Track(InstallJump(g_fakePhysicsPatches[i], addresses[i],
-                                       thunks[i], expected[i]),
-                           g_fakePhysicsPatches[i])) {
-            Log("Physics sleep rate fix failed while installing hooks.");
-            return false;
-        }
+    if (!InstallJumpTable(patches, g_fakePhysicsPatches, addresses, thunks,
+                          expected)) {
+        Log("Physics sleep rate fix skipped: executable bytes do not match the active game profile.");
+        return false;
     }
     patches.Commit();
     Log("Installed a real-time physics sleep counter for objects, cars, bikes and trailers.");

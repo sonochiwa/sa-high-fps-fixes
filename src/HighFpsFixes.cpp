@@ -18,6 +18,7 @@ namespace {
 
 #include "modules/game_addresses.inl"
 #include "modules/expected_bytes.inl"
+#include "modules/game_profiles.inl"
 #include "modules/configuration.inl"
 #include "modules/patching.inl"
 #include "modules/weapons_and_particles.inl"
@@ -25,7 +26,9 @@ namespace {
 #include "modules/vehicles.inl"
 #include "modules/hud.inl"
 #include "modules/diagnostics.inl"
+#include "modules/bike_lean_filter.inl"
 #include "modules/runtime_features.inl"
+#include "modules/thunk_helpers.inl"
 #include "modules/thunks.inl"
 #include "modules/installers.inl"
 #include "modules/bootstrap.inl"

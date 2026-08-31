@@ -89,10 +89,12 @@
     <None Include="..\LICENSE" />
     <None Include="..\README.md" />
     <None Include="modules\bootstrap.inl" />
+    <None Include="modules\bike_lean_filter.inl" />
     <None Include="modules\configuration.inl" />
     <None Include="modules\diagnostics.inl" />
     <None Include="modules\expected_bytes.inl" />
     <None Include="modules\game_addresses.inl" />
+    <None Include="modules\game_profiles.inl" />
     <None Include="modules\hud.inl" />
     <None Include="modules\installers.inl" />
     <None Include="modules\installers\core_installers.inl" />
@@ -102,6 +104,7 @@
     <None Include="modules\player.inl" />
     <None Include="modules\README.md" />
     <None Include="modules\runtime_features.inl" />
+    <None Include="modules\thunk_helpers.inl" />
     <None Include="modules\thunks.inl" />
     <None Include="modules\thunks\base_thunks.inl" />
     <None Include="modules\thunks\vehicle_thunks.inl" />

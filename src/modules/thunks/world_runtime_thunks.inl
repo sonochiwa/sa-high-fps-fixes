@@ -1,20 +1,3 @@
-// Rising-edge state for the pause menu map wheel. Sampled once per frame from
-// the map bounds block; the two edge bytes are read by the gate thunks below.
-uint8_t g_mapWheelUpEdge = 0;
-uint8_t g_mapWheelDownEdge = 0;
-uint8_t g_mapWheelUpPrev = 0;
-uint8_t g_mapWheelDownPrev = 0;
-
-void __cdecl SampleMapWheelEdges() {
-    const uint8_t up = *reinterpret_cast<volatile uint8_t*>(kMouseWheelUpFlag);
-    const uint8_t down =
-        *reinterpret_cast<volatile uint8_t*>(kMouseWheelDownFlag);
-    g_mapWheelUpEdge = (up && !g_mapWheelUpPrev) ? 1 : 0;
-    g_mapWheelDownEdge = (down && !g_mapWheelDownPrev) ? 1 : 0;
-    g_mapWheelUpPrev = up;
-    g_mapWheelDownPrev = down;
-}
-
 // The x87 stack is empty here and the replaced load is reproduced before the
 // return. The flags matter: a `test al,al` above and a `jge` below straddle
 // this point.
@@ -57,28 +40,6 @@ __declspec(naked) void MapZoomOutGateThunk() {
     }
 }
 
-
-// One carry per patched fire event. Adding the timestep ratio each frame and
-// spending a whole unit means the site is evaluated at the 30 FPS rate whatever
-// the frame rate, so the odds per evaluation stay exactly as shipped.
-std::array<float, 3> g_fireEventCarries{};
-
-int32_t __cdecl FireEventTick(int32_t site) {
-    if (site < 0 || static_cast<size_t>(site) >= g_fireEventCarries.size()) {
-        return 1;
-    }
-    const float ratio = TimeStepRatio();
-    if (!std::isfinite(ratio) || ratio >= 1.0f || ratio <= 0.0f) {
-        return 1;
-    }
-    const float total = g_fireEventCarries[site] + ratio;
-    if (total >= 1.0f) {
-        g_fireEventCarries[site] = total - 1.0f;
-        return 1;
-    }
-    g_fireEventCarries[site] = total;
-    return 0;
-}
 
 // Entered with the freshly drawn random number in eax, replacing
 // `test al,<mask> / jne skip`. `FireEventTick` clobbers eax, ecx and edx, all
@@ -136,59 +97,6 @@ __declspec(naked) void FireMergeGateThunk() {
     }
 }
 
-// A shared 30 FPS tick. Each slot answers, once per frame counter value, whether
-// this frame is one of the thirty per second the original game would have had.
-// The answer is cached per frame so that several callers in the same frame — two
-// pads, or every boat in the world — all agree.
-//
-// Slot 0 is the drunk driving steering shift.
-constexpr size_t kFrameTickSlots = 1;
-constexpr int32_t kFrameTickDrunkSteer = 0;
-
-struct FrameTickSlot {
-    uint32_t frame;
-    int32_t decision;
-    float carry;
-};
-std::array<FrameTickSlot, kFrameTickSlots> g_frameTicks{};
-
-void ResetFrameTicks() {
-    for (auto& slot : g_frameTicks) {
-        slot.frame = 0xFFFFFFFFu;
-        slot.decision = 1;
-        slot.carry = 0.0f;
-    }
-}
-
-int32_t __cdecl FrameTick(int32_t index) {
-    if (index < 0 || static_cast<size_t>(index) >= g_frameTicks.size()) {
-        return 1;
-    }
-    FrameTickSlot& slot = g_frameTicks[index];
-
-    const uint32_t frame = *reinterpret_cast<volatile uint32_t*>(kFrameCounter);
-    if (frame == slot.frame) {
-        return slot.decision;
-    }
-    slot.frame = frame;
-
-    const float ratio = TimeStepRatio();
-    if (!std::isfinite(ratio) || ratio >= 1.0f || ratio <= 0.0f) {
-        slot.carry = 0.0f;
-        slot.decision = 1;
-        return 1;
-    }
-    const float total = slot.carry + ratio;
-    if (total >= 1.0f) {
-        slot.carry = total - 1.0f;
-        slot.decision = 1;
-    } else {
-        slot.carry = total;
-        slot.decision = 0;
-    }
-    return slot.decision;
-}
-
 // Replaces the shift loop's two set-up instructions. `ebx` is the pad and is
 // callee-saved across the helper; eax, ecx and edx are dead here, and the two
 // the loop needs are rebuilt before jumping into it.
@@ -204,30 +112,6 @@ __declspec(naked) void DrunkSteerShiftThunk() {
         jmp kDrunkSteerShiftResume
     skipped:
         jmp kDrunkSteerShiftSkip
-    }
-}
-
-// The remainder the integer divide used to throw away. It is a fraction of one
-// counter unit and is bounded below one, so it never grows and a float holds
-// it with room to spare.
-float g_fatCounterCarry = 0.0f;
-
-// `milliseconds` arrives in eax, already carry corrected by the skill progress
-// wrapper above. `rate` is the exercise rate, the function's only argument.
-// The divide by ten is taken in double so the remainder survives, and the
-// fraction is kept for the next call rather than discarded.
-void __cdecl FatCounterAdd(uint32_t milliseconds, uint32_t rate) {
-    const double product =
-        static_cast<double>(static_cast<uint64_t>(milliseconds) * rate);
-    const double value = product / 10.0 + static_cast<double>(g_fatCounterCarry);
-    if (!std::isfinite(value) || value <= 0.0) {
-        return;
-    }
-    const double whole = std::floor(value);
-    g_fatCounterCarry = static_cast<float>(value - whole);
-    if (whole >= 1.0) {
-        *reinterpret_cast<uint32_t*>(kFatCounter) +=
-            static_cast<uint32_t>(whole);
     }
 }
 
@@ -567,21 +451,6 @@ __declspec(naked) void FallingGlassTurnBThunk() {
     }
 }
 
-int __cdecl ConsumeBreakObjectLifetimeTicks(int32_t* lifetime) {
-    if (!lifetime || *lifetime <= 0) {
-        return 0;
-    }
-    const uint32_t frame = *reinterpret_cast<const uint32_t*>(kFrameCounter);
-    if (frame != g_breakLifetimeLastFrame) {
-        g_breakLifetimeLastFrame = frame;
-        g_breakLifetimeCarry += *reinterpret_cast<const float*>(kTimerTimeStep)
-                              / g_originalTimeStepValue;
-        g_breakLifetimeTicks = static_cast<int>(g_breakLifetimeCarry);
-        g_breakLifetimeCarry -= static_cast<float>(g_breakLifetimeTicks);
-    }
-    return std::min(g_breakLifetimeTicks, *lifetime);
-}
-
 __declspec(naked) void BreakObjectLifetimeThunk() {
     __asm {
         pushfd
@@ -611,4 +480,3 @@ __declspec(naked) void MenuBackgroundThunk() {
         jmp kMenuBackgroundTarget
     }
 }
-

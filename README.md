@@ -232,7 +232,7 @@ forPauseMenu=0
 | `restThreshold` | `1` | Rescales the at-rest move distance limit for abandoned and wrecked vehicles. |
 | `physicsSleepRate` | `1` | Steps the `m_nFakePhysics` sleep counter in real time instead of once per frame. |
 | `wheelFriction` | `1` | Scales car and bike wheel friction by the current timestep. |
-| `abandonedBikePhysicsStep` | `0` | Experimental riderless-bike mode. Above 30 FPS, only bikes in `STATUS_ABANDONED` run their complete control, collision, and penetration-shift pipeline at the original 30 Hz cadence and timestep. Their RenderWare transform is interpolated every rendered frame, while the collision matrix retains exact 30 Hz states. Player-controlled vehicles remain on the normal high-FPS path. |
+| `abandonedBikePhysicsStep` | `0` | Experimental riderless-bike mode. Above 30 FPS, only bikes in `STATUS_ABANDONED` run their complete control, collision, and penetration-shift pipeline at the original 30 Hz cadence and timestep. Their RenderWare transform and render-only lean matrix used by lights are interpolated every rendered frame, while the collision matrix retains exact 30 Hz states. A bike being picked up returns to normal per-frame processing as soon as the game's `bGettingPickedUp` flag is set, keeping that animation smooth. Player-controlled vehicles remain on the normal high-FPS path. |
 | `railWheelSpin` | `1` | Scales on-rails wheel rotation by the current timestep. |
 | `burnout` | `1` | Scales burnout wheel speed by the current timestep. |
 | `disableSwingingCompletely` | `0` | Keeps lowrider and similar swinging bodies rigid. This is a preference rather than an FPS fix; it suppresses the stock sway at 30 FPS too. |

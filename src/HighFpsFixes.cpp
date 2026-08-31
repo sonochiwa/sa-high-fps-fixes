@@ -400,6 +400,8 @@ constexpr uintptr_t kPhysicalProcessCollision = 0x0054DFB0;
 constexpr uintptr_t kPhysicalProcessShift = 0x0054DB10;
 constexpr uintptr_t kEntityUpdateRwMatrix = 0x00446F90;
 constexpr uintptr_t kEntityUpdateRwFrame = 0x00532B00;
+constexpr uintptr_t kBikePreRender = 0x006BD090;
+constexpr uintptr_t kBikeRender = 0x006BDE20;
 constexpr uintptr_t kRailWheelSpinReturn0 = 0x006B5245;
 constexpr uintptr_t kRailWheelSpinReturn1 = 0x006B5255;
 constexpr uintptr_t kRailWheelSpinReturn2 = 0x006B5263;
@@ -435,6 +437,10 @@ constexpr size_t kPedVehicle = 0x58C;
 constexpr size_t kPedHealth = 0x540;
 constexpr size_t kPedArmour = 0x548;
 constexpr size_t kVehicleSubClass = 0x594;
+constexpr size_t kBikeLeanMatrixCalculated = 0x5C8;
+constexpr size_t kBikeLeanMatrix = 0x5CC;
+constexpr size_t kBikeFlags = 0x614;
+constexpr uint8_t kBikeGettingPickedUp = 0x08;
 constexpr size_t kBikeContactWheels = 0x804;
 constexpr size_t kPhysicalFlags = 0x40;
 constexpr size_t kPhysicalLastCollisionTime = 0x3C;
@@ -1283,6 +1289,12 @@ constexpr std::array<uint8_t, 6> kExpectedPhysicalProcessShift{
 };
 constexpr std::array<uint8_t, 5> kExpectedEntityUpdateRwFrame{
     0x8B, 0x41, 0x18, 0x85, 0xC0
+};
+constexpr std::array<uint8_t, 7> kExpectedBikePreRender{
+    0x6A, 0xFF, 0x68, 0x21, 0x83, 0x84, 0x00
+};
+constexpr std::array<uint8_t, 6> kExpectedBikeRender{
+    0x51, 0x56, 0x8D, 0x44, 0x24, 0x04
 };
 // push esi / mov ecx,edi / call CTaskSimpleSwim::ProcessSwimmingResistance
 constexpr std::array<uint8_t, 8> kExpectedSwimResistanceCall{
@@ -3438,6 +3450,8 @@ DetourPatch g_applyGravityPatch{};
 DetourPatch g_abandonedBikeCollisionPatch{};
 DetourPatch g_abandonedBikeShiftPatch{};
 DetourPatch g_abandonedBikeRwFramePatch{};
+DetourPatch g_abandonedBikePreRenderPatch{};
+DetourPatch g_abandonedBikeRenderPatch{};
 std::array<SitePatch, 3> g_leanWritePatches{};
 
 // A riderless bike is the one remaining vehicle case where mathematically
@@ -3482,11 +3496,8 @@ AbandonedBikeRenderState* FindAbandonedBikeRenderState(void* bike,
     return state;
 }
 
-bool CopyBikeTransform(void* bike, std::array<float, 12>& out) {
+bool CopyMatrixTransform(uintptr_t matrix, std::array<float, 12>& out) {
     __try {
-        const auto address = reinterpret_cast<uintptr_t>(bike);
-        const auto matrix = *reinterpret_cast<const uintptr_t*>(
-            address + kEntityMatrix);
         if (!matrix) {
             return false;
         }
@@ -3508,11 +3519,9 @@ bool CopyBikeTransform(void* bike, std::array<float, 12>& out) {
     }
 }
 
-bool WriteBikeTransform(void* bike, const std::array<float, 12>& transform) {
+bool WriteMatrixTransform(uintptr_t matrix,
+                          const std::array<float, 12>& transform) {
     __try {
-        const auto address = reinterpret_cast<uintptr_t>(bike);
-        const auto matrix = *reinterpret_cast<const uintptr_t*>(
-            address + kEntityMatrix);
         if (!matrix) {
             return false;
         }
@@ -3525,6 +3534,28 @@ bool WriteBikeTransform(void* bike, const std::array<float, 12>& transform) {
             }
         }
         return true;
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+        return false;
+    }
+}
+
+bool CopyBikeTransform(void* bike, std::array<float, 12>& out) {
+    __try {
+        const auto address = reinterpret_cast<uintptr_t>(bike);
+        const auto matrix = *reinterpret_cast<const uintptr_t*>(
+            address + kEntityMatrix);
+        return CopyMatrixTransform(matrix, out);
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+        return false;
+    }
+}
+
+bool WriteBikeTransform(void* bike, const std::array<float, 12>& transform) {
+    __try {
+        const auto address = reinterpret_cast<uintptr_t>(bike);
+        const auto matrix = *reinterpret_cast<const uintptr_t*>(
+            address + kEntityMatrix);
+        return WriteMatrixTransform(matrix, transform);
     } __except (EXCEPTION_EXECUTE_HANDLER) {
         return false;
     }
@@ -3596,8 +3627,11 @@ bool IsAbandonedBike(const void* entity) {
         const uint8_t status = packed >> 3;
         const uint8_t subClass = *reinterpret_cast<const uint8_t*>(
             address + kVehicleSubClass);
+        const uint8_t bikeFlags = *reinterpret_cast<const uint8_t*>(
+            address + kBikeFlags);
         return status == kStatusAbandoned
-            && (subClass == 9 || subClass == 10);
+            && (subClass == 9 || subClass == 10)
+            && !(bikeFlags & kBikeGettingPickedUp);
     } __except (EXCEPTION_EXECUTE_HANDLER) {
         return false;
     }
@@ -3853,6 +3887,64 @@ void __fastcall HookedEntityUpdateRwFrame(void* entity, void*) {
     }
     reinterpret_cast<ThisCallVoidFn>(g_abandonedBikeRwFramePatch.gateway)(
         entity);
+}
+
+// The clump already receives the interpolated transform in UpdateRwFrame, but
+// bike lights are generated later from CBike::m_mLeanMatrix. That matrix is a
+// render cache built from the collision matrix and is consequently left at the
+// last 30 Hz physics state. Give PreRender/Render the same interpolated entity
+// transform, force their lean cache to be rebuilt, then restore both matrices
+// before returning to gameplay code.
+void CallAbandonedBikeRender(DetourPatch& patch, void* bike) {
+    std::array<float, 12> physicalTransform{};
+    std::array<float, 12> savedLeanTransform{};
+    uint8_t savedLeanCalculated{};
+    bool swapped = false;
+
+    if (g_abandonedBikePhysicsStepEnabled && IsAbandonedBike(bike)) {
+        if (auto* state = FindAbandonedBikeRenderState(bike, false);
+            state && state->valid) {
+            const auto address = reinterpret_cast<uintptr_t>(bike);
+            const auto leanMatrix = address + kBikeLeanMatrix;
+            if (CopyBikeTransform(bike, physicalTransform)
+                && CopyMatrixTransform(leanMatrix, savedLeanTransform)) {
+                const auto renderTransform = InterpolateBikeTransform(
+                    *state, g_abandonedBikePhysicsCredit);
+                __try {
+                    savedLeanCalculated = *reinterpret_cast<const uint8_t*>(
+                        address + kBikeLeanMatrixCalculated);
+                    if (WriteBikeTransform(bike, renderTransform)) {
+                        *reinterpret_cast<uint8_t*>(
+                            address + kBikeLeanMatrixCalculated) = 0;
+                        swapped = true;
+                    }
+                } __except (EXCEPTION_EXECUTE_HANDLER) {
+                    swapped = false;
+                }
+            }
+        }
+    }
+
+    reinterpret_cast<ThisCallVoidFn>(patch.gateway)(bike);
+
+    if (swapped) {
+        const auto address = reinterpret_cast<uintptr_t>(bike);
+        WriteBikeTransform(bike, physicalTransform);
+        WriteMatrixTransform(address + kBikeLeanMatrix, savedLeanTransform);
+        __try {
+            *reinterpret_cast<uint8_t*>(address + kBikeLeanMatrixCalculated) =
+                savedLeanCalculated;
+        } __except (EXCEPTION_EXECUTE_HANDLER) {
+        }
+    }
+}
+
+void __fastcall HookedBikePreRender(void* bike, void*) {
+    CallAbandonedBikeRender(g_abandonedBikePreRenderPatch, bike);
+}
+
+void __fastcall HookedBikeRender(void* bike, void*) {
+    CallAbandonedBikeRender(g_abandonedBikeRenderPatch, bike);
 }
 
 // Gravity is called every frame during the freeze, so the interesting value is
@@ -6647,9 +6739,27 @@ bool InstallAbandonedBikePhysicsStepFix() {
         return false;
     }
 
+    const bool preRenderInstalled = InstallDetour(
+        g_abandonedBikePreRenderPatch, kBikePreRender,
+        &HookedBikePreRender, kExpectedBikePreRender.data(),
+        kExpectedBikePreRender.size());
+    const bool renderInstalled = preRenderInstalled && InstallDetour(
+        g_abandonedBikeRenderPatch, kBikeRender,
+        &HookedBikeRender, kExpectedBikeRender.data(),
+        kExpectedBikeRender.size());
+    if (!renderInstalled) {
+        RestoreDetour(g_abandonedBikeRenderPatch);
+        RestoreDetour(g_abandonedBikePreRenderPatch);
+        Log("Abandoned bike light interpolation skipped: CBike render entries "
+            "do not match GTA SA 1.0 US.");
+    }
+
     g_abandonedBikePhysicsStepEnabled = true;
     Log("Installed complete 30 Hz physics steps with render interpolation for "
         "abandoned bikes.");
+    if (renderInstalled) {
+        Log("Installed interpolated abandoned-bike render matrices for lights.");
+    }
     return true;
 }
 
@@ -8105,6 +8215,8 @@ void Shutdown() {
         RestoreSite(patch);
     }
     g_abandonedBikePhysicsStepEnabled = false;
+    RestoreDetour(g_abandonedBikeRenderPatch);
+    RestoreDetour(g_abandonedBikePreRenderPatch);
     RestoreDetour(g_abandonedBikeRwFramePatch);
     RestoreDetour(g_abandonedBikeCollisionPatch);
     RestoreDetour(g_abandonedBikeShiftPatch);

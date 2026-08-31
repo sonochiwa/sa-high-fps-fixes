@@ -255,6 +255,24 @@ while leaving the player-controlled bike untouched. A follow-up interpolation
 layer blends only the RenderWare transform between completed physics states;
 the collision matrix itself remains on the validated 30 Hz trajectory.
 
+The pickup task deliberately leaves a fallen bike in `STATUS_ABANDONED`, so
+status alone is not sufficient to decide whether the 30 Hz cadence should
+continue. `CTaskSimplePickUpBike::ProcessPed` sets
+`CBike::bikeFlags.bGettingPickedUp` once the animation reaches the point where
+the bike starts moving. The cadence and render interpolation are disabled while
+that flag is set, allowing the animation-driven pickup to update every rendered
+frame without changing the physics of a genuinely riderless bike.
+
+`CEntity::UpdateRwFrame` covers the visible clump but not every effect attached
+to it. `CBike::Render` calls `CalculateLeanMatrix` and passes the resulting
+`CBike::m_mLeanMatrix` to `CVehicle::DoHeadLightBeam`; the rest of the vehicle
+light work is prepared in `CBike::PreRender`. Because the lean matrix is cached
+from the collision matrix, the headlight otherwise remains on the last 30 Hz
+physics pose while the model moves smoothly. During those two render calls the
+fix temporarily substitutes the same interpolated entity transform and forces
+the lean matrix cache to rebuild. Both gameplay matrices are restored before
+the call returns, so only light and other render placement sees that pose.
+
 ## RW36 scope
 
 The available RW36 tree contains the RenderWare 3.6 binary libraries, including

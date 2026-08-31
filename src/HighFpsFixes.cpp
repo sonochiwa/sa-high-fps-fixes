@@ -396,6 +396,10 @@ constexpr uintptr_t kWheelFrictionCarBrakeReturn = 0x006D6EAE;
 constexpr uintptr_t kWheelFrictionBikeBaseReturn = 0x006D7685;
 constexpr uintptr_t kWheelFrictionBikeDriveReturn = 0x006D76B1;
 constexpr uintptr_t kWheelFrictionBikeBrakeReturn = 0x006D76D3;
+constexpr uintptr_t kPhysicalProcessCollision = 0x0054DFB0;
+constexpr uintptr_t kPhysicalProcessShift = 0x0054DB10;
+constexpr uintptr_t kEntityUpdateRwMatrix = 0x00446F90;
+constexpr uintptr_t kEntityUpdateRwFrame = 0x00532B00;
 constexpr uintptr_t kRailWheelSpinReturn0 = 0x006B5245;
 constexpr uintptr_t kRailWheelSpinReturn1 = 0x006B5255;
 constexpr uintptr_t kRailWheelSpinReturn2 = 0x006B5263;
@@ -443,6 +447,8 @@ constexpr size_t kBmxSprintLeanAngle = 0x81C;
 constexpr size_t kVehicleBrakePedal = 0x498;
 constexpr size_t kVehicleGasPedal = 0x49C;
 constexpr size_t kBikeWheelAngularVelocity = 0x758;
+constexpr size_t kBikeWheelRatios = 0x710;
+constexpr size_t kBikeWheelContactTimers = 0x730;
 constexpr uintptr_t kBikeProcessControl = 0x006B9250;
 constexpr uintptr_t kPhysicalApplyGravity = 0x00542FE0;
 // Diagnostic-only sites in CBike::ProcessControl. The first resumes after the
@@ -452,6 +458,10 @@ constexpr uintptr_t kPhysicalApplyGravity = 0x00542FE0;
 constexpr uintptr_t kBikeBalanceInput = 0x006B9605;
 constexpr uintptr_t kBikeBalanceInputReturn = 0x006B960D;
 constexpr uintptr_t kBikeBalanceForceCall = 0x006B97A1;
+// Wheel-contact call used to isolate the backward pitch acquired on a ramp.
+// The narrowed experiment below now acts only during the short interval where
+// the front suspension is clear and the bike is climbing off a ramp. This
+// includes the rear-wheel takeoff phase and the short stale-contact tail.
 constexpr uintptr_t kBikeWheelTurnForceCall = 0x006D7B17;
 constexpr size_t kMatrixRight = 0x00;
 constexpr size_t kMatrixUp = 0x10;
@@ -514,11 +524,7 @@ constexpr uintptr_t kTurnAirResistanceReturn = 0x00544D4D;
 // how much tangential speed one contact may remove, to `fFriction`. The ped
 // branch of the same function computes that limit as
 // `CTimer::GetTimeStep() / m_fMass * fFriction`, but the vehicle branch uses
-// `fFriction` unscaled, so it is a per-rendered-frame budget. A vehicle resting
-// on the ground has four contacts biting at it every frame, which at 500 FPS is
-// sixteen times more braking per second than at 30 FPS, and the vehicle cannot
-// be pushed. It also masked the ped push impulse being sixteen times too strong
-// in the original, because the two errors partly cancelled.
+// `fFriction` unscaled, so it is a per-rendered-frame budget.
 //
 // The site is `fld [esp+0x68]; fchs; fstp [esp+0x68]`, reached by a jump, so the
 // thunk sees the same `esp` and the same x87 stack depth.
@@ -1228,11 +1234,14 @@ constexpr std::array<uint8_t, 6> kExpectedFxCreateParticles{
 // The gate is per call site, keyed on the return address, which is finer than
 // keying on the effect system: `m_SmokeII3expand` is shared by exhaust, fire,
 // the water cannon and breaking objects, and those want different treatment.
-// A site that was idle on the previous frame is always let through, so an
-// intermittent spawn — a shell casing, a hit spark, debris — never loses a
-// particle. A site that ran on the previous frame is a stream, and a stream is
-// opened on thirty frames a second, which is what it emitted when the game was
-// built. At 30 FPS or below every frame is open and nothing changes at all.
+// A site that was idle for at least one original 30 Hz frame is always let
+// through, so an intermittent spawn — a shell casing, a hit spark, debris —
+// never loses a particle. Shorter gaps remain part of the same stream. This is
+// important for exhaust smoke: its random test often skips rendered frames at
+// high FPS, but those sub-33-ms gaps do not make each following particle a new
+// event. A stream is opened thirty times a second, which is what it emitted
+// when the game was built. At 30 FPS or below every frame is open and nothing
+// changes at all.
 constexpr uintptr_t kFxAddParticle = 0x004AA440;
 
 // sub esp,8 / push esi / push edi
@@ -1262,6 +1271,18 @@ constexpr std::array<uint8_t, 5> kExpectedProcessAimWeapon{
 };
 constexpr std::array<uint8_t, 6> kExpectedWheelFriction{
     0xD9, 0x05, 0xCC, 0xB9, 0xC2, 0x00
+};
+constexpr std::array<uint8_t, 7> kExpectedBikeProcessControl{
+    0x6A, 0xFF, 0x68, 0xEB, 0x82, 0x84, 0x00
+};
+constexpr std::array<uint8_t, 8> kExpectedPhysicalProcessCollision{
+    0x6A, 0xFF, 0x64, 0xA1, 0x00, 0x00, 0x00, 0x00
+};
+constexpr std::array<uint8_t, 6> kExpectedPhysicalProcessShift{
+    0x55, 0x8B, 0xEC, 0x83, 0xE4, 0xF8
+};
+constexpr std::array<uint8_t, 5> kExpectedEntityUpdateRwFrame{
+    0x8B, 0x41, 0x18, 0x85, 0xC0
 };
 // push esi / mov ecx,edi / call CTaskSimpleSwim::ProcessSwimmingResistance
 constexpr std::array<uint8_t, 8> kExpectedSwimResistanceCall{
@@ -1468,12 +1489,15 @@ constexpr char kDefaultIni[] =
     "\n"
     "[vehicles]\n"
     "bikeLeanTarget=1\n"
+    "bikePitchExperiment=0\n"
+    "bikePitchExperimentStrength=50\n"
     "groundFriction=1\n"
     "turnAirResistance=1\n"
     "moveSpeedSnap=1\n"
     "restThreshold=1\n"
     "physicsSleepRate=1\n"
     "wheelFriction=1\n"
+    "abandonedBikePhysicsStep=0\n"
     "railWheelSpin=1\n"
     "burnout=1\n"
     "disableSwingingCompletely=0\n"
@@ -1552,7 +1576,7 @@ struct BytePatch {
 
 struct DetourPatch {
     uintptr_t address{};
-    std::array<uint8_t, 8> original{};
+    std::array<uint8_t, 16> original{};
     size_t size{};
     void* gateway{};
     bool installed{};
@@ -1610,6 +1634,7 @@ std::array<SitePatch, 6> g_moveSpeedSnapPatches{};
 SitePatch g_turnAirResistancePatch{};
 SitePatch g_groundFrictionPatch{};
 SitePatch g_bikeLeanTargetPatch{};
+SitePatch g_bikePitchExperimentPatch{};
 // Scratch for the six move speed snap thunks. The game is single threaded
 // through vehicle processing, and each thunk writes it and reads it back before
 // the next instruction.
@@ -2052,7 +2077,7 @@ bool InstallDetour(DetourPatch& patch, uintptr_t address, const void* target,
     patch.size = size;
     patch.gateway = gateway;
     std::memcpy(patch.original.data(), expected, size);
-    std::array<uint8_t, 8> replacement{};
+    std::array<uint8_t, 16> replacement{};
     replacement.fill(0x90);
     replacement[0] = 0xE9;
     const int32_t relative = static_cast<int32_t>(displacement);
@@ -2632,19 +2657,23 @@ bool ParticleSiteOpen(uintptr_t site) {
         return slot->open != 0;
     }
 
-    if (frame - slot->lastFrame != 1u) {
-        // Idle on the previous frame, so this is a fresh event rather than a
-        // stream. Never drop the first particle of one.
+    float ratio = TimeStepRatio();
+    if (!std::isfinite(ratio) || ratio <= 0.0f) {
+        ratio = 1.0f;
+    }
+    if (ratio > 1.0f) {
+        ratio = 1.0f;
+    }
+
+    const uint32_t elapsedFrames = frame - slot->lastFrame;
+    if (slot->lastFrame == 0
+        || static_cast<float>(elapsedFrames) * ratio >= 1.0f) {
+        // The call site was idle for at least one original frame, so this is a
+        // fresh event rather than a short stochastic gap in a stream. Never
+        // drop the first particle of a fresh event.
         slot->carry = 0.0f;
         slot->open = 1;
     } else {
-        float ratio = TimeStepRatio();
-        if (!std::isfinite(ratio) || ratio <= 0.0f) {
-            ratio = 1.0f;
-        }
-        if (ratio > 1.0f) {
-            ratio = 1.0f;
-        }
         slot->carry += ratio;
         if (slot->carry >= 1.0f) {
             slot->carry -= 1.0f;
@@ -3121,6 +3150,164 @@ DWORD WINAPI SuspensionDampingLimitThread(void*) {
 }
 
 // ---------------------------------------------------------------------------
+// Experimental bike ramp pitch isolation
+// ---------------------------------------------------------------------------
+
+// The wheel-contact call at 0x6D7B17 is the first known source of the excess
+// backward angular speed seen at takeoff. Preserve the complete angular-velocity
+// delta produced by the stock ApplyTurnForce except for the excess positive
+// pitch produced during takeoff: both front suspension lines are clear, the
+// bike has meaningful positive world-Z velocity, and a rear or lingering wheel
+// contact still reaches ProcessBikeWheel. This catches the phase where the rear
+// wheel continues to pitch the bike after the front has left a ramp without
+// changing a wheelie on level ground. Negative (nose-down) pitch and 30 FPS or
+// below are exact no-ops.
+uintptr_t g_bikePitchExperimentBike{};
+float g_bikePitchExperimentBefore[3]{};
+float g_bikePitchExperimentAxis[3]{};
+float g_bikePitchExperimentStrength{0.5f};
+float g_bikePitchExperimentFrameCorrection{};
+bool g_bikePitchExperimentActive{};
+
+void __cdecl BeginBikePitchExperiment(uintptr_t bike) {
+    g_bikePitchExperimentActive = false;
+    __try {
+        const float timeStep = *reinterpret_cast<const float*>(kTimerTimeStep);
+        if (!bike || !std::isfinite(timeStep) || timeStep <= 0.0f
+            || timeStep >= kOriginalTimeStep) {
+            return;
+        }
+
+        // The correction exists for the rider-generated takeoff pitch. Once
+        // RemoveDriver changes the packed entity status to STATUS_ABANDONED,
+        // an ordinary ground bounce can otherwise satisfy the same wheel-line
+        // and vertical-speed conditions and have its stock angular response
+        // suppressed. Leave every riderless and non-player bike completely
+        // untouched.
+        const uint8_t status = *reinterpret_cast<const uint8_t*>(
+            bike + kEntityTypeAndStatus) >> 3;
+        if (status != 0) { // STATUS_PLAYER
+            return;
+        }
+
+        const auto* wheelRatios = reinterpret_cast<const float*>(
+            bike + kBikeWheelRatios);
+        const auto* contactTimers = reinterpret_cast<const float*>(
+            bike + kBikeWheelContactTimers);
+        bool hasLingeringWheelContact = false;
+        for (size_t i = 0; i < 4; ++i) {
+            if (!std::isfinite(wheelRatios[i])
+                || !std::isfinite(contactTimers[i])) {
+                return;
+            }
+            hasLingeringWheelContact |= contactTimers[i] > 0.0f;
+        }
+        const bool hasFrontWheelContact = wheelRatios[0] < 1.0f
+                                       || wheelRatios[1] < 1.0f;
+        const float verticalSpeed = *reinterpret_cast<const float*>(
+            bike + kPhysicalMoveSpeed + 2 * sizeof(float));
+        if (!std::isfinite(verticalSpeed) || hasFrontWheelContact
+            || !hasLingeringWheelContact || verticalSpeed <= 0.02f) {
+            return;
+        }
+
+        const auto matrix = *reinterpret_cast<const uintptr_t*>(
+            bike + kEntityMatrix);
+        if (!matrix) {
+            return;
+        }
+
+        const auto* turn = reinterpret_cast<const float*>(
+            bike + kPhysicalTurnSpeed);
+        const auto* right = reinterpret_cast<const float*>(
+            matrix + kMatrixRight);
+        float axisLengthSquared = 0.0f;
+        for (size_t i = 0; i < 3; ++i) {
+            if (!std::isfinite(turn[i]) || !std::isfinite(right[i])) {
+                return;
+            }
+            g_bikePitchExperimentBefore[i] = turn[i];
+            g_bikePitchExperimentAxis[i] = right[i];
+            axisLengthSquared += right[i] * right[i];
+        }
+        if (!std::isfinite(axisLengthSquared) || axisLengthSquared < 0.25f) {
+            return;
+        }
+
+        g_bikePitchExperimentBike = bike;
+        g_bikePitchExperimentFrameCorrection = std::clamp(
+            1.0f - timeStep / kOriginalTimeStep, 0.0f, 1.0f);
+        g_bikePitchExperimentActive = true;
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+        g_bikePitchExperimentActive = false;
+    }
+}
+
+void __cdecl FinishBikePitchExperiment() {
+    if (!g_bikePitchExperimentActive) {
+        return;
+    }
+    g_bikePitchExperimentActive = false;
+
+    __try {
+        auto* turn = reinterpret_cast<float*>(
+            g_bikePitchExperimentBike + kPhysicalTurnSpeed);
+        float pitchDelta = 0.0f;
+        float axisLengthSquared = 0.0f;
+        for (size_t i = 0; i < 3; ++i) {
+            const float delta = turn[i] - g_bikePitchExperimentBefore[i];
+            pitchDelta += delta * g_bikePitchExperimentAxis[i];
+            axisLengthSquared += g_bikePitchExperimentAxis[i]
+                               * g_bikePitchExperimentAxis[i];
+        }
+        if (!std::isfinite(pitchDelta) || pitchDelta <= 0.0f
+            || !std::isfinite(axisLengthSquared)
+            || axisLengthSquared < 0.25f) {
+            return;
+        }
+
+        const float projection = (pitchDelta / axisLengthSquared)
+                               * g_bikePitchExperimentStrength
+                               * g_bikePitchExperimentFrameCorrection;
+        for (size_t i = 0; i < 3; ++i) {
+            turn[i] -= g_bikePitchExperimentAxis[i] * projection;
+        }
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+    }
+}
+
+// Entered through the original five-byte call. ApplyTurnForce ends in `ret 18h`,
+// so an ordinary nested call would put this wrapper's return address where the
+// callee expects its first float and would then corrupt the caller's stack. Make
+// a private copy of all six arguments for the nested call and reproduce the
+// original `ret 18h` when the wrapper itself returns.
+__declspec(naked) void BikePitchExperimentThunk() {
+    __asm {
+        pushfd
+        pushad
+        push ecx
+        call BeginBikePitchExperiment
+        add esp, 4
+        popad
+        popfd
+        mov eax, esp
+        push dword ptr [eax + 0x18]
+        push dword ptr [eax + 0x14]
+        push dword ptr [eax + 0x10]
+        push dword ptr [eax + 0x0C]
+        push dword ptr [eax + 0x08]
+        push dword ptr [eax + 0x04]
+        call kApplyTurnForce
+        pushfd
+        pushad
+        call FinishBikePitchExperiment
+        popad
+        popfd
+        ret 0x18
+    }
+}
+
+// ---------------------------------------------------------------------------
 // HUD flashing
 // ---------------------------------------------------------------------------
 
@@ -3245,9 +3432,233 @@ volatile uint32_t g_bikeProcessCalls{};
 volatile uint32_t g_gravityCalls{};
 volatile float g_moveSpeedAfterGravity{};
 uint32_t g_leanWrites[3]{};
+using ThisCallVoidFn = void(__thiscall*)(void*);
 DetourPatch g_bikeProcessPatch{};
 DetourPatch g_applyGravityPatch{};
+DetourPatch g_abandonedBikeCollisionPatch{};
+DetourPatch g_abandonedBikeShiftPatch{};
+DetourPatch g_abandonedBikeRwFramePatch{};
 std::array<SitePatch, 3> g_leanWritePatches{};
+
+// A riderless bike is the one remaining vehicle case where mathematically
+// scaling individual constants does not reproduce the 30 FPS outcome. Contact
+// generation, collision retries, suspension and wheel impulses form one
+// nonlinear step. This experiment therefore preserves that whole step: above
+// 30 FPS an abandoned bike runs ProcessControl, ProcessCollision and
+// ProcessShift at the original cadence and with the original timestep. Player
+// vehicles and every other physical entity remain on the normal high-FPS path.
+bool g_abandonedBikePhysicsStepEnabled{};
+uint32_t g_abandonedBikePhysicsLastFrame{};
+float g_abandonedBikePhysicsCredit{};
+bool g_abandonedBikePhysicsTick{};
+
+struct AbandonedBikeRenderState {
+    void* bike{};
+    std::array<float, 12> previous{};
+    std::array<float, 12> current{};
+    bool valid{};
+    bool previousCaptured{};
+};
+
+std::array<AbandonedBikeRenderState, 16> g_abandonedBikeRenderStates{};
+
+AbandonedBikeRenderState* FindAbandonedBikeRenderState(void* bike,
+                                                       bool create) {
+    AbandonedBikeRenderState* empty = nullptr;
+    for (auto& state : g_abandonedBikeRenderStates) {
+        if (state.bike == bike) {
+            return &state;
+        }
+        if (!state.bike && !empty) {
+            empty = &state;
+        }
+    }
+    if (!create) {
+        return nullptr;
+    }
+    auto* state = empty ? empty : &g_abandonedBikeRenderStates[0];
+    *state = {};
+    state->bike = bike;
+    return state;
+}
+
+bool CopyBikeTransform(void* bike, std::array<float, 12>& out) {
+    __try {
+        const auto address = reinterpret_cast<uintptr_t>(bike);
+        const auto matrix = *reinterpret_cast<const uintptr_t*>(
+            address + kEntityMatrix);
+        if (!matrix) {
+            return false;
+        }
+        constexpr std::array<size_t, 4> offsets{0x00, 0x10, 0x20, 0x30};
+        for (size_t vector = 0; vector < offsets.size(); ++vector) {
+            const auto* source = reinterpret_cast<const float*>(
+                matrix + offsets[vector]);
+            for (size_t axis = 0; axis < 3; ++axis) {
+                const float value = source[axis];
+                if (!std::isfinite(value)) {
+                    return false;
+                }
+                out[vector * 3 + axis] = value;
+            }
+        }
+        return true;
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+        return false;
+    }
+}
+
+bool WriteBikeTransform(void* bike, const std::array<float, 12>& transform) {
+    __try {
+        const auto address = reinterpret_cast<uintptr_t>(bike);
+        const auto matrix = *reinterpret_cast<const uintptr_t*>(
+            address + kEntityMatrix);
+        if (!matrix) {
+            return false;
+        }
+        constexpr std::array<size_t, 4> offsets{0x00, 0x10, 0x20, 0x30};
+        for (size_t vector = 0; vector < offsets.size(); ++vector) {
+            auto* destination = reinterpret_cast<float*>(
+                matrix + offsets[vector]);
+            for (size_t axis = 0; axis < 3; ++axis) {
+                destination[axis] = transform[vector * 3 + axis];
+            }
+        }
+        return true;
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+        return false;
+    }
+}
+
+void NormalizeRenderVector(std::array<float, 12>& transform, size_t base) {
+    const float lengthSquared = transform[base] * transform[base]
+                              + transform[base + 1] * transform[base + 1]
+                              + transform[base + 2] * transform[base + 2];
+    if (lengthSquared < 0.000001f || !std::isfinite(lengthSquared)) {
+        return;
+    }
+    const float inverseLength = 1.0f / std::sqrt(lengthSquared);
+    transform[base] *= inverseLength;
+    transform[base + 1] *= inverseLength;
+    transform[base + 2] *= inverseLength;
+}
+
+std::array<float, 12> InterpolateBikeTransform(
+    const AbandonedBikeRenderState& state, float alpha) {
+    std::array<float, 12> out{};
+    alpha = std::clamp(alpha, 0.0f, 1.0f);
+    for (size_t i = 0; i < out.size(); ++i) {
+        out[i] = state.previous[i]
+               + (state.current[i] - state.previous[i]) * alpha;
+    }
+
+    // Nlerp the basis and remove accumulated shear. A 30 Hz step is small
+    // enough that this follows the short rotation arc without a quaternion.
+    NormalizeRenderVector(out, 0);
+    const float projection = out[3] * out[0] + out[4] * out[1]
+                           + out[5] * out[2];
+    out[3] -= out[0] * projection;
+    out[4] -= out[1] * projection;
+    out[5] -= out[2] * projection;
+    NormalizeRenderVector(out, 3);
+    out[6] = out[1] * out[5] - out[2] * out[4];
+    out[7] = out[2] * out[3] - out[0] * out[5];
+    out[8] = out[0] * out[4] - out[1] * out[3];
+    NormalizeRenderVector(out, 6);
+    return out;
+}
+
+void BeginAbandonedBikePhysicsStep(void* bike) {
+    auto* state = FindAbandonedBikeRenderState(bike, true);
+    state->valid = false;
+    state->previousCaptured = CopyBikeTransform(bike, state->previous);
+}
+
+void FinishAbandonedBikePhysicsStep(void* bike) {
+    auto* state = FindAbandonedBikeRenderState(bike, true);
+    state->valid = state->previousCaptured
+                && CopyBikeTransform(bike, state->current);
+}
+
+bool IsAbandonedBike(const void* entity) {
+    __try {
+        if (!entity) {
+            return false;
+        }
+        const auto address = reinterpret_cast<uintptr_t>(entity);
+        constexpr uint8_t kTypeVehicle = 2;
+        constexpr uint8_t kStatusAbandoned = 4;
+        const uint8_t packed = *reinterpret_cast<const uint8_t*>(
+            address + kEntityTypeAndStatus);
+        if ((packed & 0x07) != kTypeVehicle) {
+            return false;
+        }
+        const uint8_t status = packed >> 3;
+        const uint8_t subClass = *reinterpret_cast<const uint8_t*>(
+            address + kVehicleSubClass);
+        return status == kStatusAbandoned
+            && (subClass == 9 || subClass == 10);
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+        return false;
+    }
+}
+
+bool ShouldRunAbandonedBikePhysicsStep() {
+    __try {
+        const float timeStep = *reinterpret_cast<const float*>(kTimerTimeStep);
+        if (!std::isfinite(timeStep) || timeStep <= 0.0f
+            || timeStep >= kOriginalTimeStep) {
+            g_abandonedBikePhysicsTick = true;
+            return true;
+        }
+
+        const uint32_t frame = *reinterpret_cast<const uint32_t*>(kFrameCounter);
+        if (frame != g_abandonedBikePhysicsLastFrame) {
+            uint32_t elapsedFrames = frame - g_abandonedBikePhysicsLastFrame;
+            if (g_abandonedBikePhysicsLastFrame == 0 || elapsedFrames > 10000) {
+                elapsedFrames = 1;
+            }
+            g_abandonedBikePhysicsLastFrame = frame;
+            g_abandonedBikePhysicsCredit +=
+                timeStep / kOriginalTimeStep * static_cast<float>(elapsedFrames);
+            if (g_abandonedBikePhysicsCredit >= 1.0f) {
+                g_abandonedBikePhysicsCredit -=
+                    std::floor(g_abandonedBikePhysicsCredit);
+                g_abandonedBikePhysicsTick = true;
+            } else {
+                g_abandonedBikePhysicsTick = false;
+            }
+        }
+        return g_abandonedBikePhysicsTick;
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+        g_abandonedBikePhysicsTick = true;
+        return true;
+    }
+}
+
+void CallAbandonedBikePhysicsStep(DetourPatch& patch, void* entity) {
+    float savedTimeStep = kOriginalTimeStep;
+    bool changed = false;
+    __try {
+        savedTimeStep = *reinterpret_cast<float*>(kTimerTimeStep);
+        changed = std::isfinite(savedTimeStep) && savedTimeStep > 0.0f
+               && savedTimeStep < kOriginalTimeStep;
+        if (changed) {
+            *reinterpret_cast<float*>(kTimerTimeStep) = kOriginalTimeStep;
+        }
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+        changed = false;
+    }
+
+    reinterpret_cast<ThisCallVoidFn>(patch.gateway)(entity);
+
+    if (changed) {
+        __try {
+            *reinterpret_cast<float*>(kTimerTimeStep) = savedTimeStep;
+        } __except (EXCEPTION_EXECUTE_HANDLER) {
+        }
+    }
+}
 
 // One sample is published per final bike balance force. It is intentionally
 // only diagnostic state: the hooks below reproduce the displaced instructions
@@ -3346,8 +3757,6 @@ __declspec(naked) void BikeWheelTurnTraceThunk() {
     }
 }
 
-using ThisCallVoidFn = void(__thiscall*)(void*);
-
 bool IsThePlayerVehicle(const void* entity) {
     __try {
         const auto ped = *reinterpret_cast<uintptr_t*>(kWorldPlayers);
@@ -3365,7 +3774,85 @@ void __fastcall HookedBikeProcessControl(void* bike, void*) {
     if (IsThePlayerVehicle(bike)) {
         ++g_bikeProcessCalls;
     }
+    if (g_abandonedBikePhysicsStepEnabled && IsAbandonedBike(bike)) {
+        if (!ShouldRunAbandonedBikePhysicsStep()) {
+            // Physics remains at the last complete 30 Hz state, but refresh
+            // the RenderWare hierarchy with an interpolated transform.
+            reinterpret_cast<ThisCallVoidFn>(kEntityUpdateRwFrame)(bike);
+            return;
+        }
+        BeginAbandonedBikePhysicsStep(bike);
+        CallAbandonedBikePhysicsStep(g_bikeProcessPatch, bike);
+        return;
+    }
+    if (g_abandonedBikePhysicsStepEnabled) {
+        if (auto* state = FindAbandonedBikeRenderState(bike, false)) {
+            state->valid = false;
+            state->previousCaptured = false;
+        }
+    }
     reinterpret_cast<ThisCallVoidFn>(g_bikeProcessPatch.gateway)(bike);
+}
+
+void __fastcall HookedPhysicalProcessCollision(void* physical, void*) {
+    if (g_abandonedBikePhysicsStepEnabled && IsAbandonedBike(physical)) {
+        if (!g_abandonedBikePhysicsTick) {
+            __try {
+                // Prevent CWorld from retrying the deliberately skipped step.
+                *reinterpret_cast<uint8_t*>(
+                    reinterpret_cast<uintptr_t>(physical) + kEntityFlags)
+                    |= 0x20; // m_bIsInSafePosition
+            } __except (EXCEPTION_EXECUTE_HANDLER) {
+            }
+            return;
+        }
+        CallAbandonedBikePhysicsStep(g_abandonedBikeCollisionPatch, physical);
+        FinishAbandonedBikePhysicsStep(physical);
+        return;
+    }
+    reinterpret_cast<ThisCallVoidFn>(
+        g_abandonedBikeCollisionPatch.gateway)(physical);
+}
+
+void __fastcall HookedPhysicalProcessShift(void* physical, void*) {
+    if (g_abandonedBikePhysicsStepEnabled && IsAbandonedBike(physical)) {
+        if (!g_abandonedBikePhysicsTick) {
+            __try {
+                *reinterpret_cast<uint8_t*>(
+                    reinterpret_cast<uintptr_t>(physical) + kEntityFlags)
+                    |= 0x20; // m_bIsInSafePosition
+            } __except (EXCEPTION_EXECUTE_HANDLER) {
+            }
+            return;
+        }
+        CallAbandonedBikePhysicsStep(g_abandonedBikeShiftPatch, physical);
+        FinishAbandonedBikePhysicsStep(physical);
+        return;
+    }
+    reinterpret_cast<ThisCallVoidFn>(g_abandonedBikeShiftPatch.gateway)(
+        physical);
+}
+
+void __fastcall HookedEntityUpdateRwFrame(void* entity, void*) {
+    if (g_abandonedBikePhysicsStepEnabled && IsAbandonedBike(entity)) {
+        auto* state = FindAbandonedBikeRenderState(entity, false);
+        if (state && state->valid) {
+            std::array<float, 12> physicalTransform{};
+            if (CopyBikeTransform(entity, physicalTransform)) {
+                const auto renderTransform = InterpolateBikeTransform(
+                    *state, g_abandonedBikePhysicsCredit);
+                if (WriteBikeTransform(entity, renderTransform)) {
+                    // UpdateRwMatrix is already detoured by the modpack. Call
+                    // its public entry so that compatibility hook still runs.
+                    reinterpret_cast<ThisCallVoidFn>(
+                        kEntityUpdateRwMatrix)(entity);
+                    WriteBikeTransform(entity, physicalTransform);
+                }
+            }
+        }
+    }
+    reinterpret_cast<ThisCallVoidFn>(g_abandonedBikeRwFramePatch.gateway)(
+        entity);
 }
 
 // Gravity is called every frame during the freeze, so the interesting value is
@@ -6111,6 +6598,61 @@ bool InstallWheelFrictionFix() {
     return true;
 }
 
+bool InstallAbandonedBikePhysicsStepFix() {
+    g_abandonedBikePhysicsStepEnabled = false;
+    g_abandonedBikePhysicsLastFrame = 0;
+    g_abandonedBikePhysicsCredit = 0.0f;
+    g_abandonedBikePhysicsTick = false;
+    g_abandonedBikeRenderStates = {};
+
+    if (!InstallDetour(g_abandonedBikeCollisionPatch,
+                       kPhysicalProcessCollision,
+                       &HookedPhysicalProcessCollision,
+                       kExpectedPhysicalProcessCollision.data(),
+                       kExpectedPhysicalProcessCollision.size())) {
+        Log("Abandoned bike physics step skipped: ProcessCollision entry does "
+            "not match GTA SA 1.0 US.");
+        return false;
+    }
+    if (!InstallDetour(g_abandonedBikeShiftPatch, kPhysicalProcessShift,
+                       &HookedPhysicalProcessShift,
+                       kExpectedPhysicalProcessShift.data(),
+                       kExpectedPhysicalProcessShift.size())) {
+        RestoreDetour(g_abandonedBikeCollisionPatch);
+        Log("Abandoned bike physics step skipped: ProcessShift entry does not "
+            "match GTA SA 1.0 US.");
+        return false;
+    }
+    if (!InstallDetour(g_abandonedBikeRwFramePatch, kEntityUpdateRwFrame,
+                       &HookedEntityUpdateRwFrame,
+                       kExpectedEntityUpdateRwFrame.data(),
+                       kExpectedEntityUpdateRwFrame.size())) {
+        RestoreDetour(g_abandonedBikeShiftPatch);
+        RestoreDetour(g_abandonedBikeCollisionPatch);
+        Log("Abandoned bike physics step skipped: UpdateRwFrame entry does "
+            "not match GTA SA 1.0 US.");
+        return false;
+    }
+    const bool bikeHookWasInstalled = g_bikeProcessPatch.installed;
+    if (!bikeHookWasInstalled
+        && !InstallDetour(g_bikeProcessPatch, kBikeProcessControl,
+                           &HookedBikeProcessControl,
+                           kExpectedBikeProcessControl.data(),
+                           kExpectedBikeProcessControl.size())) {
+        RestoreDetour(g_abandonedBikeRwFramePatch);
+        RestoreDetour(g_abandonedBikeShiftPatch);
+        RestoreDetour(g_abandonedBikeCollisionPatch);
+        Log("Abandoned bike physics step skipped: CBike::ProcessControl entry "
+            "does not match GTA SA 1.0 US.");
+        return false;
+    }
+
+    g_abandonedBikePhysicsStepEnabled = true;
+    Log("Installed complete 30 Hz physics steps with render interpolation for "
+        "abandoned bikes.");
+    return true;
+}
+
 bool InstallRailWheelSpinFix() {
     constexpr std::array<uintptr_t, 4> addresses{
         0x006B523F, 0x006B524F, 0x006B525D, 0x006B5269
@@ -6928,6 +7470,25 @@ bool InstallBikeLeanTargetFix() {
     return true;
 }
 
+bool InstallBikePitchExperiment() {
+    g_bikePitchExperimentStrength = static_cast<float>(std::clamp(
+        ReadNumber("vehicles", "bikePitchExperimentStrength", 50), 0, 100))
+                                  / 100.0f;
+    if (!RepointCall(g_bikePitchExperimentPatch, kBikeWheelTurnForceCall,
+                     kApplyTurnForce, &BikePitchExperimentThunk)) {
+        Log("Bike pitch experiment skipped: wheel-contact ApplyTurnForce call "
+            "does not match GTA SA 1.0 US.");
+        return false;
+    }
+    char installed[128];
+    std::snprintf(installed, sizeof(installed),
+                  "Installed experimental %.0f%% correction of positive bike "
+                  "pitch while climbing off a ramp above 30 FPS.",
+                  g_bikePitchExperimentStrength * 100.0f);
+    Log(installed);
+    return true;
+}
+
 bool InstallGroundFrictionFix() {
     if (!InstallJump(g_groundFrictionPatch, kGroundFrictionClamp,
                      &GroundFrictionClampThunk, kExpectedGroundFriction)) {
@@ -7216,6 +7777,8 @@ DWORD WINAPI Initialize(void*) {
                InstallVehicleRestThresholdFix);
     InstallFix("vehicles", "bikeLeanTarget", "Bike lean target fix",
                InstallBikeLeanTargetFix);
+    InstallFix("vehicles", "bikePitchExperiment", "Bike pitch experiment",
+               InstallBikePitchExperiment, false);
     InstallFix("vehicles", "groundFriction", "Ground friction fix",
                InstallGroundFrictionFix);
     InstallFix("vehicles", "turnAirResistance", "Turn air resistance fix",
@@ -7226,6 +7789,9 @@ DWORD WINAPI Initialize(void*) {
                InstallPhysicsSleepRateFix);
     InstallFix("vehicles", "wheelFriction", "Wheel friction fix",
                InstallWheelFrictionFix);
+    InstallFix("vehicles", "abandonedBikePhysicsStep",
+               "Abandoned bike physics step fix",
+               InstallAbandonedBikePhysicsStepFix);
     InstallFix("vehicles", "railWheelSpin", "Rail wheel spin fix",
                InstallRailWheelSpinFix);
     InstallFix("vehicles", "burnout", "Burnout fix", InstallBurnoutFix);
@@ -7526,6 +8092,7 @@ void Shutdown() {
     RestoreSite(g_turnAirResistancePatch);
     RestoreSite(g_groundFrictionPatch);
     RestoreSite(g_bikeLeanTargetPatch);
+    RestoreSite(g_bikePitchExperimentPatch);
     for (auto& patch : g_heliRotorPatches) {
         RestoreSite(patch);
     }
@@ -7537,6 +8104,10 @@ void Shutdown() {
     for (auto& patch : g_wheelFrictionPatches) {
         RestoreSite(patch);
     }
+    g_abandonedBikePhysicsStepEnabled = false;
+    RestoreDetour(g_abandonedBikeRwFramePatch);
+    RestoreDetour(g_abandonedBikeCollisionPatch);
+    RestoreDetour(g_abandonedBikeShiftPatch);
     RestoreSite(g_pedPushCarPatch);
     RestoreSite(g_swimmingPatch);
     RestoreSite(g_climbSpeedPatch);

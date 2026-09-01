@@ -408,6 +408,78 @@ bool CreateDefaultIniIfMissing() {
     return ok;
 }
 
+struct IniCompletionResult {
+    size_t added{};
+    bool complete{true};
+};
+
+// Add only settings represented by the embedded canonical INI. Profile writes
+// insert a key into its existing section (or append a missing section) without
+// replacing the file, so user values, ordering, blank lines, comments and
+// non-canonical diagnostic settings survive an upgrade. Comments from the
+// template are deliberately not restored: deleting one is a harmless user edit
+// and must not make every launch rewrite the file.
+IniCompletionResult CompleteIniWithMissingDefaults() {
+    IniCompletionResult result{};
+    if (g_iniPath.empty()) {
+        result.complete = false;
+        return result;
+    }
+
+    constexpr char missingValue[] = "\x1Dhigh-fps-fixes-missing\x1D";
+    std::string section;
+    const char* cursor = kDefaultIni;
+    while (*cursor) {
+        const char* newline = std::strchr(cursor, '\n');
+        const size_t length = newline
+                                ? static_cast<size_t>(newline - cursor)
+                                : std::strlen(cursor);
+        std::string line(cursor, length);
+        if (!line.empty() && line.back() == '\r') {
+            line.pop_back();
+        }
+
+        if (line.size() >= 3 && line.front() == '[' && line.back() == ']') {
+            section.assign(line.data() + 1, line.size() - 2);
+        } else if (!section.empty() && !line.empty()
+                   && line.front() != '#' && line.front() != ';') {
+            const size_t equals = line.find('=');
+            if (equals != std::string::npos && equals != 0) {
+                const std::string key = line.substr(0, equals);
+                const std::string defaultValue = line.substr(equals + 1);
+                std::array<char, 128> existing{};
+                GetPrivateProfileStringA(
+                    section.c_str(), key.c_str(), missingValue,
+                    existing.data(), static_cast<DWORD>(existing.size()),
+                    g_iniPath.c_str());
+                if (std::strcmp(existing.data(), missingValue) == 0) {
+                    if (WritePrivateProfileStringA(
+                            section.c_str(), key.c_str(),
+                            defaultValue.c_str(), g_iniPath.c_str())) {
+                        ++result.added;
+                    } else {
+                        result.complete = false;
+                    }
+                }
+            }
+        }
+
+        if (!newline) {
+            break;
+        }
+        cursor = newline + 1;
+    }
+
+    if (result.added != 0) {
+        // The all-null form only flushes the profile API cache. Some Windows
+        // versions return zero for this form even when every preceding write
+        // succeeded, so it must not turn a successful migration into a warning.
+        WritePrivateProfileStringA(nullptr, nullptr, nullptr,
+                                   g_iniPath.c_str());
+    }
+    return result;
+}
+
 void RegisterConfigKey(const char* section, const char* key) {
     for (size_t i = 0; i < g_knownConfigKeyCount; ++i) {
         if (_stricmp(g_knownConfigKeys[i].section, section) == 0

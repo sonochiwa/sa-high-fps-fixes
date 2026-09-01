@@ -45,13 +45,27 @@ void InstallFixes(const FixSpec (&fixes)[Count]) {
 DWORD WINAPI Initialize(void*) {
     g_iniPath = ModulePathWithExtension(".ini");
     g_logPath = ModulePathWithExtension(".log");
-    CreateDefaultIniIfMissing();
+    const bool iniCreatedOrPresent = CreateDefaultIniIfMissing();
+    const IniCompletionResult iniCompletion =
+        CompleteIniWithMissingDefaults();
     RegisterConditionalConfigKeys();
 
     // Keep logging explicit in the generated INI. It is enabled by default so
     // a failed or unexpectedly behaving fix always leaves enough information
     // to diagnose which executable profile and patches were active.
     g_loggingEnabled = ReadSetting("general", "enableLogging", true);
+    if (!iniCreatedOrPresent || !iniCompletion.complete) {
+        g_loggingEnabled = true;
+        Log("Configuration warning: could not add every missing default INI "
+            "setting; in-memory defaults will be used.");
+    } else if (iniCompletion.added != 0) {
+        char message[128];
+        std::snprintf(message, sizeof(message),
+                      "Added %zu missing default setting%s to HighFpsFixes.ini.",
+                      iniCompletion.added,
+                      iniCompletion.added == 1 ? "" : "s");
+        Log(message);
+    }
 
     g_activeGameProfile = DetectGameProfile();
     if (!g_activeGameProfile) {

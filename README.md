@@ -97,10 +97,13 @@ root.
    directory.
 2. Start the game normally.
 
-The plugin creates the canonical INI beside itself if it is missing. The ASI is
-pinned for the lifetime of the process so background callbacks can never return
-into an unloaded module. Exit the game before replacing or removing the ASI and
-INI.
+The plugin creates the canonical INI beside itself if it is missing. On later
+updates it adds missing canonical keys with their current defaults without
+overwriting user values, comments, blank lines, ordering or extra diagnostic
+keys. Deleted comments stay deleted; a deleted setting is restored, so use
+`setting=0` rather than removing a line to keep a fix disabled. The ASI is pinned
+for the lifetime of the process so background callbacks can never return into
+an unloaded module. Exit the game before replacing or removing the ASI and INI.
 
 ## Configuration
 

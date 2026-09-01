@@ -134,10 +134,11 @@ __declspec(naked) void FatCounterThunk() {
         ret
     }
 }
-// The two force paths are the additions to the latest Framerate Vigilante
-// patch. Its source comments call for multiplying by 0.6 but accidentally name
-// the reciprocal `normalizer` constant. Dividing by the original timestep here
-// implements the documented ratio and is exactly 1.0 at 30 FPS.
+
+// `ang` is in st(0), the selected chassis apply rate is in st(1). Contact
+// impulses can feed the same delta once per rendered frame, so normalize this
+// chassis-only input to the original frame duration. The non-chassis path is
+// deliberately left in the game for firetruck ladder movement.
 __declspec(naked) void DoorForceChassisThunk() {
     __asm {
         fmul st, st(1)
@@ -145,16 +146,6 @@ __declspec(naked) void DoorForceChassisThunk() {
         fdiv g_originalTimeStepValue
         fadd dword ptr [esi + 0x14]
         jmp kDoorForceChassisReturn
-    }
-}
-
-__declspec(naked) void DoorForceOtherThunk() {
-    __asm {
-        fmul dword ptr ds:[0x00B7CB5C]
-        fdiv g_originalTimeStepValue
-        fadd dword ptr [esi + 0x14]
-        fstp dword ptr [esi + 0x14]
-        jmp kDoorForceOtherReturn
     }
 }
 

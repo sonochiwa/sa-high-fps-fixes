@@ -327,24 +327,36 @@ bool __fastcall HookedSpringDampening(
                 (*reinterpret_cast<const uint8_t*>(
                     address + kPhysicalFlags) & 0x01) != 0
                     ? 2.0f : 1.0f;
-            const float frameRatio = timeStep / kOriginalTimeStep;
             const float stockAlpha = std::clamp(
                 kOriginalTimeStep * dampingForce * massMultiplier,
                 -kStockDampingLimitInFrame, kStockDampingLimitInFrame);
-            const float absoluteAlpha = std::fabs(stockAlpha);
-            if (absoluteAlpha > 0.0f && absoluteAlpha < 1.0f) {
-                // One original frame retains (1 - |alpha|) of the velocity.
-                // Choose the short-frame alpha whose repeated product over
-                // the same real time is identical. This replaces both the old
-                // linear clamp approximation and the BMX-only override.
-                const float desiredAlpha = std::copysign(
-                    1.0f - std::pow(1.0f - absoluteAlpha, frameRatio),
-                    stockAlpha);
-                const float adjusted = desiredAlpha
-                                     / (timeStep * massMultiplier);
-                if (std::isfinite(adjusted)) {
-                    adjustedDampingForce = adjusted;
+            const float unclampedStockAlpha =
+                kOriginalTimeStep * dampingForce * massMultiplier;
+            float adjusted = dampingForce;
+            if (std::fabs(unclampedStockAlpha)
+                    <= kStockDampingLimitInFrame) {
+                // Linear Euler damping leaves a different amount of motion
+                // when the same interval is split into many short frames.
+                // Convert the stock 30 FPS alpha to the exactly equivalent
+                // short-frame alpha. Tahoma's 0.08 path is handled here.
+                const float absoluteAlpha = std::fabs(stockAlpha);
+                if (absoluteAlpha > 0.0f && absoluteAlpha < 1.0f) {
+                    const float frameRatio = timeStep / kOriginalTimeStep;
+                    const float desiredAlpha = std::copysign(
+                        1.0f - std::pow(1.0f - absoluteAlpha, frameRatio),
+                        stockAlpha);
+                    adjusted = desiredAlpha / (timeStep * massMultiplier);
                 }
+            } else {
+                // The stock game capped this coefficient at 30 FPS. At a short
+                // timestep the same raw dampingForce falls below the fixed cap,
+                // changing the suspension. Cap the coefficient itself at the
+                // equivalent rate; the original function can then keep all of
+                // its spring-force and direction limiting intact.
+                adjusted = stockAlpha / (kOriginalTimeStep * massMultiplier);
+            }
+            if (std::isfinite(adjusted)) {
+                adjustedDampingForce = adjusted;
             }
         }
     } __except (EXCEPTION_EXECUTE_HANDLER) {
@@ -586,4 +598,3 @@ __declspec(naked) void BikePitchExperimentThunk() {
         ret 0x18
     }
 }
-

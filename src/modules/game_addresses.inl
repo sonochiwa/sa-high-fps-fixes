@@ -588,14 +588,14 @@ constexpr uintptr_t kRollOntoWheelsTurnForce = 0x006B0603;
 constexpr uintptr_t kRollOntoWheelsMoveForce = 0x006B0677;
 
 // Swinging doors, boots, bonnets, the lowrider chassis and the firetruck
-// ladder. Framerate Vigilante ed60ae8 extends the old integration/damping fix
-// to the two angular-force paths and the firetruck damping path. Every changed
-// operation is scaled by `timeStep / (50 / 30)`, so the patch is an identity
-// at the original 30 FPS timestep.
+// ladder. Smooth angular input comes from the difference between the current
+// and previous point velocities and already follows the timestep. Suspension
+// contact impulses driving a swinging chassis do not: they can arrive once per
+// rendered frame and make lowrider bodies shake harder at high FPS. Normalize
+// that chassis-only path. Leave the ordinary/firetruck input untouched because
+// scaling it suppresses the ladder's intended movement.
 constexpr uintptr_t kDoorForceChassis = 0x006F42DB;
 constexpr uintptr_t kDoorForceChassisReturn = 0x006F42E0;
-constexpr uintptr_t kDoorForceOther = 0x006F437D;
-constexpr uintptr_t kDoorForceOtherReturn = 0x006F4383;
 constexpr uintptr_t kDoorDampingFiretruck = 0x006F43A1;
 constexpr uintptr_t kDoorDampingFiretruckReturn = 0x006F43A7;
 constexpr uintptr_t kDoorDampingOther = 0x006F43D8;
@@ -619,9 +619,10 @@ constexpr uintptr_t kDoorIntegrationReturn = 0x006F4427;
 // than the game intends.
 //
 // Do not rewrite that global constant from a polling thread. The function entry
-// is wrapped instead and receives a damping coefficient whose exponential
-// decay over one original frame is exact. The stock 0.25 clamp stays untouched,
-// which is deterministic and remains compatible with other physics code.
+// is wrapped instead. Uncapped damping is converted to the short-frame alpha
+// that leaves exactly the same velocity after one 30 FPS interval. Coefficients
+// which reached the stock cap use its equivalent linear rate, leaving the
+// nonlinear spring-force and direction clamps inside ApplySpringDampening.
 constexpr uintptr_t kDampingLimitInFrame = 0x008CD7A0;
 constexpr float kStockDampingLimitInFrame = 0.25f;
 
@@ -852,20 +853,14 @@ constexpr std::array<uint8_t, 6> kExpectedBmxLeanFwdDecay{
 // attempted, which is what the task that calls it does. If it were ever polled
 // more than once in a frame the original would be wrong in the same way and by
 // the same factor, so the fix does not make that case worse.
-// Rendered wheel settle. Every `PreRender` that draws wheels keeps a visual
-// wheel offset — `CAutomobile::m_fWheelPosition` at `+0x838` and its
-// equivalents — separate from the suspension itself. A wheel that has to move
-// up is snapped there in one step, and a wheel coming back down is eased with
-// `position += (target - position) * 0.75` once per rendered frame, with no
-// timestep. Three frames cover the move either way, so at 30 FPS the wheel
-// settles over 100 ms and the bounce is something you can watch. At 150 FPS the
-// same three frames are 20 ms: the wheel is at the top for a single frame and
-// already back down, which is what riding a rail looks like. Cosmetic — this is
-// the drawn wheel, not the suspension that moves the car.
-constexpr uintptr_t kWheelSettleCarA = 0x006AAC2E;
-constexpr uintptr_t kWheelSettleCarB = 0x006AACB3;
-constexpr uintptr_t kWheelSettleCarC = 0x006AAD38;
-constexpr uintptr_t kWheelSettleCarD = 0x006AADBD;
+// Rendered wheel settle. Vehicle `PreRender` functions keep a visual wheel
+// offset separate from the physical suspension and ease a wheel returning down
+// with `position += (target - position) * 0.75` once per rendered frame. The
+// timestep-scaled weight is retained for bikes and aircraft, where it smooths
+// the animation. Automobiles deliberately keep the stock weight: stretching
+// their downward travel to the 30 FPS duration lets long-travel rear wheels
+// visibly hang below the body after the physical suspension has already moved.
+// Cosmetic — none of these sites changes the suspension that moves the vehicle.
 constexpr uintptr_t kWheelSettleBikeA = 0x006BD150;
 constexpr uintptr_t kWheelSettleBikeB = 0x006BD1D0;
 constexpr uintptr_t kWheelSettleBmxA = 0x006C08D0;
@@ -1097,11 +1092,6 @@ constexpr std::array<uint8_t, 29> kExpectedFatCounterMath{
 // fmul st,st(1) / fadd dword ptr [esi+14h]
 constexpr std::array<uint8_t, 5> kExpectedDoorForceChassis{
     0xD8, 0xC9, 0xD8, 0x46, 0x14
-};
-
-// fadd dword ptr [esi+14h] / fstp dword ptr [esi+14h]
-constexpr std::array<uint8_t, 6> kExpectedDoorForceOther{
-    0xD8, 0x46, 0x14, 0xD9, 0x5E, 0x14
 };
 
 // fld dword ptr ds:[00872314h]

@@ -17,11 +17,9 @@ bool InstallDoorSwingFix() {
         const uint8_t* expected;
         size_t size;
     };
-    const std::array<Site, 5> sites{{
+    const std::array<Site, 4> sites{{
         {kDoorForceChassis, &DoorForceChassisThunk,
          kExpectedDoorForceChassis.data(), kExpectedDoorForceChassis.size()},
-        {kDoorForceOther, &DoorForceOtherThunk,
-         kExpectedDoorForceOther.data(), kExpectedDoorForceOther.size()},
         {kDoorDampingFiretruck, &DoorDampingFiretruckThunk,
          kExpectedDoorDampingFiretruck.data(),
          kExpectedDoorDampingFiretruck.size()},
@@ -310,7 +308,6 @@ bool InstallHeadBoppingFix() {
 bool InstallWheelSettleFix() {
     PatchSet patches("Wheel settle fix");
     const uintptr_t sites[] = {
-        kWheelSettleCarA, kWheelSettleCarB, kWheelSettleCarC, kWheelSettleCarD,
         kWheelSettleBikeA, kWheelSettleBikeB,
         kWheelSettleBmxA, kWheelSettleBmxB,
         kWheelSettleHeli, kWheelSettlePlane,
@@ -321,13 +318,14 @@ bool InstallWheelSettleFix() {
                               &WheelSettleThunk, kExpectedWheelSettle.data(), 6,
                               0xE8),
                 g_wheelSettlePatches[i])) {
-            Log("Wheel settle fix skipped: vehicle PreRender bytes do not "
+            Log("Wheel settle fix skipped: bike or aircraft PreRender bytes do not "
                 "match GTA SA 1.0 US.");
             return false;
         }
     }
     patches.Commit();
-    Log("Installed a real-time settle for the drawn wheel position.");
+    Log("Installed a real-time settle for drawn bike and aircraft wheels; "
+        "automobile wheel travel remains stock.");
     return true;
 }
 
@@ -447,7 +445,7 @@ bool InstallSuspensionDampingLimitFix() {
             "not match GTA SA 1.0 US.");
         return false;
     }
-    Log("Installed exact real-time suspension damping.");
+    Log("Installed exact real-time suspension damping with a stable cap.");
     return true;
 }
 
@@ -474,4 +472,3 @@ bool InstallRollOntoWheelsFix() {
     Log("Installed a timestep-scaled roll onto wheels assist.");
     return true;
 }
-

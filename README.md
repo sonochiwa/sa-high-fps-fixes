@@ -48,12 +48,12 @@ Vehicles:
   too abruptly at high FPS.
 - Keeps on-rails wheel rotation, burnout wheel speed, helicopter rotor
   acceleration and skimmer water resistance independent of FPS.
-- Keeps the swinging chassis of lowriders and similar cars, and the fire truck
-  ladder, swaying at the original speed instead of shaking at high FPS.
+- Keeps lowrider swinging chassis from amplifying suspension-contact jitter at
+  high FPS while preserving responsive fire truck ladder movement.
 - Detects a horn tap by wall-clock time, so tapping the horn still toggles the
   siren at high FPS instead of sounding the horn.
-- Eases the drawn wheel back down in real time, so a wheel kicked up by a rail
-  or a kerb bounces instead of flicking for a single frame.
+- Eases drawn bike and aircraft wheels back down in real time; automobile
+  wheels retain their stock response to avoid excessive visual suspension travel.
 - Pushes a vehicle out of world geometry it overlaps at the original rate, so
   riding a rail or a kerb does not throw the car at high FPS.
 - Keeps suspension damping, free wheel spin, boat propeller coast-down, rider
@@ -118,7 +118,7 @@ particle ceiling remain hidden because they are only useful for diagnostics.
 The shipped file, and what every switch means:
 
 ```ini
-# High FPS Fixes v0.9.4
+# High FPS Fixes v0.9.5
 # Created by sonochiwa
 # Source code: https://github.com/sonochiwa/sa-high-fps-fixes
 
@@ -258,9 +258,9 @@ forPauseMenu=0
 | `vehicleTimers` | `1` | Same carry on the `CCarCtrl::UpdateCarAI` timer and the `CVehicle::FlyingControl` timer. |
 | `burnTimers` | `1` | Same carry on the burn timers of cars, bikes and boats, which count how long a burning vehicle has before it explodes. |
 | `rollOntoWheels` | `1` | Scales the roll-onto-wheels assist in `CAutomobile::ProcessSuspension` by the timestep ratio. Unpatched it applies a fixed righting impulse once per frame with no timestep, so a car resting on its side is pushed upright in proportion to the frame rate. Only fires while a nearly stationary car is on its side. |
-| `suspensionDampingLimit` | `1` | Wraps `CPhysical::ApplySpringDampening` and converts its damping coefficient to the exact exponential equivalent of one 30-FPS step. The stock global `0.25` stability clamp is left untouched. This fixes both values that hit the clamp at 30 FPS and the smaller accumulated decay error below it, without a polling thread or writable shared constant. |
+| `suspensionDampingLimit` | `1` | Wraps `CPhysical::ApplySpringDampening`. Ordinary suspension damping is converted to the exact short-frame equivalent of one 30-FPS step; values that reached the stock `0.25` limit use its stable equivalent rate while the game's nonlinear spring-force and direction clamps remain intact. The shared global constant is never rewritten. |
 | `collisionPushOut` | `0` | Experimental A/B for persistent overlaps. It linearly scales the penetration correction in `CPhysical::ProcessShiftSectorList`, but that correction is a geometric constraint rather than a rate: the stock `1.5` branch deliberately clears the surface in one pass. It is disabled by default because enabling it can leave fresh impacts penetrating and force repeated collision retries. |
-| `wheelSettle` | `1` | Eases the drawn wheel back down in real time. Every vehicle `PreRender` keeps a visual wheel offset separate from the suspension, snaps it up in one step and eases it down with `position += (target - position) * 0.75` once per rendered frame, with no timestep. Three frames cover the move, so a wheel kicked up by a rail or a kerb settles over 100 ms at 30 FPS and over 20 ms at 150 FPS, where it reads as a one-frame flick rather than a bounce. Ten sites: four wheels on cars, two on bikes, two on BMX, and the gear loops on helicopters and planes. Cosmetic — the drawn wheel, not the suspension. |
+| `wheelSettle` | `1` | Eases drawn bike, BMX and aircraft wheels back down in real time. Automobile wheels deliberately keep their stock visual response: stretching their downward travel to the 30-FPS duration can leave long-travel rear wheels visibly hanging below the body after the physical suspension has already moved. Cosmetic — the drawn wheel, not the suspension. |
 | `boatEngineSpeed` | `1` | Scales the boat engine coast down in `CBoat::ProcessControl` by the timestep. The propeller speed of a boat nobody is driving falls by a fixed 5% per frame, while the three branches that drive the same field under control all use the timestep, so an abandoned boat's propeller stops and its engine note dies far sooner at a high frame rate. |
 | `bikeWheelSpin` | `1` | Coasts a bike's free front wheel down in real time. `CBike::ProcessControl` holds two copies of the same five instructions, on the two sides of a rider flag; the copy at `0x6BB59B` multiplies the wheel's angular velocity by the timestep before the pitch angle integrates it and the copy at `0x6BAC77` does not, so the free front wheel spins sixteen times as fast at 500 FPS as at 30. The rear wheel a page below carries the timestep too, which makes that one copy the odd one out of three. The `0.95` decay, the same instruction `wheelSpin` fixes on cars, is raised to the timestep in both copies. Cosmetic; it is the visible wheel spin, not the physics. |
 | `headBopping` | `1` | Ramps the driver's head bop by time rather than by frames. `CTaskSimpleCarDrive::ProcessHeadBopping` moves the bop weight by 0.05 per frame between 0 and 1, twenty frames from still to full, and the weight drives how far the head actually moves. Cosmetic. |
@@ -268,7 +268,7 @@ forPauseMenu=0
 | `bmxLeanSettle` | `1` | Settles the BMX rider's animated lean in real time. `CBmx::ProcessDrivingAnims` decays `AnimLeanLeft` and `AnimLeanFwd` by `0.95` once per frame in two branches, four instructions in all, while twenty bytes above the first pair the same function decays another field with `pow(rate, GetTimeStep())`. At 500 FPS the lean snaps to neutral instead of easing. Cosmetic, and the sibling of `bmxSprintLean`. |
 | `jumpOutCarSpeed` | `1` | Raises the two speed dampings in `CVehicle::CanPedJumpOutCar` to the timestep. Both are applied once per call with no timestep, between a comparison and a fallthrough that are timestep-correct, so a slow vehicle the player is bailing out of is brought to a halt harder the higher the frame rate. |
 | `wheelSpin` | `1` | Scales the free wheel spin rate in `CAutomobile::ProcessCarWheelPair` by the timestep. The wheel rotation is integrated with a timestep two instructions later, but the speed feeding it is changed once per frame without one, so an airborne wheel spins up or stops almost instantly at a high frame rate. |
-| `doorSwing` | `1` | Scales both angular-force paths, the ordinary and firetruck damping paths, and angle integration in `CDoor::Process` by the timestep. This keeps doors, boots, bonnets, lowrider chassis sway and the firetruck ladder at the original rate. Ported from Framerate Vigilante commit `ed60ae8`, with exact exponential damping and the documented timestep ratio in place of its linear approximation and reciprocal-constant typo. |
+| `doorSwing` | `1` | Corrects damping and angle integration in `CDoor::Process`, and normalizes only the contact-driven angular input used by swinging chassis. Ordinary doors and the firetruck ladder keep their stock input so the ladder remains responsive, while lowrider bodies no longer amplify rear-suspension contact jitter at high FPS. |
 | `continuousWeaponParticles` | `1` | Preserves fractional continuous-weapon particle emission. |
 | `continuousWeaponAmmo` | `1` | Limits continuous area-effect weapon ammo use to the original 30 FPS rate. |
 | `chainsawStrikeRate` | `1` | Holds the player's held chainsaw to the original fifteen strikes a second. `CTaskSimpleFight::ProcessPed` keeps the cut going by rewinding the moving-attack animation to `hit - 0.01` every time it passes `chain`, and `melee.dat` places the chainsaw's `hit` and `chain` 0.0033 s apart, which is shorter than one frame even at 30 FPS. The rewind and the strike cannot fall on the same frame, so the loop costs a near constant two to four frames whatever the frame rate: fifteen hits a second at 30 FPS, three times that at 144 FPS, against peds and vehicles alike. A strike is now armed on a millisecond clock every 66.7 ms; the passes in between park the animation just past `hit`, where the strike test cannot fire. No effect at 30 FPS or below. |
@@ -325,7 +325,7 @@ contains the ZIP archive, a SHA-256 checksum file, and a signed GitHub artifact
 attestation that binds the archive to its source commit and workflow:
 
 ```bat
-gh attestation verify HighFpsFixes-v0.9.4.zip -R sonochiwa/sa-high-fps-fixes
+gh attestation verify HighFpsFixes-v0.9.5.zip -R sonochiwa/sa-high-fps-fixes
 ```
 
 The attestation is provenance and integrity verification: it proves the bytes
@@ -392,9 +392,9 @@ Patch sites for GTA San Andreas 1.0 US:
   abandoned and wrecked vehicles.
 - `0x5A241F`, `0x6B1D2A`, `0x6B9972` and `0x6F9BD1`: the `m_nFakePhysics` sleep
   counter in `CObject`, `CAutomobile`, `CBike` and `CTrailer`.
-- `0x6F42DB`, `0x6F437D`, `0x6F43A1`, `0x6F43D8` and `0x6F4422`: the two
-  angular-force paths, firetruck and ordinary damping, and angle integration
-  in `CDoor::Process`.
+- `0x6F42DB`, `0x6F43A1`, `0x6F43D8` and `0x6F4422`: the swinging-chassis
+  angular input, firetruck and ordinary damping, and angle integration in
+  `CDoor::Process`.
 - `0x5890AF`, `0x58919F`, `0x58927E`, `0x58A363`, `0x58DDBC` and `0x58DE69`:
   the six HUD flash sites, repointed from `CTimer::m_FrameCounter` at a
   real-time plugin counter.
@@ -445,8 +445,8 @@ Each was checked by comparing a capped 30 FPS run against an uncapped one.
 | `drowningDamage` | Confirmed 2026-08-25 |
 | `skillProgress` | Cycling confirmed 2026-08-27: 1000 a second at 550+ FPS, the same as at 30 FPS. The other twenty counters have never been run |
 | `bikeLeanTarget` | Standing wobble fell from 12-20 degrees peak to peak to 1.31, and cornering lean was confirmed after the projection order was corrected |
-| `wheelSettle` | A wheel kicked up by a rail reads the same at 30 FPS and uncapped |
-| `doorSwing` | Confirmed 2026-08-25, chassis sway only; vehicle doors not separately checked |
+| `wheelSettle` | Bike and aircraft paths retain the previously validated real-time easing; automobile easing was removed after it exposed excessive long-travel wheel extension |
+| `doorSwing` | Reconfirmed 2026-09-01 on Tahoma: the isolated swinging-chassis input fix matches the 30-FPS rear-body response without suppressing the separate firetruck ladder path; ordinary vehicle doors are not separately checked |
 | `hudTiming` | Money counter confirmed 2026-08-25; the flash clock and the 46 text timers it also switches are pending |
 | `scriptObjectSlide` | Confirmed on the airport gates: normal, 30-FPS-compatible duration at high FPS |
 | `fallingGlass` | Confirmed with shattered vehicle glass |
@@ -454,7 +454,7 @@ Each was checked by comparing a capped 30 FPS run against an uncapped one.
 | `chainsawStrikeRate` | Fifteen strikes a second at 30 FPS and uncapped, against roughly forty-eight before |
 | `continuousWeaponParticles` | Extinguisher foam confirmed 2026-08-21; spraycan and flamethrower pending |
 | `continuousWeaponAmmo` | Extinguisher confirmed 2026-08-21; spraycan and flamethrower pending |
-| `groundFriction`, `moveSpeedSnap`, `wheelFriction`, `doorSwing` | Confirmed as a group: with the plugin off at about 500 FPS a car is barely drivable and a Tahoma's rear axle shakes it undrivable, and both go away with the plugin on. Which member carries which part has not been separated; the expanded `doorSwing` port still needs a fresh A/B |
+| `groundFriction`, `moveSpeedSnap`, `wheelFriction`, `doorSwing` | Initially confirmed as a group at about 500 FPS. The Tahoma rear-body symptom was subsequently isolated to `doorSwing` and reconfirmed after separating its chassis and firetruck input paths |
 
 ### Implemented, not yet checked
 
@@ -500,7 +500,7 @@ frame rate, an A/B that shows no difference is a real result.
 | `taskTimers`, `vehicleTimers` | Hard to see directly; the climb timeout and AI car behavior are the likeliest to show |
 | `gangWarTimer` | Start a gang war and time a wave |
 | `continuousWeaponParticles`, `continuousWeaponAmmo` | Spraycan and flamethrower; only the extinguisher has been checked |
-| `groundFriction`, `moveSpeedSnap`, `wheelFriction`, `doorSwing` | Disable one at a time at high FPS to separate which member carries the confirmed improvement; check ordinary doors, a lowrider and the firetruck ladder for the expanded `doorSwing` port |
+| `groundFriction`, `moveSpeedSnap`, `wheelFriction` | Disable one at a time at high FPS to separate which member carries the remaining combined drivability improvement |
 
 ### Open work
 

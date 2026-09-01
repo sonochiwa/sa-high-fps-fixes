@@ -242,6 +242,8 @@ DWORD WINAPI Initialize(void*) {
          InstallScriptObjectSlideFix},
         {"world", "scriptObjectRotate", "Script object rotate fix",
          InstallScriptRotateObjectFix},
+        {"world", "sampObjectRotation", "SA-MP moving object rotation fix",
+         InstallSampObjectRotationFix},
         {"world", "fallingGlass", "Falling glass fix",
          InstallFallingGlassFix},
         {"world", "breakableObjectLifetime",

@@ -1,6 +1,6 @@
 
 constexpr char kDefaultIni[] =
-    "# High FPS Fixes v0.9.7\n"
+    "# High FPS Fixes v0.9.8\n"
     "# Created by sonochiwa\n"
     "# Source code: https://github.com/sonochiwa/sa-high-fps-fixes\n"
     "\n"
@@ -81,6 +81,7 @@ constexpr char kDefaultIni[] =
     "fireSpread=1\n"
     "scriptObjectSlide=1\n"
     "scriptObjectRotate=1\n"
+    "sampObjectRotation=1\n"
     "fallingGlass=1\n"
     "breakableObjectLifetime=1\n"
     "\n"

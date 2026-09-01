@@ -282,3 +282,10 @@ constexpr std::array<std::array<uint8_t, 6>, 4> kExpectedRailWheelSpin{{
     {0xD8, 0x86, 0x30, 0x08, 0x00, 0x00},
     {0xD8, 0x86, 0x34, 0x08, 0x00, 0x00},
 }};
+
+// samp.dll, at the rotation fraction inside CObject::Process. Located relative
+// to the arrival test rather than by address; see game_addresses.inl.
+constexpr std::array<uint8_t, 10> kExpectedSampObjectRotation{
+    0xD9, 0x44, 0x24, 0x28,            // fld [esp+28h]: remaining distance
+    0xD8, 0xB3, 0x5B, 0x01, 0x00, 0x00 // fdiv [ebx+15Bh]: total distance
+};

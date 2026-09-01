@@ -379,6 +379,69 @@ __declspec(naked) void ScriptRotateObjectThunk() {
     }
 }
 
+// Replaces `fld [esp+28h]` / `fdiv [ebx+15Bh]`, which forms
+// remainingDistance / totalDistance from the object's real position. The x87
+// stack is empty here, so the helper's st0 return value is the whole
+// replacement and no fdiv is needed.
+//
+// CObject::Process has pushed two temporaries at this point, so the wall-clock
+// distance local (elapsedSeconds * m_fSpeed, written at +0x1E9) sits at
+// [esp+1Ch] of the entry frame, which is [esp+38h] once the thunk has spilled
+// its own registers. m_fTotalDistance is [ebx+15Bh].
+__declspec(naked) void SampObjectRotationThunk() {
+    __asm {
+        pushfd
+        push eax
+        push ecx
+        push edx
+        push dword ptr [ebx + 0x15B]
+        push dword ptr [esp + 0x38]
+        call SampObjectRotationRemainingFraction
+        add esp, 8
+        pop edx
+        pop ecx
+        pop eax
+        popfd
+        jmp dword ptr [g_sampObjectRotationReturn]
+    }
+}
+
+// Replaces the arrival test
+//
+//     fld [esp+24h] / fcomp [esp+20h] / fnstsw ax / test ah,1
+//
+// which asks whether this frame's step would overshoot what is left of the
+// distance. That question is kept verbatim; the wall-clock expiry is an extra
+// way to answer it yes. The x87 stack is empty here, and the flags the helper
+// call disturbs are restored before the stock sequence re-derives its own.
+__declspec(naked) void SampObjectArrivalThunk() {
+    __asm {
+        pushfd
+        push eax
+        push ecx
+        push edx
+        push dword ptr [ebx + 0x15B]
+        push dword ptr [esp + 0x30]
+        call EvaluateSampObjectMoveExpiry
+        add esp, 8
+        pop edx
+        pop ecx
+        pop eax
+        popfd
+        cmp byte ptr [g_sampObjectMoveExpired], 0
+        jne arrived
+        fld dword ptr [esp + 0x24]
+        fcomp dword ptr [esp + 0x20]
+        fnstsw ax
+        test ah, 1
+        jne moving
+    arrived:
+        jmp dword ptr [g_sampObjectArrivedReturn]
+    moving:
+        jmp dword ptr [g_sampObjectMovingReturn]
+    }
+}
+
 // The glass pane stores a displacement and two angular displacements in stack
 // locals. All three are per-frame quantities, whereas the integration below is
 // a plain add into the pane's position/orientation.

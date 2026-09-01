@@ -32,6 +32,53 @@ constexpr size_t kRunningScriptNameSize = 8;
 constexpr uintptr_t kPadGetHorn = 0x0053FEE0;
 constexpr uintptr_t kPadHornJustDown = 0x0053FF30;
 
+// SA-MP CObject::Process. A moving object's rotation is a slerp whose parameter
+// is `1 - GetDistance(target) / m_fTotalDistance`, so it advances only as far
+// as the object's real position has advanced. SA-MP drives that position by
+// handing CPhysical a move speed rather than writing coordinates, and a server
+// that animates with a millimetre-scale move (casino reels) produces a
+// per-frame delta that float world coordinates cannot represent at all at high
+// FPS. The fraction then stays pinned at zero, and SA-MP's own catch-up term
+// cannot recover it: its gain is per world unit, so over a millimetre it is a
+// fourth-decimal correction.
+//
+// The stall also strands the move itself. Arrival is only declared when this
+// frame's step would overshoot what is left of the distance, which never
+// happens while the remaining distance is frozen, so CObject::Stop is never
+// reached and the object is left mid-move at its original position. The next
+// MoveObject then measures its distance from that stale position: for a server
+// that animates by shuttling an object between two points, the second move is a
+// zero-length one that arrives on its first frame and snaps instead of
+// animating.
+//
+// Both are rebuilt from the elapsedSeconds * m_fSpeed the function already
+// computes for its catch-up term, which is the schedule the server assumes.
+//
+// The two sites are found by scanning samp.dll's code section for the arrival
+// test rather than by hardcoded addresses: samp.dll may be relocated, and the
+// sites sit at different offsets in each SA-MP build. The pattern spans the
+// whole test and both of its stack operands, so it also pins down the frame
+// layout the thunks rely on. It must match exactly once.
+constexpr std::array<uint8_t, 15> kSampObjectMoveArrivalPattern{
+    0xD9, 0x44, 0x24, 0x24, // fld [esp+24h]: this frame's step
+    0xD8, 0x5C, 0x24, 0x20, // fcomp [esp+20h]: remaining distance
+    0xDF, 0xE0,             // fnstsw ax
+    0xF6, 0xC4, 0x01,       // test ah,1
+    0x0F, 0x85              // jne <still moving>
+};
+
+// The 13 bytes of the test are replaced; the jne that follows stays in place
+// but is jumped over, and supplies the still-moving destination through its
+// rel32. The instruction after it is the arrival branch.
+constexpr size_t kSampObjectArrivalPatchSize = 13;
+constexpr size_t kSampObjectMoveContinueDisplacement = 15;
+constexpr size_t kSampObjectMoveArrivedOffset = 19;
+
+// Distance from the arrival test to the rotation fraction, within the same
+// function. Verified against the bytes at the destination before patching.
+constexpr size_t kSampObjectRotationProgressOffset = 0x12C;
+constexpr size_t kSampObjectRotationProgressPatchSize = 10;
+
 // Stunt jump camera.
 constexpr uintptr_t kEndTimerCall = 0x0049C505;
 constexpr uintptr_t kFlightTimerCall = 0x0049C6FB;

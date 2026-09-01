@@ -121,7 +121,7 @@ particle ceiling remain hidden because they are only useful for diagnostics.
 The shipped file, and what every switch means:
 
 ```ini
-# High FPS Fixes v0.9.7
+# High FPS Fixes v0.9.8
 # Created by sonochiwa
 # Source code: https://github.com/sonochiwa/sa-high-fps-fixes
 
@@ -202,6 +202,7 @@ gangWarTimer=1
 fireSpread=1
 scriptObjectSlide=1
 scriptObjectRotate=1
+sampObjectRotation=1
 fallingGlass=1
 breakableObjectLifetime=1
 
@@ -284,6 +285,7 @@ forPauseMenu=0
 | `fireSpread` | `1` | Evaluates the three random fire events in `CFire::ProcessFire` at the original 30 FPS rate. Each is a per-frame probability with no timestep, so nearby cars catch fire, fires propagate and fires merge as many times more often as there are frames; at 2000 FPS that is about 66 times the shipped rate. The fourth gate, object burn damage, is deliberately left alone because its body carries a timestep that cancels the extra frames. |
 | `scriptObjectSlide` | `1` | Scales the per-frame movement rate of the `SLIDE_OBJECT` script opcode to the timestep. Target coordinates are untouched, so a scripted gate or platform takes the same wall-clock time to travel at any frame rate. |
 | `scriptObjectRotate` | `1` | The same for the `ROTATE_OBJECT` opcode's angular rate. |
+| `sampObjectRotation` | `1` | Drives a SA-MP `MoveObject` from elapsed wall-clock time instead of from how far the object has physically travelled. SA-MP moves objects by handing the physics a move speed, so a server that animates with a millimetre-scale move — casino reels, and anything else using a small move as a timer — produces a per-frame displacement that float world coordinates cannot represent at high FPS. The rotation then never advances and the move never ends, which also turns the next `MoveObject` into a zero-length one that snaps. Both the interpolation fraction and the arrival test now come from the schedule the server itself assumes. The two sites are located by scanning `samp.dll` for the arrival test, so the fix follows the function across SA-MP builds and skips itself on any build that does not match. |
 | `fallingGlass` | `1` | Scales all three per-frame vectors in `FallingGlassPane::Update` — translation and both angular components — before the stock position and orientation integration, so shattered glass falls and tumbles at the original speed. |
 | `breakableObjectLifetime` | `1` | Spends each breakable object's integer lifetime from a shared 30 FPS fractional carry instead of decrementing it once per rendered frame, so debris lives for the same wall-clock time at any frame rate. |
 | `mapZoomWheel` | `1` | Lets a mouse wheel notch through the pause menu map's 20 ms input tick. The wheel flag is rebuilt from the DirectInput delta every frame, so one notch is up for one frame only; at a high frame rate almost every notch misses the tick and the map zoom crawls. Held keys and the shoulder buttons keep their 50 Hz repeat, and panning is untouched. |
@@ -330,7 +332,7 @@ contains the ZIP archive, a SHA-256 checksum file, and a signed GitHub artifact
 attestation that binds the archive to its source commit and workflow:
 
 ```bat
-gh attestation verify HighFpsFixes-v0.9.7.zip -R sonochiwa/sa-high-fps-fixes
+gh attestation verify HighFpsFixes-v0.9.8.zip -R sonochiwa/sa-high-fps-fixes
 ```
 
 The attestation is provenance and integrity verification: it proves the bytes
@@ -424,6 +426,17 @@ The aim fix never writes `CTimer::ms_fTimeStep` or
 task transitions continue using the real frame duration.
 The ammo hook is restricted to the flamethrower, spraycan and fire extinguisher;
 other weapons keep the original path.
+
+`sampObjectRotation` is the only fix that patches something other than the game
+executable. Its two sites are inside `CObject::Process` in `samp.dll`, and
+because that module is relocatable and lays the function out at a different
+offset in each SA-MP build, they are not addressed directly. The installer
+scans the module's code section for the arrival test, requires exactly one
+match, then derives the rotation site from it and reads the still-moving
+destination out of the following `jne`. The pattern covers both stack operands
+of the test, so a build whose frame layout differs cannot match it. When
+nothing matches, or more than one thing does, the fix logs and skips, and every
+other fix is unaffected. Verified against two different 0.3.7 builds, whose sites sit 0x4F26 apart.
 
 ## Validation Status
 

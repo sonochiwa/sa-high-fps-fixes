@@ -1,4 +1,50 @@
 // ---------------------------------------------------------------------------
+// SA-MP moving objects
+// ---------------------------------------------------------------------------
+
+// SA-MP's moving-object rotation is a slerp between the start and target
+// quaternions whose parameter CObject::Process forms as
+//
+//     t = 1.0f - remainingDistance / m_fTotalDistance;
+//
+// where `remainingDistance` is measured from the object's real position. The
+// caller replaces `remainingDistance` with a wall-clock estimate, so this
+// returns the *remaining* fraction and the stock `1.0f - x` that follows keeps
+// its original meaning. Returning the elapsed fraction here would run the slerp
+// backwards from the target to the start pose.
+float __cdecl SampObjectRotationRemainingFraction(float elapsedDistance,
+                                                  float totalDistance) {
+    if (!std::isfinite(totalDistance) || totalDistance <= 0.0f) {
+        return 0.0f;
+    }
+    if (!std::isfinite(elapsedDistance) || elapsedDistance <= 0.0f) {
+        return 1.0f;
+    }
+    if (elapsedDistance >= totalDistance) {
+        return 0.0f;
+    }
+    return 1.0f - elapsedDistance / totalDistance;
+}
+
+// Set by the arrival thunk so it can branch after restoring the flags the
+// helper call clobbered.
+uint8_t g_sampObjectMoveExpired{};
+
+// A move's scheduled duration is m_fTotalDistance / m_fSpeed, and the caller
+// hands over elapsedSeconds * m_fSpeed, so `elapsed >= total` is exactly
+// "the move's wall-clock time is up". Only ever forces the arrival CObject
+// already reaches on its own; a move that is still within its duration keeps
+// the stock overshoot test.
+void __cdecl EvaluateSampObjectMoveExpiry(float elapsedDistance,
+                                          float totalDistance) {
+    g_sampObjectMoveExpired =
+        (std::isfinite(totalDistance) && totalDistance > 0.0f
+         && std::isfinite(elapsedDistance) && elapsedDistance >= totalDistance)
+            ? 1
+            : 0;
+}
+
+// ---------------------------------------------------------------------------
 // Physics sleep counter
 // ---------------------------------------------------------------------------
 

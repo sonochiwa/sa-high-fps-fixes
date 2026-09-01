@@ -24,6 +24,93 @@ bool InstallScriptRotateObjectFix() {
     return true;
 }
 
+// Returns the single occurrence of `pattern` in the module's code section, or
+// zero when it is absent or appears more than once. Ambiguity is treated as
+// absence: a second match would mean the pattern no longer identifies the site
+// it was written for.
+uintptr_t FindUniqueCodePattern(HMODULE module, const uint8_t* pattern,
+                                size_t size) {
+    const auto* image = reinterpret_cast<const uint8_t*>(module);
+    const auto* dos = reinterpret_cast<const IMAGE_DOS_HEADER*>(image);
+    if (dos->e_magic != IMAGE_DOS_SIGNATURE) {
+        return 0;
+    }
+    const auto* headers =
+        reinterpret_cast<const IMAGE_NT_HEADERS32*>(image + dos->e_lfanew);
+    if (headers->Signature != IMAGE_NT_SIGNATURE) {
+        return 0;
+    }
+
+    const uint8_t* code = image + headers->OptionalHeader.BaseOfCode;
+    const size_t length = headers->OptionalHeader.SizeOfCode;
+    if (length < size) {
+        return 0;
+    }
+
+    const uint8_t* found = nullptr;
+    for (size_t i = 0; i + size <= length; ++i) {
+        if (std::memcmp(code + i, pattern, size) != 0) {
+            continue;
+        }
+        if (found) {
+            return 0;
+        }
+        found = code + i;
+        i += size - 1;
+    }
+    return reinterpret_cast<uintptr_t>(found);
+}
+
+bool InstallSampObjectRotationFix() {
+    const HMODULE samp = GetModuleHandleA("samp.dll");
+    if (!samp) {
+        Log("SA-MP moving object rotation fix skipped: samp.dll is not loaded.");
+        return false;
+    }
+
+    const uintptr_t arrival =
+        FindUniqueCodePattern(samp, kSampObjectMoveArrivalPattern.data(),
+                              kSampObjectMoveArrivalPattern.size());
+    if (!arrival) {
+        Log("SA-MP moving object rotation fix skipped: CObject::Process "
+            "arrival test not found in samp.dll.");
+        return false;
+    }
+
+    const uintptr_t rotation = arrival + kSampObjectRotationProgressOffset;
+    int32_t stillMoving{};
+    std::memcpy(&stillMoving,
+                reinterpret_cast<const void*>(
+                    arrival + kSampObjectMoveContinueDisplacement),
+                sizeof(stillMoving));
+
+    PatchSet patches("SA-MP moving object rotation fix");
+    g_sampObjectRotationReturn = rotation + kSampObjectRotationProgressPatchSize;
+    g_sampObjectArrivedReturn = arrival + kSampObjectMoveArrivedOffset;
+    g_sampObjectMovingReturn = g_sampObjectArrivedReturn + stillMoving;
+    if (!patches.Track(
+            InstallJump(g_sampObjectRotationPatch, rotation,
+                        &SampObjectRotationThunk, kExpectedSampObjectRotation),
+            g_sampObjectRotationPatch)
+        || !patches.Track(
+            InstallBranch(g_sampObjectArrivalPatch, arrival,
+                          &SampObjectArrivalThunk,
+                          kSampObjectMoveArrivalPattern.data(),
+                          kSampObjectArrivalPatchSize, 0xE9),
+            g_sampObjectArrivalPatch)) {
+        g_sampObjectRotationReturn = 0;
+        g_sampObjectArrivedReturn = 0;
+        g_sampObjectMovingReturn = 0;
+        Log("SA-MP moving object rotation fix skipped: CObject::Process bytes "
+            "around the arrival test are not the expected ones.");
+        return false;
+    }
+    patches.Commit();
+    Log("Installed wall-clock rotation progress and arrival for moving SA-MP "
+        "objects.");
+    return true;
+}
+
 bool InstallFallingGlassFix() {
     PatchSet patches("Falling glass fix");
     struct Site {

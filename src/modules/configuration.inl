@@ -1,6 +1,6 @@
 
 constexpr char kDefaultIni[] =
-    "# High FPS Fixes v0.9.2\n"
+    "# High FPS Fixes v0.9.3\n"
     "# Created by sonochiwa\n"
     "# Source code: https://github.com/sonochiwa/sa-high-fps-fixes\n"
     "\n"

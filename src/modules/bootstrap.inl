@@ -60,7 +60,7 @@ DWORD WINAPI Initialize(void*) {
         return 0;
     }
 
-    Log("Initializing High FPS Fixes v0.9.2.");
+    Log("Initializing High FPS Fixes v0.9.3.");
     std::string profileMessage("Detected executable profile: ");
     profileMessage += g_activeGameProfile->name;
     profileMessage += ".";

@@ -1,6 +1,6 @@
 
 constexpr char kDefaultIni[] =
-    "# High FPS Fixes v0.9.3\n"
+    "# High FPS Fixes v0.9.4\n"
     "# Created by sonochiwa\n"
     "# Source code: https://github.com/sonochiwa/sa-high-fps-fixes\n"
     "\n"
@@ -38,7 +38,7 @@ constexpr char kDefaultIni[] =
     "restThreshold=1\n"
     "physicsSleepRate=1\n"
     "wheelFriction=1\n"
-    "abandonedBikePhysicsStep=0\n"
+    "abandonedBikePhysicsStep=1\n"
     "railWheelSpin=1\n"
     "burnout=1\n"
     "disableSwingingCompletely=0\n"

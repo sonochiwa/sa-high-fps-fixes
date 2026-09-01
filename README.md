@@ -29,8 +29,8 @@ Player:
 - Keeps the walk step used while aiming a rifle independent of FPS.
 - Normalizes surface swimming, the initial dive, underwater movement, ascent
   and player buoyancy against the original 30 FPS behavior.
-- Delivers the push a ped gives a vehicle at the original rate, so a walking
-  ped cannot drive a car to highway speed at high FPS.
+- Delivers the push a ped gives any vehicle at the original rate, so a walking
+  ped cannot shove either a parked or occupied car excessively at high FPS.
 
 Vehicles:
 
@@ -77,9 +77,9 @@ General:
 
 - Optional frame limiting, minimum display refresh rate and automatic FPS
   limiting for specific game cases. All are disabled by default.
-- Can disable any individual fix through an INI file that holds nothing else.
-- Writes no routine log. A log is created automatically for invalid INI values
-  or patch mismatches, and can also be enabled explicitly for diagnostics.
+- Can disable any individual fix through an INI file.
+- Writes an installation log by default so executable-profile and patch issues
+  can be diagnosed. Logging can be disabled in the `[general]` section.
 
 ## Requirements
 
@@ -104,15 +104,14 @@ INI.
 
 ## Configuration
 
-The shipped INI holds nothing but fix switches: the plugin is always active and
-writes no routine log. Invalid keys, invalid values and executable-byte
-mismatches enable a diagnostic log automatically. Three groups of keys are read
-but not written, so a normal install has nothing to explain and a diagnostic
-session is still one line away.
+The shipped INI contains a `[general]` section and the individual fix switches.
+Routine logging is enabled by default; invalid keys, invalid values and
+executable-byte mismatches also force it on. Development trace keys and the
+particle ceiling remain hidden because they are only useful for diagnostics.
 
-| Hidden key | Section | Default | Meaning |
+| Key | Section | Default | Meaning |
 | --- | --- | ---: | --- |
-| `enableLogging` | `general` | `0` | `1` writes `HighFpsFixes.log` beside the ASI, listing every fix that installed and every one that was skipped with the reason. Add it when reporting a problem. |
+| `enableLogging` | `general` | `1` | Writes `HighFpsFixes.log` beside the ASI, listing every fix that installed and every one that was skipped with the reason. Set it to `0` to suppress routine logging; configuration and patch errors still force it on. |
 | `traceVehicleState`, `traceWatchOffset`, `traceWatchMode`, `traceWatchHits`, `traceWatchSamples`, `traceWatchReports`, `traceWatchArmDelay`, `tracePlayerPed`, `traceCycleSkill`, `traceChainsaw` | `general` | `0` | Development traces. They sample vehicle or player state, or count a specific loop, into `HighFpsFixes.trace.log` and the main log. Only useful with the source at hand. |
 | `particlesPerSecond` | `particles` | `0` | A hard ceiling on new particles a second, the way FxLimiter capped them. This trades effects away for frame time rather than correcting a frame-rate dependence, and `emissionRate` already restores the intended density, so it is off unless asked for by hand. |
 
@@ -122,6 +121,9 @@ The shipped file, and what every switch means:
 # High FPS Fixes v0.9.2
 # Created by sonochiwa
 # Source code: https://github.com/sonochiwa/sa-high-fps-fixes
+
+[general]
+enableLogging=1
 
 [camera]
 stuntJumpCamera=1
@@ -229,7 +231,7 @@ forPauseMenu=0
 | `skillProgress` | `1` | Carries the fraction that `_ftol` discards in all 21 stat counter truncations in `CStats::UpdateStatsWhen*`. Unpatched, every skill that levels through use (stamina, cycling, swimming, lung capacity, driving, flying, motorbike, fat, max health) advances more slowly the higher the frame rate, and stops entirely above about 1000 FPS. |
 | `stuntCounters` | `1` | Same carry applied to the wheelie, stoppie and two-wheel counters in `CPlayerInfo::Process`, and to the grace buffers that let a stunt survive a brief interruption. Unpatched, stunt time accumulates more slowly the higher the frame rate. |
 | `taskTimers` | `1` | Same carry on six ped and player task timers: target evaluation, stealth kill, time in air, the climb timeout and the melee combo window. Each is compared against a threshold in milliseconds, so the truncation moves the threshold. |
-| `pedPushVehicle` | `1` | Delivers the complete paired ped/vehicle collision response at the original 30 Hz cadence. Both the ped and vehicle vectors, including their vertical components, are either applied together at full stock strength or skipped together. This prevents cars from being over-pushed and prevents repeated small vertical impulses from lifting the player while pushing a fallen bike. At 30 FPS every frame is selected and remains stock. |
+| `pedPushVehicle` | `1` | Delivers the impulse an on-foot ped gives a vehicle at the original 30 Hz cadence. Only the vehicle-side force is rate-limited; the ped-side response remains stock so contacts cannot build up penetration and release it as an oversized shove. This applies to both empty and occupied vehicles. At 30 FPS the fix is an exact no-op. |
 | `drowningDamage` | `1` | Carries the fraction of drowning damage that integer truncation discards into the next frame. Above roughly 150 FPS the unpatched game deals none at all. |
 | `drunkSteerDelay` | `1` | Shifts the steering delay line in `CPad::Update` at the original 30 FPS rate. The buffer is a ten deep FIFO of steering samples shifted once per frame, and a script sets how many entries of lag the player gets when drunk, so the lag is measured in frames: nine entries are 300 ms at 30 FPS and 4.5 ms at 2000, which removes the effect entirely. |
 | `jetPackFlame` | `1` | Ramps the jetpack thruster flame by time rather than by frames. `CTaskSimpleJetPack::DoJetPackEffect` moves `m_FxKeyTime` by 0.1 per frame toward 1 while the thrusters fire and back toward 0 when they stop, and hands it to the particle system as its constant time; ten frames is a third of a second at 30 FPS and twenty milliseconds at 500, so the flame snaps between its two states instead of blending. Cosmetic. |
@@ -372,7 +374,7 @@ Patch sites for GTA San Andreas 1.0 US:
 - `0x61E0CA`: aiming rifle walk step.
 - `0x68A42B`, `0x68A4CA`, `0x68A50E` and `0x6C27AE`: initial dive, ascent,
   swimming movement vectors and player buoyancy.
-- `0x5495F8`: paired ped and vehicle collision forces.
+- `0x549652`: ped push force applied to a vehicle.
 - `0x6D6E69`, `0x6D6EA8`, `0x6D767F`, `0x6D76AB` and `0x6D76CD`: car and bike
   wheel friction.
 - `0x6B523F`, `0x6B524F`, `0x6B525D` and `0x6B5269`: on-rails wheel rotation.

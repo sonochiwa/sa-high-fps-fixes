@@ -76,8 +76,8 @@ constexpr uintptr_t kProcessAimWeapon = 0x00521500;
 // Player.
 constexpr uintptr_t kAimingRifleWalkPatch = 0x0061E0CA;
 constexpr uintptr_t kAimingRifleWalkReturn = 0x0061E0D0;
-constexpr uintptr_t kPedPushCarPatch = 0x005495F8;
-constexpr uintptr_t kPedPushCarReturn = 0x005495FF;
+constexpr uintptr_t kPedPushCarPatch = 0x00549652;
+constexpr uintptr_t kPedPushCarReturn = 0x0054965A;
 // Swimming. `CTaskSimpleSwim::ProcessSwimmingResistance` blends the ped's move
 // speed toward a target with `pow(0.9f, GetTimeStep())`, which is already
 // frame-rate correct, so the blend needs no help. The target is the problem: it
@@ -1198,4 +1198,3 @@ constexpr uint32_t kSirenTapMilliseconds = 150;
 // on and 320 ms off at the 25 FPS the game was tuned for.
 constexpr unsigned kHudTicksPerFlash = 8;
 constexpr unsigned kDefaultHudFlashIntervalMs = 320;
-

@@ -4,6 +4,9 @@ constexpr char kDefaultIni[] =
     "# Created by sonochiwa\n"
     "# Source code: https://github.com/sonochiwa/sa-high-fps-fixes\n"
     "\n"
+    "[general]\n"
+    "enableLogging=1\n"
+    "\n"
     "[camera]\n"
     "stuntJumpCamera=1\n"
     "aimCameraShake=1\n"
@@ -94,4 +97,3 @@ constexpr char kDefaultIni[] =
     "forCutscenes=0\n"
     "forScriptedCutscenes=0\n"
     "forPauseMenu=0\n";
-

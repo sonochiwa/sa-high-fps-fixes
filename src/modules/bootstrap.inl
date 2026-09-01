@@ -48,11 +48,10 @@ DWORD WINAPI Initialize(void*) {
     CreateDefaultIniIfMissing();
     RegisterConditionalConfigKeys();
 
-    // `[general]` is not written to the canonical INI: the plugin is always on
-    // and the log is off, so the file a player opens holds nothing but fix
-    // switches. Every key below is still read when someone adds it by hand,
-    // which is how a report gets turned into a log without shipping one.
-    g_loggingEnabled = ReadSetting("general", "enableLogging", false);
+    // Keep logging explicit in the generated INI. It is enabled by default so
+    // a failed or unexpectedly behaving fix always leaves enough information
+    // to diagnose which executable profile and patches were active.
+    g_loggingEnabled = ReadSetting("general", "enableLogging", true);
 
     g_activeGameProfile = DetectGameProfile();
     if (!g_activeGameProfile) {

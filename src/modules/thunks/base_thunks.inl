@@ -458,17 +458,15 @@ __declspec(naked) void PedPushCarThunk() {
     __asm {
         pushfd
         pushad
-        // Adjust the collision response while the original stack frame still
-        // contains both local force vectors.
         push esi
         lea eax, [esp + 0x28]
         push eax
-        call ScalePedCollisionForces
+        call ScalePedPushCarForce
         add esp, 8
         popad
         popfd
-        mov eax, dword ptr [esp + 0x5C]
-        sub esp, 0x0C
+        mov edx, dword ptr [esp + 0x20]
+        mov eax, dword ptr [esp + 0x24]
         jmp kPedPushCarReturn
     }
 }
@@ -505,4 +503,3 @@ __declspec(naked) void TrailerRestThresholdThunk() {
         jmp kTrailerRestThresholdReturn
     }
 }
-

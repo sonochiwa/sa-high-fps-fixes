@@ -118,13 +118,13 @@ void __cdecl RestoreSwimAnimShift(uintptr_t ped) {
 }
 
 
-// A ped/vehicle collision builds vecThisMoveForce for the ped and
-// vecEntityMoveForce for the vehicle. They are one collision response and must
-// remain paired. Repeating either vector every rendered frame over-pushes a
-// car; continuously scaling the pair makes the vertical component lift a ped
-// while pushing a fallen bike. Deliver the complete stock pair on the original
-// 30 Hz cadence instead. At 30 FPS every frame is selected and the code is an
-// exact no-op.
+// A ped/vehicle collision builds vecEntityMoveForce for the vehicle and applies
+// it once per rendered frame. Deliver that vehicle impulse at the original
+// 30 Hz cadence. The ped-side response must remain untouched: suppressing it
+// lets the ped penetrate the body and makes a later vehicle impulse much larger.
+// The same rate limit is required for occupied vehicles: leaving them stock
+// repeats their collision impulse at the render rate and lets a ped shove them
+// much harder than an unoccupied vehicle.
 
 // Telemetry for that measurement. The trace thread reports how much velocity
 // the vehicle was actually handed per unit of real time, which is the number
@@ -181,13 +181,11 @@ bool ShouldApplyOriginalRatePedPush() {
     return g_pedPushOriginalRateFrame;
 }
 
-void __cdecl ScalePedCollisionForces(uintptr_t stackFrame, uintptr_t vehicle) {
+void __cdecl ScalePedPushCarForce(uintptr_t stackFrame, uintptr_t vehicle) {
     __try {
-        auto* pedForce = reinterpret_cast<float*>(stackFrame + 0x5C);
         auto* vehicleForce = reinterpret_cast<float*>(stackFrame + 0x20);
         const float scale = ShouldApplyOriginalRatePedPush() ? 1.0f : 0.0f;
         for (size_t i = 0; i < 3; ++i) {
-            pedForce[i] *= scale;
             vehicleForce[i] *= scale;
         }
         if (scale == 0.0f) {
@@ -248,4 +246,3 @@ void __cdecl ScalePedCollisionForces(uintptr_t stackFrame, uintptr_t vehicle) {
         return;
     }
 }
-

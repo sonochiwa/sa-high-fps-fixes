@@ -2,6 +2,144 @@
 // Player
 // ---------------------------------------------------------------------------
 
+// CPed::PlayFootSteps stores the remaining bloody-footprint lifetime as an
+// integer in m_nDeathTimeMS and subtracts one every time this path runs. At the
+// original 30 Hz that produces the intended duration, but at a high frame rate
+// all 200-300 ticks can disappear between two animation footsteps. Keep a
+// fractional tick per ped so the field still changes at the original cadence.
+// A gap in calls or an externally replaced counter resets the fraction, which
+// also makes pool-slot reuse harmless.
+struct BloodyFootprintTickState {
+    uintptr_t ped{};
+    uint32_t lastFrame{};
+    uint32_t lastCounter{};
+    float carry{};
+};
+
+std::array<BloodyFootprintTickState, 160> g_bloodyFootprintTickStates{};
+
+void ResetBloodyFootprintTickStates() {
+    g_bloodyFootprintTickStates = {};
+}
+
+uint32_t __cdecl UpdateBloodyFootprintCounter(uintptr_t ped,
+                                              uint32_t counter) {
+    if (!ped || counter == 0) {
+        return counter;
+    }
+
+    const uint32_t frame =
+        *reinterpret_cast<volatile const uint32_t*>(kFrameCounter);
+    BloodyFootprintTickState* state = nullptr;
+    BloodyFootprintTickState* oldest = &g_bloodyFootprintTickStates[0];
+    for (auto& candidate : g_bloodyFootprintTickStates) {
+        if (candidate.ped == ped) {
+            state = &candidate;
+            break;
+        }
+        if (!candidate.ped) {
+            oldest = &candidate;
+            break;
+        }
+        if (frame - candidate.lastFrame > frame - oldest->lastFrame) {
+            oldest = &candidate;
+        }
+    }
+    if (!state) {
+        state = oldest;
+        *state = {};
+        state->ped = ped;
+    }
+
+    const bool continuous = state->lastFrame != 0
+                         && frame - state->lastFrame <= 2
+                         && state->lastCounter == counter;
+    if (!continuous) {
+        state->carry = 0.0f;
+    }
+    state->lastFrame = frame;
+
+    const float ratio = TimeStepRatio();
+    uint32_t ticks = 1;
+    if (std::isfinite(ratio) && ratio > 0.0f && ratio < 1.0f) {
+        const float total = state->carry + ratio;
+        ticks = static_cast<uint32_t>(total);
+        state->carry = total - static_cast<float>(ticks);
+    } else {
+        state->carry = 0.0f;
+    }
+
+    const uint32_t result = counter > ticks ? counter - ticks : 0;
+    state->lastCounter = result;
+    return result;
+}
+
+uintptr_t g_currentBloodyFootprintPed{};
+bool g_currentBloodyFootprintIsLeft{};
+
+struct BloodyFootprintHeightState {
+    uintptr_t ped{};
+    uint32_t leftTime{};
+    float leftZ{};
+};
+
+std::array<BloodyFootprintHeightState, 160> g_bloodyFootprintHeightStates{};
+
+void __cdecl SelectBloodyFootprintSide(uintptr_t ped, uint32_t leftFoot) {
+    g_currentBloodyFootprintPed = ped;
+    g_currentBloodyFootprintIsLeft = leftFoot != 0;
+}
+
+void __cdecl StabilizeBloodyFootprintHeight(float* position) {
+    __try {
+        if (!position || !g_currentBloodyFootprintPed) {
+            return;
+        }
+
+        const uint32_t now = *reinterpret_cast<volatile const uint32_t*>(
+            kTimerTimeInMilliseconds);
+        BloodyFootprintHeightState* state = nullptr;
+        BloodyFootprintHeightState* empty = nullptr;
+        BloodyFootprintHeightState* oldest =
+            &g_bloodyFootprintHeightStates.front();
+        uint32_t oldestAge = now - oldest->leftTime;
+        for (auto& candidate : g_bloodyFootprintHeightStates) {
+            if (candidate.ped == g_currentBloodyFootprintPed) {
+                state = &candidate;
+                break;
+            }
+            if (!candidate.ped && !empty) {
+                empty = &candidate;
+            }
+            const uint32_t candidateAge = now - candidate.leftTime;
+            if (candidateAge > oldestAge) {
+                oldest = &candidate;
+                oldestAge = candidateAge;
+            }
+        }
+        if (!state) {
+            state = empty ? empty : oldest;
+            *state = {};
+            state->ped = g_currentBloodyFootprintPed;
+        }
+
+        if (g_currentBloodyFootprintIsLeft) {
+            state->leftZ = position[2];
+            state->leftTime = now;
+            return;
+        }
+
+        const float ratio = TimeStepRatio();
+        if (state->leftTime && now - state->leftTime <= 1000
+            && std::isfinite(state->leftZ) && std::isfinite(ratio)
+            && ratio > 0.0f && ratio < 1.0f) {
+            position[2] = state->leftZ;
+        }
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+        return;
+    }
+}
+
 // Replaces the constant walk step used while aiming a rifle.
 float __cdecl GetAimingRifleWalkStep() {
     const float ratio = TimeStepRatio();

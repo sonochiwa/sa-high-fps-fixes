@@ -170,6 +170,36 @@ bool InstallPedPushVehicleFix() {
     return true;
 }
 
+bool InstallBloodyFootprintsFix() {
+    PatchSet patches("Bloody footprints fix");
+    ResetBloodyFootprintTickStates();
+    g_bloodyFootprintHeightStates = {};
+    if (!patches.Track(InstallJump(g_bloodyFootprintCounterPatch,
+                                   kBloodyFootprintCounterPatch,
+                                   &BloodyFootprintCounterThunk,
+                                   kExpectedBloodyFootprintCounter),
+                       g_bloodyFootprintCounterPatch)) {
+        Log("Bloody footprints fix skipped: CPed::PlayFootSteps bytes do not match GTA SA 1.0 US.");
+        return false;
+    }
+    if (!patches.Track(InstallCall(g_bloodyFootLandedSidePatch,
+                                   kPlayFootStepsLandedCall,
+                                   &BloodyFootLandedSideThunk,
+                                   kExpectedPlayFootStepsLandedCall),
+                       g_bloodyFootLandedSidePatch)
+        || !patches.Track(InstallCall(g_bloodyFootprintShadowPatch,
+                                      kBloodyFootprintShadowCall,
+                                      &BloodyFootprintShadowThunk,
+                                      kExpectedBloodyFootprintShadowCall),
+                          g_bloodyFootprintShadowPatch)) {
+        Log("Bloody footprints fix skipped: foot-side or shadow call bytes do not match GTA SA 1.0 US.");
+        return false;
+    }
+    patches.Commit();
+    Log("Installed a real-time bloody-footprint countdown and right-foot projection stabilization.");
+    return true;
+}
+
 bool InstallWheelFrictionFix() {
     PatchSet patches("Wheel friction fix");
     constexpr std::array<uintptr_t, 5> addresses{

@@ -121,7 +121,7 @@ particle ceiling remain hidden because they are only useful for diagnostics.
 The shipped file, and what every switch means:
 
 ```ini
-# High FPS Fixes v0.9.6
+# High FPS Fixes v0.9.7
 # Created by sonochiwa
 # Source code: https://github.com/sonochiwa/sa-high-fps-fixes
 
@@ -139,6 +139,7 @@ aimingRifleWalk=1
 swimmingMovement=1
 swimPitchRate=1
 pedPushVehicle=1
+bloodyFootprints=1
 drowningDamage=1
 drunkSteerDelay=1
 jetPackFlame=1
@@ -235,6 +236,7 @@ forPauseMenu=0
 | `stuntCounters` | `1` | Same carry applied to the wheelie, stoppie and two-wheel counters in `CPlayerInfo::Process`, and to the grace buffers that let a stunt survive a brief interruption. Unpatched, stunt time accumulates more slowly the higher the frame rate. |
 | `taskTimers` | `1` | Same carry on six ped and player task timers: target evaluation, stealth kill, time in air, the climb timeout and the melee combo window. Each is compared against a threshold in milliseconds, so the truncation moves the threshold. |
 | `pedPushVehicle` | `1` | Delivers the impulse an on-foot ped gives a vehicle at the original 30 Hz cadence. Only the vehicle-side force is rate-limited; the ped-side response remains stock so contacts cannot build up penetration and release it as an oversized shove. This applies to both empty and occupied vehicles. At 30 FPS the fix is an exact no-op. |
+| `bloodyFootprints` | `1` | Runs the bloody-footprint countdown in real time. Above 30 FPS the right-foot shadow keeps its own X/Y position but uses the immediately preceding working left-foot projection height for the same ped. At 30 FPS the shadow position remains completely stock. |
 | `drowningDamage` | `1` | Carries the fraction of drowning damage that integer truncation discards into the next frame. Above roughly 150 FPS the unpatched game deals none at all. |
 | `drunkSteerDelay` | `1` | Shifts the steering delay line in `CPad::Update` at the original 30 FPS rate. The buffer is a ten deep FIFO of steering samples shifted once per frame, and a script sets how many entries of lag the player gets when drunk, so the lag is measured in frames: nine entries are 300 ms at 30 FPS and 4.5 ms at 2000, which removes the effect entirely. |
 | `jetPackFlame` | `1` | Ramps the jetpack thruster flame by time rather than by frames. `CTaskSimpleJetPack::DoJetPackEffect` moves `m_FxKeyTime` by 0.1 per frame toward 1 while the thrusters fire and back toward 0 when they stop, and hands it to the particle system as its constant time; ten frames is a third of a second at 30 FPS and twenty milliseconds at 500, so the flame snaps between its two states instead of blending. Cosmetic. |
@@ -328,7 +330,7 @@ contains the ZIP archive, a SHA-256 checksum file, and a signed GitHub artifact
 attestation that binds the archive to its source commit and workflow:
 
 ```bat
-gh attestation verify HighFpsFixes-v0.9.6.zip -R sonochiwa/sa-high-fps-fixes
+gh attestation verify HighFpsFixes-v0.9.7.zip -R sonochiwa/sa-high-fps-fixes
 ```
 
 The attestation is provenance and integrity verification: it proves the bytes
@@ -378,6 +380,10 @@ Patch sites for GTA San Andreas 1.0 US:
 - `0x68A42B`, `0x68A4CA`, `0x68A50E` and `0x6C27AE`: initial dive, ascent,
   swimming movement vectors and player buoyancy.
 - `0x549652`: ped push force applied to a vehicle.
+- `0x5E5877`: the per-frame bloody-footprint countdown in
+  `CPed::PlayFootSteps`.
+- `0x5E5E64` and `0x5E54C1`: foot-side selection and the blood-shadow call in
+  `CPed::PlayFootSteps` / `CPed::DoFootLanded`.
 - `0x6D6E69`, `0x6D6EA8`, `0x6D767F`, `0x6D76AB` and `0x6D76CD`: car and bike
   wheel friction.
 - `0x6B523F`, `0x6B524F`, `0x6B525D` and `0x6B5269`: on-rails wheel rotation.

@@ -74,7 +74,7 @@ DWORD WINAPI Initialize(void*) {
         return 0;
     }
 
-    Log("Initializing High FPS Fixes v0.9.6.");
+    Log("Initializing High FPS Fixes v0.9.7.");
     std::string profileMessage("Detected executable profile: ");
     profileMessage += g_activeGameProfile->name;
     profileMessage += ".";
@@ -97,6 +97,8 @@ DWORD WINAPI Initialize(void*) {
                InstallSwimPitchRateFix},
         {"player", "pedPushVehicle", "Ped push vehicle fix",
                InstallPedPushVehicleFix},
+        {"player", "bloodyFootprints", "Bloody footprints fix",
+               InstallBloodyFootprintsFix},
         {"player", "drowningDamage", "Drowning damage fix",
                InstallDrowningDamageFix},
         {"player", "drunkSteerDelay", "Drunk steering delay fix",

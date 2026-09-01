@@ -78,6 +78,15 @@ constexpr uintptr_t kAimingRifleWalkPatch = 0x0061E0CA;
 constexpr uintptr_t kAimingRifleWalkReturn = 0x0061E0D0;
 constexpr uintptr_t kPedPushCarPatch = 0x00549652;
 constexpr uintptr_t kPedPushCarReturn = 0x0054965A;
+// `CPed::PlayFootSteps` uses m_nDeathTimeMS as a bloody-footprint countdown.
+// The stock code subtracts one on every rendered frame, so the effect can
+// expire before the next footstep at a high frame rate.
+constexpr uintptr_t kBloodyFootprintCounterPatch = 0x005E5877;
+constexpr uintptr_t kBloodyFootprintCounterReturn = 0x005E5880;
+constexpr uintptr_t kPlayFootStepsLandedCall = 0x005E5E64;
+constexpr uintptr_t kDoFootLanded = 0x005E5380;
+constexpr uintptr_t kBloodyFootprintShadowCall = 0x005E54C1;
+constexpr uintptr_t kAddPermanentShadow = 0x00706F60;
 // Swimming. `CTaskSimpleSwim::ProcessSwimmingResistance` blends the ped's move
 // speed toward a target with `pow(0.9f, GetTimeStep())`, which is already
 // frame-rate correct, so the blend needs no help. The target is the problem: it

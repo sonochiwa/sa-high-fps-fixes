@@ -1,6 +1,6 @@
 
 constexpr char kDefaultIni[] =
-    "# High FPS Fixes v0.9.6\n"
+    "# High FPS Fixes v0.9.7\n"
     "# Created by sonochiwa\n"
     "# Source code: https://github.com/sonochiwa/sa-high-fps-fixes\n"
     "\n"
@@ -18,6 +18,7 @@ constexpr char kDefaultIni[] =
     "swimmingMovement=1\n"
     "swimPitchRate=1\n"
     "pedPushVehicle=1\n"
+    "bloodyFootprints=1\n"
     "drowningDamage=1\n"
     "drunkSteerDelay=1\n"
     "jetPackFlame=1\n"

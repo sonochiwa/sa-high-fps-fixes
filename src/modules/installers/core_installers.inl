@@ -376,14 +376,11 @@ bool InstallHudFlashRateFix() {
     }
 
     g_hudFlashActive = true;
-    HANDLE thread = CreateThread(nullptr, 0, HudFlashThread, nullptr, 0,
-                                 nullptr);
-    if (!thread) {
+    if (!StartWorkerThread(g_hudFlashThread, HudFlashThread)) {
         g_hudFlashActive = false;
         Log("HUD flash rate fix failed to start its worker thread.");
         return false;
     }
-    CloseHandle(thread);
     patches.Commit();
 
     Log(g_hudDisableFlashing
@@ -428,6 +425,7 @@ bool InstallVehicleRestThresholdFix() {
 // callee. That is a stronger check than a byte match, not a weaker one.
 bool RepointCall(SitePatch& patch, uintptr_t address, uintptr_t expectedCallee,
                  const void* replacement) {
+    std::array<uint8_t, 5> expected{};
     __try {
         if (*reinterpret_cast<const uint8_t*>(address) != 0xE8) {
             return false;
@@ -436,33 +434,13 @@ bool RepointCall(SitePatch& patch, uintptr_t address, uintptr_t expectedCallee,
         if (address + 5 + static_cast<uintptr_t>(original) != expectedCallee) {
             return false;
         }
+        std::memcpy(expected.data(), reinterpret_cast<const void*>(address),
+                    expected.size());
     } __except (EXCEPTION_EXECUTE_HANDLER) {
         return false;
     }
-
-    const intptr_t displacement = reinterpret_cast<intptr_t>(replacement)
-                                - static_cast<intptr_t>(address + 5);
-    if (displacement < std::numeric_limits<int32_t>::min()
-        || displacement > std::numeric_limits<int32_t>::max()) {
-        return false;
-    }
-    if (!ClaimPatchRange(address, 5)) {
-        return false;
-    }
-
-    patch.address = address;
-    patch.size = 5;
-    std::memcpy(patch.original.data(), reinterpret_cast<const void*>(address), 5);
-
-    std::array<uint8_t, 5> bytes{};
-    bytes[0] = 0xE8;
-    const auto relative = static_cast<int32_t>(displacement);
-    std::memcpy(bytes.data() + 1, &relative, sizeof(relative));
-    patch.installed = WriteBytes(address, bytes.data(), bytes.size());
-    if (!patch.installed) {
-        ReleasePatchRange(address);
-    }
-    return patch.installed;
+    return InstallBranch(patch, address, replacement, expected.data(),
+                         expected.size(), 0xE8);
 }
 
 bool InstallBikeBalanceTrace() {

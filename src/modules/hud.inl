@@ -66,7 +66,9 @@ DWORD WINAPI HudFlashThread(void*) {
                 / tickMs;
         } __except (EXCEPTION_EXECUTE_HANDLER) {
         }
-        Sleep(5);
+        if (WorkerStopRequested(5)) {
+            break;
+        }
     }
     return 0;
 }

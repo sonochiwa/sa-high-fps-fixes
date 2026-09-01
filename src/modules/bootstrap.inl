@@ -335,9 +335,7 @@ DWORD WINAPI Initialize(void*) {
         }
 
         g_diagnosticActive = true;
-        if (HANDLE trace = CreateThread(nullptr, 0, VehicleTraceThread, nullptr,
-                                        0, nullptr)) {
-            CloseHandle(trace);
+        if (StartWorkerThread(g_vehicleTraceThread, VehicleTraceThread)) {
             Log("Vehicle state trace enabled; writing HighFpsFixes.trace.log.");
         } else {
             g_diagnosticActive = false;
@@ -347,9 +345,7 @@ DWORD WINAPI Initialize(void*) {
 
     if (tracePlayerPed) {
         g_diagnosticActive = true;
-        if (HANDLE trace = CreateThread(nullptr, 0, PedTraceThread, nullptr, 0,
-                                        nullptr)) {
-            CloseHandle(trace);
+        if (StartWorkerThread(g_pedTraceThread, PedTraceThread)) {
             Log("Player ped trace enabled; writing HighFpsFixes.trace.log.");
         } else {
             Log("Player ped trace failed to start its worker thread.");
@@ -387,7 +383,10 @@ DWORD WINAPI Initialize(void*) {
 }
 
 void Shutdown() {
-    g_diagnosticActive = false;
+    if (!StopAllWorkerThreads()) {
+        return;
+    }
+
     if (g_watchArmed) {
         SetMoveSpeedWatch(0);
         g_watchArmed = false;
@@ -396,134 +395,13 @@ void Shutdown() {
         RemoveVectoredExceptionHandler(g_watchHandler);
         g_watchHandler = nullptr;
     }
-    RestoreDetour(g_bikeProcessPatch);
-    RestoreDetour(g_applyGravityPatch);
-    RestoreSite(g_bikeBalanceForcePatch);
-    RestoreSite(g_bikeBalanceInputPatch);
-    for (auto& patch : g_leanWritePatches) {
-        RestoreSite(patch);
-    }
-    g_hudFlashActive = false;
-    for (auto& patch : g_hudFlashPatches) {
-        RestoreRawPatch(patch);
-    }
+
+    g_abandonedBikePhysicsStepEnabled = false;
     if (g_swingingDisabled) {
         WriteProtectedGameFloat(kDoorApplyRateChassis,
                                 kStockDoorApplyRateChassis);
         g_swingingDisabled = false;
     }
-    RestoreSite(g_menuBackgroundPatch);
-    RestoreSite(g_scriptsProcessPatch);
-    RestoreSite(g_scriptSlideObjectPatch);
-    RestoreSite(g_scriptRotateObjectPatch);
-    for (auto& patch : g_fallingGlassPatches) {
-        RestoreSite(patch);
-    }
-    RestoreSite(g_breakObjectLifetimePatch);
-    RestoreByte(g_refreshRatePatch);
-    RestoreByte(g_frameLimitStorePatch);
-    RestoreByte(g_frameLimiterGatePatch);
-    RestoreSite(g_drowningDamagePatch);
-    RestoreSite(g_continuousAmmoPatch);
-    RestoreSite(g_chainsawStrikePatch);
-    RestoreSite(g_fightStrikeTracePatch);
-    RestoreDetour(g_fxCreateParticlesPatch);
-    RestoreDetour(g_fxAddParticlePatch);
-    RestoreSite(g_sirenPatch);
-    for (auto& patch : g_fakePhysicsPatches) {
-        RestoreSite(patch);
-    }
-    for (auto& patch : g_restThresholdPatches) {
-        RestoreSite(patch);
-    }
-    for (auto& patch : g_moveSpeedSnapPatches) {
-        RestoreSite(patch);
-    }
-    RestoreSite(g_turnAirResistancePatch);
-    RestoreSite(g_groundFrictionPatch);
-    RestoreSite(g_bikeLeanTargetPatch);
-    RestoreSite(g_bikePitchExperimentPatch);
-    for (auto& patch : g_bmxRiderFallTracePatches) {
-        RestoreSite(patch);
-    }
-    RestoreDetour(g_bikeDamageKnockOffPatch);
-    RestoreDetour(g_bmxLaunchBunnyHopPatch);
-    RestoreDetour(g_suspensionDampingPatch);
-    for (auto& patch : g_heliRotorPatches) {
-        RestoreSite(patch);
-    }
-    RestoreSite(g_skimmerResistancePatch);
-    RestoreSite(g_burnoutPatch);
-    for (auto& patch : g_railWheelSpinPatches) {
-        RestoreSite(patch);
-    }
-    for (auto& patch : g_wheelFrictionPatches) {
-        RestoreSite(patch);
-    }
-    g_abandonedBikePhysicsStepEnabled = false;
-    RestoreDetour(g_abandonedBikeRenderPatch);
-    RestoreDetour(g_abandonedBikePreRenderPatch);
-    RestoreDetour(g_abandonedBikeRwFramePatch);
-    RestoreDetour(g_abandonedBikeCollisionPatch);
-    RestoreDetour(g_abandonedBikeShiftPatch);
-    RestoreSite(g_pedPushCarPatch);
-    RestoreSite(g_swimmingPatch);
-    RestoreSite(g_climbSpeedPatch);
-    RestoreSite(g_moneyStepPatch);
-    RestoreSite(g_followPedCameraPatch);
-    RestoreSite(g_followCarCameraPatch);
-    RestoreSite(g_attachedEntitySpeedPatch);
-    RestoreSite(g_aiAircraftSteerPatch);
-    RestoreSite(g_rollOntoWheelsTurnPatch);
-    RestoreSite(g_rollOntoWheelsMovePatch);
-    for (auto& patch : g_doorSwingPatches) {
-        RestoreSite(patch);
-    }
-    for (auto& patch : g_wheelSpinPatches) {
-        RestoreSite(patch);
-    }
-    RestoreSite(g_boatEngineDampingPatch);
-    RestoreSite(g_bmxSprintLeanPatch);
-    for (auto& patch : g_bmxLeanPatches) {
-        RestoreSite(patch);
-    }
-    for (auto& patch : g_bikeWheelSpinPatches) {
-        RestoreSite(patch);
-    }
-    RestoreSite(g_mapWheelSamplePatch);
-    RestoreSite(g_mapZoomInGatePatch);
-    RestoreSite(g_mapZoomOutGatePatch);
-    for (auto& patch : g_fireGatePatches) {
-        RestoreSite(patch);
-    }
-    RestoreSite(g_drunkSteerPatch);
-    RestoreSite(g_fatCounterPatch);
-    for (auto& patch : g_jetPackFxPatches) {
-        RestoreSite(patch);
-    }
-    for (auto& patch : g_headBopPatches) {
-        RestoreSite(patch);
-    }
-    for (auto& patch : g_jumpOutDampPatches) {
-        RestoreSite(patch);
-    }
-    for (auto& patch : g_pushOutPatches) {
-        RestoreSite(patch);
-    }
-    for (auto& patch : g_wheelSettlePatches) {
-        RestoreSite(patch);
-    }
-    for (auto& patch : g_swimPitchPatches) {
-        RestoreSite(patch);
-    }
-    for (auto& patch : g_statTruncPatches) {
-        RestoreSite(patch);
-    }
-    RestoreSite(g_buoyancyThresholdPatch);
-    RestoreSite(g_buoyancyClampedStorePatch);
-    RestoreSite(g_aimingRifleWalkPatch);
-    RestoreDetour(g_aimWeaponPatch);
-    RestoreAbsoluteOperandPatches(g_aimTimeStepPatches);
-    RestoreSite(g_flightTimerPatch);
-    RestoreSite(g_endTimerPatch);
+
+    RestoreAllPatches();
 }

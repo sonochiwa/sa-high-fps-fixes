@@ -230,6 +230,125 @@ size_t g_configWarningCount{};
 std::array<char, 8192> g_iniSectionBuffer{};
 std::array<char, 16384> g_iniEntryBuffer{};
 
+void Log(const char* message);
+
+enum class RegisteredPatchKind : uint8_t {
+    site,
+    byte,
+    raw,
+    detour,
+    absoluteOperand,
+};
+
+struct RegisteredPatch {
+    void* patch;
+    RegisteredPatchKind kind;
+};
+
+std::array<RegisteredPatch, 512> g_installedPatches{};
+size_t g_installedPatchCount{};
+
+HANDLE g_workerStopEvent{};
+HANDLE g_hudFlashThread{};
+HANDLE g_vehicleTraceThread{};
+HANDLE g_pedTraceThread{};
+
+bool PinPluginModule(HINSTANCE instance) {
+    HMODULE pinned{};
+    return GetModuleHandleExA(
+               GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS
+                   | GET_MODULE_HANDLE_EX_FLAG_PIN,
+               reinterpret_cast<LPCSTR>(instance), &pinned)
+        != FALSE;
+}
+
+bool StartWorkerThread(HANDLE& slot, LPTHREAD_START_ROUTINE entry) {
+    if (slot) {
+        return false;
+    }
+    if (!g_workerStopEvent) {
+        g_workerStopEvent = CreateEventA(nullptr, TRUE, FALSE, nullptr);
+        if (!g_workerStopEvent) {
+            return false;
+        }
+    }
+    slot = CreateThread(nullptr, 0, entry, nullptr, 0, nullptr);
+    return slot != nullptr;
+}
+
+bool WorkerStopRequested(DWORD timeoutMilliseconds) {
+    return g_workerStopEvent
+        && WaitForSingleObject(g_workerStopEvent, timeoutMilliseconds)
+               == WAIT_OBJECT_0;
+}
+
+bool StopAllWorkerThreads() {
+    g_hudFlashActive = false;
+    g_diagnosticActive = false;
+    if (g_workerStopEvent) {
+        SetEvent(g_workerStopEvent);
+    }
+
+    HANDLE handles[] = {
+        g_hudFlashThread, g_vehicleTraceThread, g_pedTraceThread
+    };
+    HANDLE waiting[3]{};
+    DWORD count{};
+    for (const HANDLE handle : handles) {
+        if (handle) {
+            waiting[count++] = handle;
+        }
+    }
+    if (count != 0) {
+        const DWORD wait = WaitForMultipleObjects(count, waiting, TRUE, 5000);
+        if (wait != WAIT_OBJECT_0) {
+            g_loggingEnabled = true;
+            Log("Shutdown deferred: a worker thread did not stop safely.");
+            return false;
+        }
+    }
+    for (HANDLE* slot : {&g_hudFlashThread, &g_vehicleTraceThread,
+                         &g_pedTraceThread}) {
+        if (*slot) {
+            CloseHandle(*slot);
+            *slot = nullptr;
+        }
+    }
+    if (g_workerStopEvent) {
+        CloseHandle(g_workerStopEvent);
+        g_workerStopEvent = nullptr;
+    }
+    return true;
+}
+
+bool RegisterInstalledPatch(void* patch, RegisteredPatchKind kind) {
+    for (size_t i = 0; i < g_installedPatchCount; ++i) {
+        if (g_installedPatches[i].patch == patch) {
+            return true;
+        }
+    }
+    if (g_installedPatchCount == g_installedPatches.size()) {
+        g_loggingEnabled = true;
+        Log("Patch installation refused: restoration registry is full.");
+        return false;
+    }
+    g_installedPatches[g_installedPatchCount++] = {patch, kind};
+    return true;
+}
+
+void UnregisterInstalledPatch(const void* patch) {
+    for (size_t i = 0; i < g_installedPatchCount; ++i) {
+        if (g_installedPatches[i].patch != patch) {
+            continue;
+        }
+        for (size_t move = i + 1; move < g_installedPatchCount; ++move) {
+            g_installedPatches[move - 1] = g_installedPatches[move];
+        }
+        --g_installedPatchCount;
+        return;
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Infrastructure
 // ---------------------------------------------------------------------------
@@ -605,6 +724,10 @@ bool InstallBranch(SitePatch& patch, uintptr_t address, const void* target,
     patch.installed = WriteBytes(address, replacement.data(), size);
     if (!patch.installed) {
         ReleasePatchRange(address);
+    } else if (!RegisterInstalledPatch(&patch, RegisteredPatchKind::site)) {
+        WriteBytes(patch.address, patch.original.data(), patch.size);
+        ReleasePatchRange(address);
+        patch.installed = false;
     }
     return patch.installed;
 }
@@ -628,6 +751,7 @@ void RestoreSite(SitePatch& patch) {
         WriteBytes(patch.address, patch.original.data(), patch.size);
         ReleasePatchRange(patch.address);
         patch.installed = false;
+        UnregisterInstalledPatch(&patch);
     }
 }
 
@@ -644,6 +768,10 @@ bool InstallByte(BytePatch& patch, uintptr_t address, uint8_t value) {
     patch.installed = WriteBytes(address, &value, 1);
     if (!patch.installed) {
         ReleasePatchRange(address);
+    } else if (!RegisterInstalledPatch(&patch, RegisteredPatchKind::byte)) {
+        WriteBytes(patch.address, &patch.original, 1);
+        ReleasePatchRange(address);
+        patch.installed = false;
     }
     return patch.installed;
 }
@@ -653,6 +781,7 @@ void RestoreByte(BytePatch& patch) {
         WriteBytes(patch.address, &patch.original, 1);
         ReleasePatchRange(patch.address);
         patch.installed = false;
+        UnregisterInstalledPatch(&patch);
     }
 }
 
@@ -675,6 +804,10 @@ bool InstallRawPatch(RawPatch& patch, uintptr_t address,
     patch.installed = WriteBytes(address, replacement, size);
     if (!patch.installed) {
         ReleasePatchRange(address);
+    } else if (!RegisterInstalledPatch(&patch, RegisteredPatchKind::raw)) {
+        WriteBytes(patch.address, patch.original.data(), patch.size);
+        ReleasePatchRange(address);
+        patch.installed = false;
     }
     return patch.installed;
 }
@@ -684,17 +817,23 @@ void RestoreRawPatch(RawPatch& patch) {
         WriteBytes(patch.address, patch.original.data(), patch.size);
         ReleasePatchRange(patch.address);
         patch.installed = false;
+        UnregisterInstalledPatch(&patch);
+    }
+}
+
+void RestoreAbsoluteOperand(AbsoluteOperandPatch& patch) {
+    if (patch.installed) {
+        WriteBytes(patch.instruction + 2, patch.expected.data() + 2, 4);
+        ReleasePatchRange(patch.instruction + 2);
+        patch.installed = false;
+        UnregisterInstalledPatch(&patch);
     }
 }
 
 void RestoreAbsoluteOperandPatches(
     std::array<AbsoluteOperandPatch, 13>& patches) {
     for (auto& patch : patches) {
-        if (patch.installed) {
-            WriteBytes(patch.instruction + 2, patch.expected.data() + 2, 4);
-            ReleasePatchRange(patch.instruction + 2);
-            patch.installed = false;
-        }
+        RestoreAbsoluteOperand(patch);
     }
 }
 
@@ -720,6 +859,11 @@ bool InstallAimTimeStepOperands() {
             return false;
         }
         patch.installed = true;
+        if (!RegisterInstalledPatch(&patch,
+                                    RegisteredPatchKind::absoluteOperand)) {
+            RestoreAbsoluteOperandPatches(g_aimTimeStepPatches);
+            return false;
+        }
     }
     return true;
 }
@@ -772,6 +916,12 @@ bool InstallDetour(DetourPatch& patch, uintptr_t address, const void* target,
         ReleasePatchRange(address);
         VirtualFree(gateway, 0, MEM_RELEASE);
         patch.gateway = nullptr;
+    } else if (!RegisterInstalledPatch(&patch, RegisteredPatchKind::detour)) {
+        WriteBytes(patch.address, patch.original.data(), patch.size);
+        ReleasePatchRange(address);
+        VirtualFree(gateway, 0, MEM_RELEASE);
+        patch.gateway = nullptr;
+        patch.installed = false;
     }
     return patch.installed;
 }
@@ -781,10 +931,36 @@ void RestoreDetour(DetourPatch& patch) {
         WriteBytes(patch.address, patch.original.data(), patch.size);
         ReleasePatchRange(patch.address);
         patch.installed = false;
+        UnregisterInstalledPatch(&patch);
     }
     if (patch.gateway) {
         VirtualFree(patch.gateway, 0, MEM_RELEASE);
         patch.gateway = nullptr;
+    }
+}
+
+void RestoreAllPatches() {
+    while (g_installedPatchCount != 0) {
+        const RegisteredPatch entry =
+            g_installedPatches[g_installedPatchCount - 1];
+        switch (entry.kind) {
+        case RegisteredPatchKind::site:
+            RestoreSite(*static_cast<SitePatch*>(entry.patch));
+            break;
+        case RegisteredPatchKind::byte:
+            RestoreByte(*static_cast<BytePatch*>(entry.patch));
+            break;
+        case RegisteredPatchKind::raw:
+            RestoreRawPatch(*static_cast<RawPatch*>(entry.patch));
+            break;
+        case RegisteredPatchKind::detour:
+            RestoreDetour(*static_cast<DetourPatch*>(entry.patch));
+            break;
+        case RegisteredPatchKind::absoluteOperand:
+            RestoreAbsoluteOperand(
+                *static_cast<AbsoluteOperandPatch*>(entry.patch));
+            break;
+        }
     }
 }
 

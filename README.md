@@ -78,7 +78,8 @@ General:
 - Optional frame limiting, minimum display refresh rate and automatic FPS
   limiting for specific game cases. All are disabled by default.
 - Can disable any individual fix through an INI file that holds nothing else.
-- Writes no log and no file of its own unless a diagnostic key is added by hand.
+- Writes no routine log. A log is created automatically for invalid INI values
+  or patch mismatches, and can also be enabled explicitly for diagnostics.
 
 ## Requirements
 
@@ -88,21 +89,26 @@ General:
 
 ## Installation
 
-The release archive contains `HighFpsFixes.asi`, `HighFpsFixes.ini` and a short
-`README.txt` at its root.
+The release archive contains `HighFpsFixes.asi`, `HighFpsFixes.ini`, the
+optional `validate-game.ps1` preflight tool and a short `README.txt` at its
+root.
 
 1. Copy `HighFpsFixes.asi` and `HighFpsFixes.ini` into the game's `scripts`
    directory.
 2. Start the game normally.
 
-The plugin creates the canonical INI beside itself if it is missing. Remove the
-ASI and INI to uninstall it.
+The plugin creates the canonical INI beside itself if it is missing. The ASI is
+pinned for the lifetime of the process so background callbacks can never return
+into an unloaded module. Exit the game before replacing or removing the ASI and
+INI.
 
 ## Configuration
 
 The shipped INI holds nothing but fix switches: the plugin is always active and
-writes no log. Three groups of keys are read but not written, so a normal
-install has nothing to explain and a diagnostic session is still one line away.
+writes no routine log. Invalid keys, invalid values and executable-byte
+mismatches enable a diagnostic log automatically. Three groups of keys are read
+but not written, so a normal install has nothing to explain and a diagnostic
+session is still one line away.
 
 | Hidden key | Section | Default | Meaning |
 | --- | --- | ---: | --- |

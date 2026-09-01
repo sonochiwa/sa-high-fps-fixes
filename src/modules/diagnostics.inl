@@ -1225,7 +1225,9 @@ DWORD WINAPI PedTraceThread(void*) {
                 std::fflush(file);
             }
         }
-        Sleep(kDiagnosticIntervalMs);
+        if (WorkerStopRequested(kDiagnosticIntervalMs)) {
+            break;
+        }
     }
     std::fflush(file);
     std::fclose(file);
@@ -1357,11 +1359,12 @@ DWORD WINAPI VehicleTraceThread(void*) {
         }
 
         MaybeArmWatch(file);
-        Sleep(kDiagnosticIntervalMs);
+        if (WorkerStopRequested(kDiagnosticIntervalMs)) {
+            break;
+        }
     }
 
     std::fflush(file);
     std::fclose(file);
     return 0;
 }
-

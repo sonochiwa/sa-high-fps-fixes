@@ -39,6 +39,23 @@ foreach ($file in Get-ChildItem -LiteralPath $modulesRoot -Filter '*.inl' -File 
     if ($lineCount -gt 1400) {
         throw "$relative has grown to $lineCount lines; split the module."
     }
+
+    if ($relative -ne 'modules\patching.inl') {
+        $source = [IO.File]::ReadAllText($file.FullName)
+        if (($source -match '\.installed\s*=\s*WriteBytes\s*\(') -or
+            ($source -match '\bClaimPatchRange\s*\(')) {
+            throw "$relative bypasses the automatic patch restoration registry."
+        }
+    }
+}
+
+$bootstrapSource = [IO.File]::ReadAllText(
+    (Join-Path $modulesRoot 'bootstrap.inl'))
+if (-not $bootstrapSource.Contains('RestoreAllPatches();')) {
+    throw 'Shutdown must restore patches through RestoreAllPatches.'
+}
+if ($bootstrapSource -match '\bRestore(?:Site|Byte|RawPatch|Detour|AbsoluteOperand)\s*\(') {
+    throw 'Shutdown contains a manual patch restoration call.'
 }
 
 Write-Host "Project validation passed for High FPS Fixes v$version."

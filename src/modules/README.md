@@ -27,6 +27,13 @@ keeps all code, byte and raw-operand patches in the shared range registry.
 Repeated address/thunk groups should use `InstallJumpTable`, keeping their site
 data declarative and their rollback behavior identical.
 
+Every successful low-level patch installation is also entered in the global
+restoration registry. `RestoreAllPatches` unwinds it in reverse installation
+order; do not add a second manual list to `Shutdown`. Worker threads retain
+their handles and stop through the shared event before restoration. The ASI is
+pinned on attach because Windows does not permit a safe thread join from
+`DLL_PROCESS_DETACH` under the loader lock.
+
 When adding a fix, keep its game addresses and expected bytes in the matching
 data modules, its C++ implementation in the appropriate subsystem module, its
 assembly bridge in `thunks.inl`, and its installation and rollback logic in

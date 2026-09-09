@@ -245,15 +245,12 @@ bool InstallGroundFrictionFix() {
 }
 
 bool InstallTurnAirResistanceFix() {
-    g_liteDrift = ReadSetting("vehicles", "liteDrift", false);
     if (!InstallJump(g_turnAirResistancePatch, kTurnAirResistance,
                      &TurnAirResistanceThunk, kExpectedTurnAirResistance)) {
         Log("Turn air resistance fix skipped: executable bytes do not match GTA SA 1.0 US.");
         return false;
     }
-    Log(g_liteDrift
-            ? "Installed per-frame turn damping for reduced drift."
-            : "Installed timestep-normalized turn speed air resistance.");
+    Log("Installed timestep-normalized turn speed air resistance.");
     return true;
 }
 

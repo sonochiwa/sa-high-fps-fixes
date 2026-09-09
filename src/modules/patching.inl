@@ -145,7 +145,6 @@ bool g_flightTimerActive{};
 bool g_loggingEnabled{true};
 float g_originalTimeStepValue{kOriginalTimeStep};
 bool g_swingingDisabled{};
-bool g_liteDrift{};
 
 uint32_t g_breakLifetimeLastFrame{0xFFFFFFFFu};
 float g_breakLifetimeCarry{};
@@ -547,7 +546,6 @@ void RegisterConditionalConfigKeys() {
     constexpr ConfigKey keys[] = {
         {"vehicles", "bikePitchExperimentStrength"},
         {"vehicles", "disableSwingingCompletely"},
-        {"vehicles", "liteDrift"},
         {"particles", "particlesPerSecond"},
         {"hud", "disableFlashing"},
         {"general", "traceWatchOffset"},

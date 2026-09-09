@@ -159,7 +159,6 @@ bikePitchExperiment=1
 bikePitchExperimentStrength=100
 groundFriction=1
 turnAirResistance=1
-liteDrift=0
 moveSpeedSnap=1
 restThreshold=1
 physicsSleepRate=1
@@ -251,7 +250,6 @@ forPauseMenu=0
 | `bikePitchExperimentStrength` | `100` | Percentage of the frame-rate excess removed from positive pitch during that takeoff window. The actual correction is also multiplied by `1 - current timestep / 30-FPS timestep`, so it fades continuously to zero at 30 FPS. Changing this value does not require rebuilding the plugin. |
 | `groundFriction` | `1` | Scales the per-contact friction budget that holds a vehicle to the ground by the timestep ratio. |
 | `turnAirResistance` | `1` | Raises the `0.99` turn speed damping to the timestep ratio instead of applying it once per frame. |
-| `liteDrift` | `0` | When enabled with `turnAirResistance`, applies the stock `0.99` turn damping every rendered frame. This damps vehicle rotation more strongly as FPS rises and reduces drifting; it is a handling preference rather than a frame-rate-independent correction. |
 | `moveSpeedSnap` | `1` | Rescales the fixed move speed limit that cars and bikes snap to a stop under. |
 | `restThreshold` | `1` | Rescales the at-rest move distance limit for abandoned and wrecked vehicles. |
 | `physicsSleepRate` | `1` | Steps the `m_nFakePhysics` sleep counter in real time instead of once per frame. |

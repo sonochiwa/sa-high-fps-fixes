@@ -15,6 +15,9 @@ float __cdecl GetSkimmerResistance() {
 // the result bit-exact `0.99` at 30 FPS, where the ratio is one.
 float __cdecl GetTurnAirResistanceFactor() {
     const float base = ReadGameFloat(kTurnAirResistanceConstant, 0.99f);
+    if (g_liteDrift) {
+        return base;
+    }
     return std::pow(base, TimeStepRatio());
 }
 

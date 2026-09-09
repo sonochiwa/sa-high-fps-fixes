@@ -46,6 +46,7 @@ jobs:
           Remove-Item -LiteralPath $stage -Recurse -Force -ErrorAction SilentlyContinue
           New-Item -ItemType Directory -Path $stage -Force | Out-Null
           Copy-Item build\HighFpsFixes.asi, build\HighFpsFixes.ini, tools\validate-game.ps1 -Destination $stage
+          Copy-Item vendor\minhook\LICENSE.txt -Destination (Join-Path $stage MinHook-LICENSE.txt)
 
           $readme = @(
               "High FPS Fixes v$version"

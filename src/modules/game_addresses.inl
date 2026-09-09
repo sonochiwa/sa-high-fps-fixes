@@ -6,7 +6,10 @@ constexpr uintptr_t kImageBase = 0x00400000;
 
 // Engine globals.
 constexpr uintptr_t kTimerTimeStep = 0x00B7CB5C;
+constexpr uintptr_t kTimerTimeStepNonClipped = 0x00B7CB58;
 constexpr uintptr_t kTimerTimeInMilliseconds = 0x00B7CB84;
+constexpr uintptr_t kPlayerPed = 0x00B6F5F0;
+constexpr uintptr_t kTheCamera = 0x00B6F028;
 constexpr uintptr_t kWorldPlayers = 0x00B7CD98;
 constexpr uintptr_t kPads = 0x00B73458;
 constexpr uintptr_t kCutsceneRunning = 0x00B5F851;
@@ -117,8 +120,16 @@ constexpr uintptr_t kDrowningDamage = 0x0060A92F;
 constexpr uintptr_t kDrowningDamageReturn = 0x0060A93E;
 constexpr uintptr_t kDrowningDamageScale = 0x00858B3C;
 
-// Aim camera.
+// Aim camera. The offsets are shared by CCamera and its three embedded CCam
+// instances in GTA SA 1.0 US.
+constexpr uintptr_t kCameraProcess = 0x0052B730;
 constexpr uintptr_t kProcessAimWeapon = 0x00521500;
+constexpr size_t kCameraActiveCam = 0x59;
+constexpr size_t kCameraCams = 0x174;
+constexpr size_t kCameraWeaponMode = 0x830;
+constexpr size_t kCamSize = 0x238;
+constexpr size_t kCamMode = 0x0C;
+constexpr size_t kPedFlagsInVehicle = 0x46D;
 
 // Player.
 constexpr uintptr_t kAimingRifleWalkPatch = 0x0061E0CA;
@@ -148,7 +159,7 @@ constexpr uintptr_t kProcessSwimmingResistance = 0x0068A1D0;
 constexpr uintptr_t kSwimResistanceCall = 0x0068B4A8;
 constexpr uintptr_t kSwimResistanceReturn = 0x0068B4B0;
 // Compatibility probes for the sites used by Tweaker, Swim FPS Fix and
-// Framerate Vigilante. Those fixes patch inside ProcessSwimmingResistance,
+// Earlier high-FPS fixes patch inside ProcessSwimmingResistance,
 // while this plugin wraps its caller, so checking only kSwimResistanceCall
 // would miss them and apply the same correction twice.
 constexpr uintptr_t kSwimDiveScale = 0x0068A42B;

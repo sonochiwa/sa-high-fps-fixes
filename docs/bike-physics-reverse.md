@@ -206,7 +206,7 @@ mathematical grounds as well as by control-flow context.
 | Hook | Can affect the reported phase? | Static verdict |
 | --- | --- | --- |
 | `bikePitchExperiment` | Only during upward takeoff with both front lines clear and a lingering wheel contact | Narrow and already validated in game; unrelated to ground-settling retries |
-| `wheelFriction` | Yes, while suspension/wheel contacts are processed | Ported from FramerateVigilante; disabling it broke ordinary coast/brake behaviour, so it must remain |
+| `wheelFriction` | Yes, while suspension/wheel contacts are processed | Disabling it broke ordinary coast/brake behaviour, so it must remain |
 | `groundFriction` | Yes, for body contacts | Global hook is caller-dependent and suspicious for abandoned contacts, but excluding abandoned bikes did not change the symptom; secondary audit item |
 | `turnAirResistance` | Yes, for angular velocity | Correct exponential conversion of a stock once-per-frame `0.99`; disabling it did not help |
 | `suspensionDampingLimit` | Only through suspension damping | Exact exponential conversion at `ApplySpringDampening`; no shared-global rewrite and no exit-specific branch |
@@ -216,8 +216,8 @@ mathematical grounds as well as by control-flow context.
 | `jumpOutCarSpeed` | No | Bikes return before the patched damping instructions in `CanPedJumpOutCar` |
 | `collisionPushOut` | Yes, precisely when normal collision resolution leaves the bike penetrating | Global conversion is questionable, but disabling it did not affect the reported riderless travel |
 
-`collisionPushOut` is not a FramerateVigilante fix. It was introduced by this
-plugin in its initial `0.9.0` commit. The source argument for it assumes a
+`collisionPushOut` was introduced by this plugin in its initial `0.9.0`
+commit. The source argument for it assumes a
 persistent fixed overlap such as riding a rail, while the hook is global and
 therefore also changes fresh dynamic impacts. Those two cases cannot safely
 share the same linear correction, so the hook is retained only as an opt-in

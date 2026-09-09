@@ -14,6 +14,8 @@
 #include <limits>
 #include <string>
 
+#include "MinHook.h"
+
 namespace {
 
 #include "modules/game_addresses.inl"

@@ -30,12 +30,6 @@ struct DetourPatch {
     bool installed{};
 };
 
-struct AbsoluteOperandPatch {
-    uintptr_t instruction{};
-    std::array<uint8_t, 6> expected{};
-    bool installed{};
-};
-
 union AutoLimitFlags {
     uint32_t value;
     struct {
@@ -143,16 +137,15 @@ BytePatch g_frameLimitStorePatch{};
 BytePatch g_refreshRatePatch{};
 DetourPatch g_fxCreateParticlesPatch{};
 DetourPatch g_fxAddParticlePatch{};
-DetourPatch g_aimWeaponPatch{};
 
 float g_endTimerFraction{};
 float g_flightTimerFraction{};
 bool g_endTimerActive{};
 bool g_flightTimerActive{};
 bool g_loggingEnabled{true};
-float g_aimTimeStep{1.0f};
 float g_originalTimeStepValue{kOriginalTimeStep};
 bool g_swingingDisabled{};
+bool g_liteDrift{};
 
 uint32_t g_breakLifetimeLastFrame{0xFFFFFFFFu};
 float g_breakLifetimeCarry{};
@@ -193,22 +186,6 @@ int g_lastFpsLimit{};
 bool g_isOnPauseMenu{};
 AutoLimitFlags g_autoLimit{};
 
-std::array<AbsoluteOperandPatch, 13> g_aimTimeStepPatches{{
-    {0x0052167A, {0xD9, 0x05, 0x5C, 0xCB, 0xB7, 0x00}},
-    {0x00521752, {0xD8, 0x1D, 0x5C, 0xCB, 0xB7, 0x00}},
-    {0x00521765, {0xD8, 0x25, 0x5C, 0xCB, 0xB7, 0x00}},
-    {0x005217C9, {0xD9, 0x05, 0x5C, 0xCB, 0xB7, 0x00}},
-    {0x005217DE, {0xD9, 0x05, 0x5C, 0xCB, 0xB7, 0x00}},
-    {0x0052191B, {0xD9, 0x05, 0x5C, 0xCB, 0xB7, 0x00}},
-    {0x00521F40, {0xD9, 0x05, 0x5C, 0xCB, 0xB7, 0x00}},
-    {0x0052210A, {0xD9, 0x05, 0x5C, 0xCB, 0xB7, 0x00}},
-    {0x0052233B, {0xD8, 0x0D, 0x5C, 0xCB, 0xB7, 0x00}},
-    {0x00522369, {0xD8, 0x0D, 0x5C, 0xCB, 0xB7, 0x00}},
-    {0x005223AA, {0xD9, 0x05, 0x5C, 0xCB, 0xB7, 0x00}},
-    {0x005224E4, {0xD9, 0x05, 0x5C, 0xCB, 0xB7, 0x00}},
-    {0x005226CF, {0xD9, 0x05, 0x5C, 0xCB, 0xB7, 0x00}},
-}};
-
 struct EmissionCarrySlot {
     void* blueprint{};
     float intensity{};
@@ -245,7 +222,6 @@ enum class RegisteredPatchKind : uint8_t {
     byte,
     raw,
     detour,
-    absoluteOperand,
 };
 
 struct RegisteredPatch {
@@ -571,6 +547,7 @@ void RegisterConditionalConfigKeys() {
     constexpr ConfigKey keys[] = {
         {"vehicles", "bikePitchExperimentStrength"},
         {"vehicles", "disableSwingingCompletely"},
+        {"vehicles", "liteDrift"},
         {"particles", "particlesPerSecond"},
         {"hud", "disableFlashing"},
         {"general", "traceWatchOffset"},
@@ -901,53 +878,6 @@ void RestoreRawPatch(RawPatch& patch) {
     }
 }
 
-void RestoreAbsoluteOperand(AbsoluteOperandPatch& patch) {
-    if (patch.installed) {
-        WriteBytes(patch.instruction + 2, patch.expected.data() + 2, 4);
-        ReleasePatchRange(patch.instruction + 2);
-        patch.installed = false;
-        UnregisterInstalledPatch(&patch);
-    }
-}
-
-void RestoreAbsoluteOperandPatches(
-    std::array<AbsoluteOperandPatch, 13>& patches) {
-    for (auto& patch : patches) {
-        RestoreAbsoluteOperand(patch);
-    }
-}
-
-bool InstallAimTimeStepOperands() {
-    for (const auto& patch : g_aimTimeStepPatches) {
-        if (!MemoryMatches(patch.instruction, patch.expected)) {
-            return false;
-        }
-    }
-
-    const uintptr_t replacement = reinterpret_cast<uintptr_t>(&g_aimTimeStep);
-    for (auto& patch : g_aimTimeStepPatches) {
-        const uintptr_t operand = patch.instruction + 2;
-        if (!ClaimPatchRange(operand, sizeof(replacement))) {
-            RestoreAbsoluteOperandPatches(g_aimTimeStepPatches);
-            return false;
-        }
-        if (!WriteBytes(operand,
-                        reinterpret_cast<const uint8_t*>(&replacement),
-                        sizeof(replacement))) {
-            ReleasePatchRange(operand);
-            RestoreAbsoluteOperandPatches(g_aimTimeStepPatches);
-            return false;
-        }
-        patch.installed = true;
-        if (!RegisterInstalledPatch(&patch,
-                                    RegisteredPatchKind::absoluteOperand)) {
-            RestoreAbsoluteOperandPatches(g_aimTimeStepPatches);
-            return false;
-        }
-    }
-    return true;
-}
-
 bool InstallDetour(DetourPatch& patch, uintptr_t address, const void* target,
                    const uint8_t* expected, size_t size) {
     if (size < 5 || size > patch.original.size()) {
@@ -1035,10 +965,6 @@ void RestoreAllPatches() {
             break;
         case RegisteredPatchKind::detour:
             RestoreDetour(*static_cast<DetourPatch*>(entry.patch));
-            break;
-        case RegisteredPatchKind::absoluteOperand:
-            RestoreAbsoluteOperand(
-                *static_cast<AbsoluteOperandPatch*>(entry.patch));
             break;
         }
     }
@@ -1167,8 +1093,8 @@ bool InstallJumpTable(
 // Shared timestep helpers
 // ---------------------------------------------------------------------------
 
-// Framerate Vigilante calls this ratio the "normalizer": it is 1.0 at the
-// original 30 FPS timestep and shrinks proportionally as the frame rate rises.
+// This ratio is 1.0 at the original 30 FPS timestep and shrinks
+// proportionally as the frame rate rises.
 float TimeStepRatio() {
     __try {
         const float timeStep = *reinterpret_cast<float*>(kTimerTimeStep);

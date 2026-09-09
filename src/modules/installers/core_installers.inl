@@ -22,19 +22,40 @@ bool InstallStuntJumpCameraFix() {
 }
 
 bool InstallAimCameraShakeFix() {
-    if (!InstallAimTimeStepOperands()) {
-        Log("Aim camera shake fix skipped: Process_AimWeapon timestep bytes do not match GTA SA 1.0 US.");
+    if (!LooksLikeGameCode(kCameraProcess)
+        || !LooksLikeGameCode(kProcessAimWeapon)) {
+        Log("Aim camera shake fix skipped: camera code is not executable game memory.");
         return false;
     }
-    if (!InstallDetour(g_aimWeaponPatch, kProcessAimWeapon,
-                       &HookedProcessAimWeapon,
-                       kExpectedProcessAimWeapon.data(),
-                       kExpectedProcessAimWeapon.size())) {
-        RestoreAbsoluteOperandPatches(g_aimTimeStepPatches);
-        Log("Aim camera shake fix failed at Process_AimWeapon entry.");
+    if (!MemoryMatches(kCameraProcess, kExpectedCameraProcess)
+        || !MemoryMatches(kProcessAimWeapon, kExpectedProcessAimWeapon)) {
+        Log("Aim camera shake fix skipped: camera entry bytes do not match GTA SA 1.0 US, "
+            "or another plugin already hooks them.");
         return false;
     }
-    Log("Installed local aim-camera timestep normalization without global timer writes.");
+    if (MH_Initialize() != MH_OK) {
+        Log("Aim camera shake fix skipped: MinHook initialization failed.");
+        return false;
+    }
+    g_aimMinHookInitialized = true;
+    const bool created =
+        MH_CreateHook(reinterpret_cast<void*>(kCameraProcess),
+                      &HookedCameraProcess,
+                      reinterpret_cast<void**>(&g_originalCameraProcess))
+                == MH_OK
+        && MH_CreateHook(reinterpret_cast<void*>(kProcessAimWeapon),
+                         &HookedProcessAimWeapon,
+                         reinterpret_cast<void**>(&g_originalAimWeapon))
+                == MH_OK;
+    const bool enabled = created
+        && MH_EnableHook(reinterpret_cast<void*>(kCameraProcess)) == MH_OK
+        && MH_EnableHook(reinterpret_cast<void*>(kProcessAimWeapon)) == MH_OK;
+    if (!enabled) {
+        RemoveAimCameraHooks();
+        Log("Aim camera shake fix skipped: camera hooks could not be installed.");
+        return false;
+    }
+    Log("Installed scoped aim-camera timestep guards around CCamera::Process and Process_AimWeapon.");
     return true;
 }
 

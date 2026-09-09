@@ -64,6 +64,15 @@ constexpr std::array<uint8_t, 15> kExpectedDrowningDamage{
     0x6A, 0x03,
     0xE8, 0x02, 0x72, 0x21, 0x00
 };
+// The two aim camera entry points. MinHook decodes and relocates these
+// prologues itself, but checking them first keeps the plugin's rule that no
+// site is touched unless it still holds stock GTA SA 1.0 US code: if another
+// ASI has already detoured either function, its jump lands here and the fix
+// steps aside instead of stacking a second guard on foreign code.
+constexpr std::array<uint8_t, 10> kExpectedCameraProcess{
+    0x81, 0xEC, 0xA0, 0x00, 0x00, 0x00,
+    0x53, 0x55, 0x56, 0x57
+};
 constexpr std::array<uint8_t, 5> kExpectedProcessAimWeapon{
     0xA0, 0x10, 0x01, 0xB7, 0x00
 };

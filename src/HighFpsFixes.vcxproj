@@ -47,6 +47,7 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <AdditionalIncludeDirectories>$(SolutionDir)vendor\minhook\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
@@ -64,6 +65,7 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <AdditionalIncludeDirectories>$(SolutionDir)vendor\minhook\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
@@ -83,10 +85,23 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="HighFpsFixes.cpp" />
+    <ClCompile Include="..\vendor\minhook\src\buffer.c">
+      <DisableSpecificWarnings>4100;4201;4244;4310;4701;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+    </ClCompile>
+    <ClCompile Include="..\vendor\minhook\src\hook.c">
+      <DisableSpecificWarnings>4100;4201;4244;4310;4701;26454;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+    </ClCompile>
+    <ClCompile Include="..\vendor\minhook\src\trampoline.c">
+      <DisableSpecificWarnings>4100;4201;4244;4310;4701;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+    </ClCompile>
+    <ClCompile Include="..\vendor\minhook\src\hde\hde32.c">
+      <DisableSpecificWarnings>4100;4201;4244;4310;4701;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\Config\HighFpsFixes.ini" />
     <None Include="..\LICENSE" />
+    <None Include="..\vendor\minhook\LICENSE.txt" />
     <None Include="..\README.md" />
     <None Include="modules\bootstrap.inl" />
     <None Include="modules\bike_lean_filter.inl" />

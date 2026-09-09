@@ -5,14 +5,17 @@ without imposing an FPS cap.
 
 The current build targets GTA San Andreas 1.0 US Compact and Hoodlum. Both use
 the same address layout; the plugin detects their distinct entry signatures,
-then validates the original instructions at every patch site. Other executable
-versions are left untouched.
+then validates the original instructions at every patch site. The aim camera
+uses MinHook, after checking that both entry points belong to the game image
+and still hold their stock prologues. Other executable versions are left
+untouched.
 
 Every fix rescales one original engine calculation against the timestep the
 game had at 30 FPS, so behavior at 30 FPS is unchanged and the same result is
 reached at any higher frame rate. Ordinary fixes do not rewrite GTA's global
-timestep. The optional experimental abandoned-bike mode scopes an original
-timestep around the bike's stock physics calls and restores it immediately.
+timestep. The aim-camera fix and optional experimental abandoned-bike mode
+scope a temporary timestep around their stock game calls and restore it
+immediately.
 The plugin never caps the frame rate unless the optional frame limiting
 settings are enabled explicitly.
 
@@ -121,7 +124,7 @@ particle ceiling remain hidden because they are only useful for diagnostics.
 The shipped file, and what every switch means:
 
 ```ini
-# High FPS Fixes v0.9.8
+# High FPS Fixes v0.9.9
 # Created by sonochiwa
 # Source code: https://github.com/sonochiwa/sa-high-fps-fixes
 
@@ -156,6 +159,7 @@ bikePitchExperiment=1
 bikePitchExperimentStrength=100
 groundFriction=1
 turnAirResistance=1
+liteDrift=0
 moveSpeedSnap=1
 restThreshold=1
 physicsSleepRate=1
@@ -225,7 +229,7 @@ forPauseMenu=0
 | Setting | Default | Meaning |
 | --- | ---: | --- |
 | `stuntJumpCamera` | `1` | Enables fraction-preserving stunt timers. |
-| `aimCameraShake` | `1` | Uses a local minimum timestep only inside the on-foot aim-camera calculations. 
+| `aimCameraShake` | `1` | Temporarily raises both camera timesteps to the 50 FPS minimum while the on-foot aim camera is processed, then restores them before unrelated game processing continues. |
 | `followCameraRate` | `1` | Divides the follow cameras' turn rate by the real timestep instead of clamping the divisor at 1.0. The clamp only binds above 50 FPS, where it leaves the rate short by the ratio. |
 | `idleCameraTimer` | `1` | Same carry on `CIdleCam::ProcessIdleCamTicker`, which counts truncated frame time until the idle camera starts drifting. |
 | `aimingRifleWalk` | `1` | Scales the walk step used while aiming a rifle. |
@@ -247,6 +251,7 @@ forPauseMenu=0
 | `bikePitchExperimentStrength` | `100` | Percentage of the frame-rate excess removed from positive pitch during that takeoff window. The actual correction is also multiplied by `1 - current timestep / 30-FPS timestep`, so it fades continuously to zero at 30 FPS. Changing this value does not require rebuilding the plugin. |
 | `groundFriction` | `1` | Scales the per-contact friction budget that holds a vehicle to the ground by the timestep ratio. |
 | `turnAirResistance` | `1` | Raises the `0.99` turn speed damping to the timestep ratio instead of applying it once per frame. |
+| `liteDrift` | `0` | When enabled with `turnAirResistance`, applies the stock `0.99` turn damping every rendered frame. This damps vehicle rotation more strongly as FPS rises and reduces drifting; it is a handling preference rather than a frame-rate-independent correction. |
 | `moveSpeedSnap` | `1` | Rescales the fixed move speed limit that cars and bikes snap to a stop under. |
 | `restThreshold` | `1` | Rescales the at-rest move distance limit for abandoned and wrecked vehicles. |
 | `physicsSleepRate` | `1` | Steps the `m_nFakePhysics` sleep counter in real time instead of once per frame. |
@@ -322,8 +327,10 @@ checked without launching it:
 ```
 
 The validator recognizes the Compact and Hoodlum GTA SA 1.0 US profiles and
-checks representative player, vehicle and world patch signatures. Every
-enabled patch still validates its complete byte sequence again at runtime.
+checks representative player, vehicle and world patch signatures. Every enabled
+patch still validates its complete byte sequence again at runtime, the two
+aim-camera entry points included; MinHook only decodes and relocates a prologue
+that has already been confirmed stock.
 
 ## Release Integrity
 
@@ -332,7 +339,7 @@ contains the ZIP archive, a SHA-256 checksum file, and a signed GitHub artifact
 attestation that binds the archive to its source commit and workflow:
 
 ```bat
-gh attestation verify HighFpsFixes-v0.9.8.zip -R sonochiwa/sa-high-fps-fixes
+gh attestation verify HighFpsFixes-v0.9.9.zip -R sonochiwa/sa-high-fps-fixes
 ```
 
 The attestation is provenance and integrity verification: it proves the bytes
@@ -351,6 +358,7 @@ Config\HighFpsFixes.ini       Canonical release configuration
 src\HighFpsFixes.cpp          Translation-unit entry point
 src\modules\                  Implementation grouped by subsystem
 src\HighFpsFixes.vcxproj      Visual Studio project
+vendor\minhook\               Vendored x86 hook library and its license
 build\                        Generated binaries and intermediates
 references\                   Local research material; not published
 ```
@@ -375,9 +383,9 @@ Patch sites for GTA San Andreas 1.0 US:
 
 - `0x49C505` and `0x49C6FB`: the two integer conversions in
   `CStuntJumpManager::Update` that truncate to zero during slow motion.
-- `0x521500` plus thirteen direct timestep operands inside
-  `CCam::Process_AimWeapon`: a private normalized timestep replaces GTA's global
-  one for that function only.
+- `0x52B730` and `0x521500`: MinHook detours around `CCamera::Process` and
+  `CCam::Process_AimWeapon` temporarily raise both GTA camera timesteps while
+  an on-foot aim camera is active, then restore their exact prior values.
 - `0x61E0CA`: aiming rifle walk step.
 - `0x68A42B`, `0x68A4CA`, `0x68A50E` and `0x6C27AE`: initial dive, ascent,
   swimming movement vectors and player buoyancy.
@@ -421,9 +429,14 @@ Patch sites for GTA San Andreas 1.0 US:
 
 The emission hook is limited to systems marked by GTA as must-create weapon FX.
 Ordinary world, vehicle and weather emitters retain their original behavior.
-The aim fix never writes `CTimer::ms_fTimeStep` or
-`CTimer::ms_fTimeStepNonClipped`, so unrelated camera processing and player
-task transitions continue using the real frame duration.
+The aim fix writes `CTimer::ms_fTimeStep` and
+`CTimer::ms_fTimeStepNonClipped` only inside the guarded aim-camera calls and
+restores their exact prior values before returning, so unrelated game
+processing continues using the real frame duration. The plugin's own follow
+camera and attached entity corrections are patched into `CCam` methods that run
+inside that guarded call, so they read the real frame duration through the
+plugin rather than the raised global, and stay frame-rate independent while the
+player aims.
 The ammo hook is restricted to the flamethrower, spraycan and fire extinguisher;
 other weapons keep the original path.
 
@@ -557,4 +570,5 @@ frame rate, an A/B that shows no difference is a real result.
 
 ## License
 
-High FPS Fixes is released under the [MIT License](LICENSE).
+High FPS Fixes is released under the [MIT License](LICENSE). The vendored
+MinHook library retains its [BSD-style license](vendor/minhook/LICENSE.txt).

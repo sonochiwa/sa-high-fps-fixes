@@ -440,6 +440,35 @@ constexpr uintptr_t kBuoyancyThreshold = 0x006C27A2;
 constexpr uintptr_t kBuoyancyThresholdReturn = 0x006C27C8;
 constexpr uintptr_t kBuoyancyClampedStore = 0x006C27EC;
 
+// Wheel slip scale. `CVehicle::ProcessWheel` and `CVehicle::ProcessBikeWheel`
+// scale `adhesion` by the timestep at entry, making it a per-frame budget, but
+// off the throttle the slip weighed against it is a plain velocity: `fwd` and
+// `right` are `-contactSpeed / wheelsOnGround`, the delta that would cancel the
+// slip outright. At 30 FPS that delta is applied thirty times a second. At 120
+// it is applied a hundred and twenty times, so the wheel either grips four times
+// harder or, once the budget clamps it, gives up four times sooner. The second
+// is what happens in practice, and it is why a car keeps sliding at a high frame
+// rate where it would have hooked up at 30.
+//
+// The patched span is the `fld st(0)` / `fmul st,st(1)` / `fld [esp+10h]` that
+// begins squaring the two components for the saturation test. Scaling both by
+// the timestep ratio first makes the delta per frame carry the same momentum per
+// second as the stock 30 FPS one, and it does so without touching the test or
+// the clamp: `speedSq` and `adhesion * adhesion` then both scale as the square
+// of the ratio, so the saturation test becomes scale-invariant on its own, and
+// in the saturated case `adhesion * tractionLoss / l` divides the ratio straight
+// back out, leaving that path bit-identical to stock.
+//
+// Under throttle `thrust` already carries a timestep and `right` is pre-clamped
+// to `adhesion`, so both sides scale together there and the driving flags below
+// select the coasting and braking case that needs the correction.
+constexpr uintptr_t kCarSlipScale = 0x006D6F32;
+constexpr uintptr_t kCarSlipScaleReturn = 0x006D6F3A;
+constexpr uintptr_t kBikeSlipScale = 0x006D775A;
+constexpr uintptr_t kBikeSlipScaleReturn = 0x006D7762;
+constexpr uintptr_t kCarWheelDriving = 0x00C1CDAD;
+constexpr uintptr_t kBikeWheelDriving = 0x00C1CDB1;
+
 // Vehicles.
 constexpr uintptr_t kWheelFrictionCarDriveReturn = 0x006D6E6F;
 constexpr uintptr_t kWheelFrictionCarBrakeReturn = 0x006D6EAE;

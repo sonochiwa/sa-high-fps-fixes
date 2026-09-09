@@ -244,6 +244,25 @@ bool InstallGroundFrictionFix() {
     return true;
 }
 
+bool InstallWheelSlipScaleFix() {
+    PatchSet patches("Wheel slip scale fix");
+    if (!patches.Track(InstallJump(g_carSlipScalePatch, kCarSlipScale,
+                                   &CarSlipScaleThunk, kExpectedSlipScale),
+                       g_carSlipScalePatch)) {
+        Log("Wheel slip scale fix skipped: CVehicle::ProcessWheel bytes do not match GTA SA 1.0 US.");
+        return false;
+    }
+    if (!patches.Track(InstallJump(g_bikeSlipScalePatch, kBikeSlipScale,
+                                   &BikeSlipScaleThunk, kExpectedSlipScale),
+                       g_bikeSlipScalePatch)) {
+        Log("Wheel slip scale fix skipped: CVehicle::ProcessBikeWheel bytes do not match GTA SA 1.0 US.");
+        return false;
+    }
+    patches.Commit();
+    Log("Installed timestep-scaled wheel slip corrections.");
+    return true;
+}
+
 bool InstallTurnAirResistanceFix() {
     if (!InstallJump(g_turnAirResistancePatch, kTurnAirResistance,
                      &TurnAirResistanceThunk, kExpectedTurnAirResistance)) {

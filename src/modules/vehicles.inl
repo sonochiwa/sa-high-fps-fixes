@@ -6,6 +6,36 @@ float __cdecl GetFrameIndependentWheelFriction() {
     return ReadGameFloat(kWheelFriction, 0.9f) * TimeStepRatio();
 }
 
+// Returns the factor the two slip components are scaled by before the wheel's
+// saturation test, or an exact 1.0 wherever the stock arithmetic is already
+// consistent: under throttle, at and below 30 FPS, and on any unreadable state.
+// Returning a plain multiplier rather than branching in the thunk keeps the
+// no-op case bit-exact.
+float SlipScale(uintptr_t drivingFlag) {
+    uint8_t driving = 0;
+    __try {
+        driving = *reinterpret_cast<const uint8_t*>(drivingFlag);
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+        return 1.0f;
+    }
+    if (driving) {
+        return 1.0f;
+    }
+    const float ratio = TimeStepRatio();
+    if (!std::isfinite(ratio) || ratio <= 0.0001f || ratio >= 1.0f) {
+        return 1.0f;
+    }
+    return ratio;
+}
+
+float __cdecl GetCarSlipScale() {
+    return SlipScale(kCarWheelDriving);
+}
+
+float __cdecl GetBikeSlipScale() {
+    return SlipScale(kBikeWheelDriving);
+}
+
 float __cdecl GetSkimmerResistance() {
     return ReadGameFloat(kSkimmerResistanceConstant, 30.0f) * TimeStepRatio();
 }

@@ -76,6 +76,13 @@ constexpr std::array<uint8_t, 10> kExpectedCameraProcess{
 constexpr std::array<uint8_t, 5> kExpectedProcessAimWeapon{
     0xA0, 0x10, 0x01, 0xB7, 0x00
 };
+// fld st(0) / fmul st,st(1) / fld dword ptr [esp+10h]. Both wheel functions
+// begin the saturation test with the identical three instructions.
+constexpr std::array<uint8_t, 8> kExpectedSlipScale{
+    0xD9, 0xC0,
+    0xD8, 0xC9,
+    0xD9, 0x44, 0x24, 0x10
+};
 constexpr std::array<uint8_t, 6> kExpectedWheelFriction{
     0xD9, 0x05, 0xCC, 0xB9, 0xC2, 0x00
 };

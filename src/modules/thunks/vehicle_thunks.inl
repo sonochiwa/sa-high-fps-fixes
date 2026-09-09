@@ -288,3 +288,50 @@ __declspec(naked) void JumpOutDampThunk() {
         ret
     }
 }
+
+// Both scale the two slip components by the timestep ratio, then reproduce the
+// three instructions they replaced. `fmul st(1),st` scales `right` where it sits
+// on the FPU stack; `fwd` is scaled through its frame slot. The stack is left
+// exactly as the original span left it: `fwd` on top, `right` squared beneath
+// it, `right` under that.
+__declspec(naked) void CarSlipScaleThunk() {
+    __asm {
+        pushfd
+        push eax
+        push ecx
+        push edx
+        call GetCarSlipScale
+        pop edx
+        pop ecx
+        pop eax
+        popfd
+        fmul st(1), st
+        fmul dword ptr [esp + 0x10]
+        fstp dword ptr [esp + 0x10]
+        fld st(0)
+        fmul st, st(1)
+        fld dword ptr [esp + 0x10]
+        jmp kCarSlipScaleReturn
+    }
+}
+
+__declspec(naked) void BikeSlipScaleThunk() {
+    __asm {
+        pushfd
+        push eax
+        push ecx
+        push edx
+        call GetBikeSlipScale
+        pop edx
+        pop ecx
+        pop eax
+        popfd
+        fmul st(1), st
+        fmul dword ptr [esp + 0x10]
+        fstp dword ptr [esp + 0x10]
+        fld st(0)
+        fmul st, st(1)
+        fld dword ptr [esp + 0x10]
+        jmp kBikeSlipScaleReturn
+    }
+}

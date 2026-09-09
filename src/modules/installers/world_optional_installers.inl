@@ -244,25 +244,6 @@ bool InstallGroundFrictionFix() {
     return true;
 }
 
-bool InstallWheelSkidStateFix() {
-    PatchSet patches("Wheel skid state fix");
-    if (!patches.Track(InstallJump(g_carSkidStatePatch, kCarSkidState,
-                                   &CarSkidStateThunk, kExpectedCarSkidState),
-                       g_carSkidStatePatch)) {
-        Log("Wheel skid state fix skipped: CVehicle::ProcessWheel bytes do not match GTA SA 1.0 US.");
-        return false;
-    }
-    if (!patches.Track(InstallJump(g_bikeSkidStatePatch, kBikeSkidState,
-                                   &BikeSkidStateThunk, kExpectedBikeSkidState),
-                       g_bikeSkidStatePatch)) {
-        Log("Wheel skid state fix skipped: CVehicle::ProcessBikeWheel bytes do not match GTA SA 1.0 US.");
-        return false;
-    }
-    patches.Commit();
-    Log("Installed a frame-rate-independent wheel skid classification.");
-    return true;
-}
-
 bool InstallTurnAirResistanceFix() {
     if (!InstallJump(g_turnAirResistancePatch, kTurnAirResistance,
                      &TurnAirResistanceThunk, kExpectedTurnAirResistance)) {

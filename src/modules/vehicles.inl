@@ -6,6 +6,41 @@ float __cdecl GetFrameIndependentWheelFriction() {
     return ReadGameFloat(kWheelFriction, 0.9f) * TimeStepRatio();
 }
 
+// Restates the wheel's saturation test in the units the slip is actually in.
+// Under throttle the comparison is already consistent and is left bit-exact.
+// Off the throttle the per-frame budget is divided back out to what it would
+// have been at 30 FPS, so a wheel breaks traction at the same slip regardless
+// of frame rate. Only the classification moves: the clamp that follows keeps
+// using the real per-frame `adhesion`, so the slip removed per second is
+// unchanged and stays equal to the stock 30 FPS result.
+float SkidThresholdSquared(float adhesion, uintptr_t drivingFlag) {
+    uint8_t driving = 0;
+    __try {
+        driving = *reinterpret_cast<const uint8_t*>(drivingFlag);
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+        return adhesion * adhesion;
+    }
+    if (driving) {
+        return adhesion * adhesion;
+    }
+    const float ratio = TimeStepRatio();
+    // At and below 30 FPS the ratio is one or greater and the stock threshold
+    // is already the reference, so it is never raised there.
+    if (!std::isfinite(ratio) || ratio <= 0.0001f || ratio >= 1.0f) {
+        return adhesion * adhesion;
+    }
+    const float normalized = adhesion / ratio;
+    return normalized * normalized;
+}
+
+float __cdecl GetCarSkidThresholdSquared(float adhesion) {
+    return SkidThresholdSquared(adhesion, kCarWheelDriving);
+}
+
+float __cdecl GetBikeSkidThresholdSquared(float adhesion) {
+    return SkidThresholdSquared(adhesion, kBikeWheelDriving);
+}
+
 float __cdecl GetSkimmerResistance() {
     return ReadGameFloat(kSkimmerResistanceConstant, 30.0f) * TimeStepRatio();
 }

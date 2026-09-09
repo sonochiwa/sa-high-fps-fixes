@@ -35,6 +35,7 @@ constexpr char kDefaultIni[] =
     "bikePitchExperimentStrength=100\n"
     "groundFriction=1\n"
     "turnAirResistance=1\n"
+    "wheelSkidThreshold=1\n"
     "moveSpeedSnap=1\n"
     "restThreshold=1\n"
     "physicsSleepRate=1\n"

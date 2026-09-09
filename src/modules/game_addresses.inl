@@ -440,6 +440,25 @@ constexpr uintptr_t kBuoyancyThreshold = 0x006C27A2;
 constexpr uintptr_t kBuoyancyThresholdReturn = 0x006C27C8;
 constexpr uintptr_t kBuoyancyClampedStore = 0x006C27EC;
 
+// Wheel skid threshold. `CVehicle::ProcessWheel` and `CVehicle::ProcessBikeWheel`
+// scale `adhesion` by the timestep at entry, so it is a budget for one frame,
+// but the lateral slip they weigh it against, `-contactSpeedRight / wheelsOnGround`,
+// is a plain velocity that does not follow the frame. Off the throttle the two
+// sides are in different units: the budget shrinks with the frame while the slip
+// does not, so a wheel crosses into `WHEEL_STATE_SKIDDING` at a fraction of the
+// slip it would need at 30 FPS, and the skid feeds back through
+// `adhesion *= m_fTractionLoss` on the following frame. Under throttle both sides
+// already scale together, because `thrust` carries a timestep and the lateral term
+// is pre-clamped to `adhesion`, so the driving flags below select which case the
+// site is in. The patched span is the `fld`/`fmul` pair that squares `adhesion`
+// for the comparison; the clamp further down keeps the real per-frame budget.
+constexpr uintptr_t kCarSkidThreshold = 0x006D6F47;
+constexpr uintptr_t kCarSkidThresholdReturn = 0x006D6F4F;
+constexpr uintptr_t kBikeSkidThreshold = 0x006D774E;
+constexpr uintptr_t kBikeSkidThresholdReturn = 0x006D7756;
+constexpr uintptr_t kCarWheelDriving = 0x00C1CDAD;
+constexpr uintptr_t kBikeWheelDriving = 0x00C1CDB1;
+
 // Vehicles.
 constexpr uintptr_t kWheelFrictionCarDriveReturn = 0x006D6E6F;
 constexpr uintptr_t kWheelFrictionCarBrakeReturn = 0x006D6EAE;

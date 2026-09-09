@@ -244,6 +244,27 @@ bool InstallGroundFrictionFix() {
     return true;
 }
 
+bool InstallWheelSkidThresholdFix() {
+    PatchSet patches("Wheel skid threshold fix");
+    if (!patches.Track(InstallJump(g_carSkidThresholdPatch, kCarSkidThreshold,
+                                   &CarSkidThresholdThunk,
+                                   kExpectedCarSkidThreshold),
+                       g_carSkidThresholdPatch)) {
+        Log("Wheel skid threshold fix skipped: CVehicle::ProcessWheel bytes do not match GTA SA 1.0 US.");
+        return false;
+    }
+    if (!patches.Track(InstallJump(g_bikeSkidThresholdPatch, kBikeSkidThreshold,
+                                   &BikeSkidThresholdThunk,
+                                   kExpectedBikeSkidThreshold),
+                       g_bikeSkidThresholdPatch)) {
+        Log("Wheel skid threshold fix skipped: CVehicle::ProcessBikeWheel bytes do not match GTA SA 1.0 US.");
+        return false;
+    }
+    patches.Commit();
+    Log("Installed a frame-rate-independent wheel traction break point.");
+    return true;
+}
+
 bool InstallTurnAirResistanceFix() {
     if (!InstallJump(g_turnAirResistancePatch, kTurnAirResistance,
                      &TurnAirResistanceThunk, kExpectedTurnAirResistance)) {

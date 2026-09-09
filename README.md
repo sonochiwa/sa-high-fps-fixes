@@ -41,8 +41,6 @@ Vehicles:
   bikes in mid-air after a jump and stopped pushed cars dead between shoves.
 - Damps vehicle turn speed by real time rather than once per rendered frame, so
   angular velocity is not bled away far faster at high FPS.
-- Breaks wheel traction at the slip the stock game needed at 30 FPS, so cars and
-  bikes do not lose grip and slide progressively earlier as the frame rate rises.
 - Stops a bike rocking from side to side while standing still, by measuring the
   rider lean over real time instead of over one rendered frame.
 - Measures the friction that holds a vehicle to the ground in real time rather
@@ -161,7 +159,7 @@ bikePitchExperiment=1
 bikePitchExperimentStrength=100
 groundFriction=1
 turnAirResistance=1
-wheelSkidThreshold=1
+wheelSkidThreshold=0
 moveSpeedSnap=1
 restThreshold=1
 physicsSleepRate=1
@@ -253,7 +251,7 @@ forPauseMenu=0
 | `bikePitchExperimentStrength` | `100` | Percentage of the frame-rate excess removed from positive pitch during that takeoff window. The actual correction is also multiplied by `1 - current timestep / 30-FPS timestep`, so it fades continuously to zero at 30 FPS. Changing this value does not require rebuilding the plugin. |
 | `groundFriction` | `1` | Scales the per-contact friction budget that holds a vehicle to the ground by the timestep ratio. |
 | `turnAirResistance` | `1` | Raises the `0.99` turn speed damping to the timestep ratio instead of applying it once per frame. |
-| `wheelSkidThreshold` | `1` | Decides when a wheel breaks traction using the slip it would have taken at 30 FPS. `adhesion` is scaled by the timestep and is therefore a per-frame budget, but the lateral slip it is tested against is a plain velocity, so off the throttle a wheel crossed into a skid at a fraction of the stock slip as the frame rate rose. Only the test moves; the clamp that follows keeps the real per-frame budget, so the slip removed per second is unchanged. Under throttle both sides already scale together and the stock test is left bit-exact. |
+| `wheelSkidThreshold` | `0` | Off. An attempt at making the wheel traction break point frame-rate independent. The units mismatch it targets is real, but this implementation moves the clamp as well as the classification, which over-grips at high FPS and makes the car dart. Do not enable it until it is reworked. |
 | `moveSpeedSnap` | `1` | Rescales the fixed move speed limit that cars and bikes snap to a stop under. |
 | `restThreshold` | `1` | Rescales the at-rest move distance limit for abandoned and wrecked vehicles. |
 | `physicsSleepRate` | `1` | Steps the `m_nFakePhysics` sleep counter in real time instead of once per frame. |

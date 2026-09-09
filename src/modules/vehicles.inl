@@ -6,6 +6,47 @@ float __cdecl GetFrameIndependentWheelFriction() {
     return ReadGameFloat(kWheelFriction, 0.9f) * TimeStepRatio();
 }
 
+// Set by the wheel skid state thunks just before they decide whether to run the
+// game's classification block. One flag is enough because the wheel loops are
+// sequential and each thunk reads it back on the instruction after its call.
+uint8_t g_skipSkidState{};
+
+// A wheel is only called skidding when the slip would also have saturated the
+// budget at 30 FPS. `adhesion` is per frame, so dividing it back by the timestep
+// ratio restores the reference the stock test was written against. The clamp is
+// untouched, so the correction applied to the wheel keeps the real per-frame
+// magnitude and the slip removed per second does not change.
+void SetSkipSkidState(float speedSq, float adhesion, uintptr_t drivingFlag) {
+    g_skipSkidState = 0;
+    uint8_t driving = 0;
+    __try {
+        driving = *reinterpret_cast<const uint8_t*>(drivingFlag);
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+        return;
+    }
+    // Under throttle both sides of the test already carry a timestep.
+    if (driving) {
+        return;
+    }
+    const float ratio = TimeStepRatio();
+    // At and below 30 FPS the stock threshold is already the reference.
+    if (!std::isfinite(ratio) || ratio <= 0.0001f || ratio >= 1.0f) {
+        return;
+    }
+    const float normalized = adhesion / ratio;
+    if (speedSq <= normalized * normalized) {
+        g_skipSkidState = 1;
+    }
+}
+
+void __cdecl MarkCarSkidState(float speedSq, float adhesion) {
+    SetSkipSkidState(speedSq, adhesion, kCarWheelDriving);
+}
+
+void __cdecl MarkBikeSkidState(float speedSq, float adhesion) {
+    SetSkipSkidState(speedSq, adhesion, kBikeWheelDriving);
+}
+
 float __cdecl GetSkimmerResistance() {
     return ReadGameFloat(kSkimmerResistanceConstant, 30.0f) * TimeStepRatio();
 }

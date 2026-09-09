@@ -76,6 +76,15 @@ constexpr std::array<uint8_t, 10> kExpectedCameraProcess{
 constexpr std::array<uint8_t, 5> kExpectedProcessAimWeapon{
     0xA0, 0x10, 0x01, 0xB7, 0x00
 };
+// cmp dword ptr [ebp],3 / je 006D6FB6, and cmp dword ptr [ebx],3 / je 006D77A7.
+constexpr std::array<uint8_t, 6> kExpectedCarSkidState{
+    0x83, 0x7D, 0x00, 0x03,
+    0x74, 0x52
+};
+constexpr std::array<uint8_t, 5> kExpectedBikeSkidState{
+    0x83, 0x3B, 0x03,
+    0x74, 0x28
+};
 constexpr std::array<uint8_t, 6> kExpectedWheelFriction{
     0xD9, 0x05, 0xCC, 0xB9, 0xC2, 0x00
 };

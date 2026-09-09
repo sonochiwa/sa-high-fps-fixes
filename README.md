@@ -41,6 +41,8 @@ Vehicles:
   bikes in mid-air after a jump and stopped pushed cars dead between shoves.
 - Damps vehicle turn speed by real time rather than once per rendered frame, so
   angular velocity is not bled away far faster at high FPS.
+- Flags a wheel as skidding only at the slip that would have broken traction at
+  30 FPS, so cars and bikes stop shedding grip as the frame rate rises.
 - Stops a bike rocking from side to side while standing still, by measuring the
   rider lean over real time instead of over one rendered frame.
 - Measures the friction that holds a vehicle to the ground in real time rather
@@ -159,6 +161,7 @@ bikePitchExperiment=1
 bikePitchExperimentStrength=100
 groundFriction=1
 turnAirResistance=1
+wheelSkidState=1
 moveSpeedSnap=1
 restThreshold=1
 physicsSleepRate=1
@@ -250,6 +253,7 @@ forPauseMenu=0
 | `bikePitchExperimentStrength` | `100` | Percentage of the frame-rate excess removed from positive pitch during that takeoff window. The actual correction is also multiplied by `1 - current timestep / 30-FPS timestep`, so it fades continuously to zero at 30 FPS. Changing this value does not require rebuilding the plugin. |
 | `groundFriction` | `1` | Scales the per-contact friction budget that holds a vehicle to the ground by the timestep ratio. |
 | `turnAirResistance` | `1` | Raises the `0.99` turn speed damping to the timestep ratio instead of applying it once per frame. |
+| `wheelSkidState` | `1` | Calls a wheel skidding only when the slip would also have saturated the grip budget at 30 FPS. `adhesion` is scaled by the timestep and is therefore a per-frame budget, but the lateral slip tested against it is a plain velocity, so off the throttle a wheel was flagged as skidding at a fraction of the stock slip as the frame rate rose. That flag costs grip twice over: `m_fTractionLoss` scales the correction, and the next frame opens by multiplying `adhesion` by it again. Only the classification moves. Every impulse magnitude, including the clamp to the per-frame budget, is left exactly as the game computes it. Under throttle both sides of the test already carry a timestep and that path stays bit-exact. |
 | `moveSpeedSnap` | `1` | Rescales the fixed move speed limit that cars and bikes snap to a stop under. |
 | `restThreshold` | `1` | Rescales the at-rest move distance limit for abandoned and wrecked vehicles. |
 | `physicsSleepRate` | `1` | Steps the `m_nFakePhysics` sleep counter in real time instead of once per frame. |
@@ -384,6 +388,11 @@ Patch sites for GTA San Andreas 1.0 US:
 - `0x52B730` and `0x521500`: MinHook detours around `CCamera::Process` and
   `CCam::Process_AimWeapon` temporarily raise both GTA camera timesteps while
   an on-foot aim camera is active, then restore their exact prior values.
+- `0x6D6F5E` and `0x6D777A`: the `cmp`/`je` guarding the wheel skid
+  classification in `CVehicle::ProcessWheel` and `CVehicle::ProcessBikeWheel`.
+  Off the throttle, a slip below the 30 FPS budget jumps into the game's own
+  `tractionLoss = 1.0` arm instead of being called a skid; the driving flags at
+  `0xC1CDAD` and `0xC1CDB1` select that case and the clamp below is untouched.
 - `0x61E0CA`: aiming rifle walk step.
 - `0x68A42B`, `0x68A4CA`, `0x68A50E` and `0x6C27AE`: initial dive, ascent,
   swimming movement vectors and player buoyancy.

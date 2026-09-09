@@ -440,6 +440,37 @@ constexpr uintptr_t kBuoyancyThreshold = 0x006C27A2;
 constexpr uintptr_t kBuoyancyThresholdReturn = 0x006C27C8;
 constexpr uintptr_t kBuoyancyClampedStore = 0x006C27EC;
 
+// Wheel skid state. `CVehicle::ProcessWheel` and `CVehicle::ProcessBikeWheel`
+// scale `adhesion` by the timestep at entry, so it is a budget for one frame,
+// but the lateral slip weighed against it, `-contactSpeedRight / wheelsOnGround`,
+// is a plain velocity that does not follow the frame. Off the throttle the two
+// sides are in different units, so `speedSq > adhesion * adhesion` becomes true
+// at a fraction of the slip it needed at 30 FPS. That one test does two jobs:
+// it clamps the correction to the per-frame budget, which is correct and is left
+// alone, and it flags the wheel as skidding, which is not. The flag costs real
+// grip -- `m_fTractionLoss` scales the clamp, and the next frame opens with
+// `adhesion *= m_fTractionLoss` because the wheel is no longer NORMAL -- so at a
+// high frame rate a car bleeds traction it would have kept at 30 FPS.
+//
+// The patched span is the `cmp`/`je` that guards the classification block. When
+// the slip would not have saturated at 30 FPS the thunk jumps into the game's
+// own `tractionLoss = 1.0` arm, which skips the state assignment and leaves the
+// clamp running on the real per-frame `adhesion`. No impulse magnitude changes;
+// only whether the wheel is called skidding, and the traction loss the stock
+// code couples to that. Under throttle `thrust` carries a timestep and the
+// lateral term is pre-clamped to `adhesion`, so both sides already scale
+// together and the driving flags below leave that path bit-exact.
+constexpr uintptr_t kCarSkidState = 0x006D6F5E;
+constexpr uintptr_t kCarSkidStateReturn = 0x006D6F64;
+constexpr uintptr_t kCarSkidStateDone = 0x006D6FB6;
+constexpr uintptr_t kCarSkidTractionOne = 0x006D6FCD;
+constexpr uintptr_t kBikeSkidState = 0x006D777A;
+constexpr uintptr_t kBikeSkidStateReturn = 0x006D777F;
+constexpr uintptr_t kBikeSkidStateDone = 0x006D77A7;
+constexpr uintptr_t kBikeSkidTractionOne = 0x006D77B9;
+constexpr uintptr_t kCarWheelDriving = 0x00C1CDAD;
+constexpr uintptr_t kBikeWheelDriving = 0x00C1CDB1;
+
 // Vehicles.
 constexpr uintptr_t kWheelFrictionCarDriveReturn = 0x006D6E6F;
 constexpr uintptr_t kWheelFrictionCarBrakeReturn = 0x006D6EAE;

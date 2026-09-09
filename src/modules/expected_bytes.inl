@@ -76,16 +76,6 @@ constexpr std::array<uint8_t, 10> kExpectedCameraProcess{
 constexpr std::array<uint8_t, 5> kExpectedProcessAimWeapon{
     0xA0, 0x10, 0x01, 0xB7, 0x00
 };
-// `fld dword ptr [esp+78h]` / `fmul dword ptr [esp+78h]` in ProcessWheel, and
-// the same pair against `[esp+70h]` in ProcessBikeWheel.
-constexpr std::array<uint8_t, 8> kExpectedCarSkidThreshold{
-    0xD9, 0x44, 0x24, 0x78,
-    0xD8, 0x4C, 0x24, 0x78
-};
-constexpr std::array<uint8_t, 8> kExpectedBikeSkidThreshold{
-    0xD9, 0x44, 0x24, 0x70,
-    0xD8, 0x4C, 0x24, 0x70
-};
 constexpr std::array<uint8_t, 6> kExpectedWheelFriction{
     0xD9, 0x05, 0xCC, 0xB9, 0xC2, 0x00
 };

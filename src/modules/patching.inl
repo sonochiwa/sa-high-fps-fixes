@@ -77,8 +77,6 @@ std::array<SitePatch, 4> g_fakePhysicsPatches{};
 std::array<SitePatch, 3> g_restThresholdPatches{};
 std::array<SitePatch, 6> g_moveSpeedSnapPatches{};
 SitePatch g_turnAirResistancePatch{};
-SitePatch g_carSkidThresholdPatch{};
-SitePatch g_bikeSkidThresholdPatch{};
 SitePatch g_groundFrictionPatch{};
 SitePatch g_bikeLeanTargetPatch{};
 SitePatch g_bikePitchExperimentPatch{};

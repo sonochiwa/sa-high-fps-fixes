@@ -159,7 +159,6 @@ bikePitchExperiment=1
 bikePitchExperimentStrength=100
 groundFriction=1
 turnAirResistance=1
-wheelSkidThreshold=0
 moveSpeedSnap=1
 restThreshold=1
 physicsSleepRate=1
@@ -251,7 +250,6 @@ forPauseMenu=0
 | `bikePitchExperimentStrength` | `100` | Percentage of the frame-rate excess removed from positive pitch during that takeoff window. The actual correction is also multiplied by `1 - current timestep / 30-FPS timestep`, so it fades continuously to zero at 30 FPS. Changing this value does not require rebuilding the plugin. |
 | `groundFriction` | `1` | Scales the per-contact friction budget that holds a vehicle to the ground by the timestep ratio. |
 | `turnAirResistance` | `1` | Raises the `0.99` turn speed damping to the timestep ratio instead of applying it once per frame. |
-| `wheelSkidThreshold` | `0` | Off. An attempt at making the wheel traction break point frame-rate independent. The units mismatch it targets is real, but this implementation moves the clamp as well as the classification, which over-grips at high FPS and makes the car dart. Do not enable it until it is reworked. |
 | `moveSpeedSnap` | `1` | Rescales the fixed move speed limit that cars and bikes snap to a stop under. |
 | `restThreshold` | `1` | Rescales the at-rest move distance limit for abandoned and wrecked vehicles. |
 | `physicsSleepRate` | `1` | Steps the `m_nFakePhysics` sleep counter in real time instead of once per frame. |
@@ -386,11 +384,6 @@ Patch sites for GTA San Andreas 1.0 US:
 - `0x52B730` and `0x521500`: MinHook detours around `CCamera::Process` and
   `CCam::Process_AimWeapon` temporarily raise both GTA camera timesteps while
   an on-foot aim camera is active, then restore their exact prior values.
-- `0x6D6F47` and `0x6D774E`: the `fld`/`fmul` pair that squares `adhesion` for
-  the wheel traction break point, in `CVehicle::ProcessWheel` and
-  `CVehicle::ProcessBikeWheel`. Off the throttle the squared value is divided
-  back to its 30 FPS equivalent; the driving flags at `0xC1CDAD` and `0xC1CDB1`
-  select that case, and the clamp downstream is left alone.
 - `0x61E0CA`: aiming rifle walk step.
 - `0x68A42B`, `0x68A4CA`, `0x68A50E` and `0x6C27AE`: initial dive, ascent,
   swimming movement vectors and player buoyancy.

@@ -127,8 +127,6 @@ DWORD WINAPI Initialize(void*) {
                InstallGroundFrictionFix},
         {"vehicles", "turnAirResistance", "Turn air resistance fix",
                InstallTurnAirResistanceFix},
-        {"vehicles", "wheelSkidThreshold", "Wheel skid threshold fix",
-               InstallWheelSkidThresholdFix},
         {"vehicles", "moveSpeedSnap", "Move speed snap fix",
                InstallMoveSpeedSnapFix},
         {"vehicles", "physicsSleepRate", "Physics sleep rate fix",

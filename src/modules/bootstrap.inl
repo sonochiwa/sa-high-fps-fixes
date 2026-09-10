@@ -89,6 +89,8 @@ DWORD WINAPI Initialize(void*) {
                InstallFollowCameraRateFix},
         {"camera", "idleCameraTimer", "Idle camera timer fix",
                InstallIdleCameraTimerFix},
+        {"camera", "drunkCameraShake", "Drunk camera shake fix",
+               InstallDrunkCameraShakeFix},
         {"player", "aimingRifleWalk", "Aiming rifle walk fix",
                InstallAimingRifleWalkFix},
         {"player", "swimmingMovement", "Swimming movement fix",

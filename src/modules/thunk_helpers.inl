@@ -101,6 +101,13 @@ void __cdecl FatCounterAdd(uint32_t milliseconds, uint32_t rate) {
     }
 }
 
+// The sway is a rotation rate, so the per-frame step becomes a per-second one.
+// The 5.0 is reached through the game constant so a mod that retunes it keeps
+// working, and at 30 FPS the ratio is one and the step is the stock 5.0 exactly.
+float __cdecl GetDrunkCameraPhaseStep() {
+    return ReadGameFloat(kDrunkCameraPhaseStep, 5.0f) * TimeStepRatio();
+}
+
 void __cdecl ScaleRollOntoWheelsForce(float* force) {
     __try {
         const float ratio = TimeStepRatio();

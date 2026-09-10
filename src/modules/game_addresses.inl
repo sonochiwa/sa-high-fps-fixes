@@ -131,6 +131,18 @@ constexpr size_t kCamSize = 0x238;
 constexpr size_t kCamMode = 0x0C;
 constexpr size_t kPedFlagsInVehicle = 0x46D;
 
+// Drunk camera sway. While `CMBlur::Drunkness` at 0xC73C58 is above zero,
+// `CCamera::Process` sways the camera's front, up and position vectors by
+// `Drunkness * amplitude * cos(phase)` and the matching sine, with the
+// amplitudes at 0x85904C, 0x858C28 and 0x858EF4. The phase itself is a plain
+// global at 0xB6EC30 advanced by a bare `fadd` of the 5.0 at 0x858C80 once per
+// rendered frame, and the 0.01745329 at 0x8595EC converts it from degrees, so
+// the sway turns 150 degrees a second at 30 FPS and 600 at 120. That is the
+// shaking: the amplitude is right but the oscillation runs at the frame rate.
+constexpr uintptr_t kDrunkCameraPhase = 0x0052C729;
+constexpr uintptr_t kDrunkCameraPhaseReturn = 0x0052C72F;
+constexpr uintptr_t kDrunkCameraPhaseStep = 0x00858C80;
+
 // Player.
 constexpr uintptr_t kAimingRifleWalkPatch = 0x0061E0CA;
 constexpr uintptr_t kAimingRifleWalkReturn = 0x0061E0D0;

@@ -65,6 +65,7 @@ int32_t g_chainsawStrikeMove{-1};
 float g_chainsawAnimStep{};
 float g_chainsawAnimTime{};
 SitePatch g_drowningDamagePatch{};
+SitePatch g_drunkCameraPhasePatch{};
 SitePatch g_aimingRifleWalkPatch{};
 SitePatch g_pedPushCarPatch{};
 SitePatch g_bloodyFootprintCounterPatch{};

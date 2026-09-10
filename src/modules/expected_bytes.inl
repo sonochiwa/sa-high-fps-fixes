@@ -193,6 +193,10 @@ constexpr std::array<uint8_t, 12> kExpectedBuoyancyClampedStore{
     0x83, 0xC4, 0x0C,
     0xC2, 0x0C, 0x00
 };
+// fadd dword ptr ds:[00858C80h]
+constexpr std::array<uint8_t, 6> kExpectedDrunkCameraPhase{
+    0xD8, 0x05, 0x80, 0x8C, 0x85, 0x00
+};
 constexpr std::array<uint8_t, 6> kExpectedAimingRifleWalk{
     0xD8, 0x0D, 0xA8, 0x8C, 0x85, 0x00
 };

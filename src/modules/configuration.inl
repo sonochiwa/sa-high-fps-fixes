@@ -12,6 +12,7 @@ constexpr char kDefaultIni[] =
     "aimCameraShake=1\n"
     "followCameraRate=1\n"
     "idleCameraTimer=1\n"
+    "drunkCameraShake=1\n"
     "\n"
     "[player]\n"
     "aimingRifleWalk=1\n"

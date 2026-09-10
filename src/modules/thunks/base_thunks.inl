@@ -586,3 +586,23 @@ __declspec(naked) void TrailerRestThresholdThunk() {
         jmp kTrailerRestThresholdReturn
     }
 }
+
+// Replaces the bare `fadd` that advanced the drunk camera sway by a fixed step
+// every rendered frame. The helper returns the scaled step in st(0) and the
+// add pops it back off, so the stack is left holding the new phase exactly as
+// the original instruction left it.
+__declspec(naked) void DrunkCameraPhaseThunk() {
+    __asm {
+        pushfd
+        push eax
+        push ecx
+        push edx
+        call GetDrunkCameraPhaseStep
+        pop edx
+        pop ecx
+        pop eax
+        popfd
+        faddp st(1), st
+        jmp kDrunkCameraPhaseReturn
+    }
+}

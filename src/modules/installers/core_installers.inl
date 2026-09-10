@@ -59,6 +59,16 @@ bool InstallAimCameraShakeFix() {
     return true;
 }
 
+bool InstallDrunkCameraShakeFix() {
+    if (!InstallJump(g_drunkCameraPhasePatch, kDrunkCameraPhase,
+                     &DrunkCameraPhaseThunk, kExpectedDrunkCameraPhase)) {
+        Log("Drunk camera shake fix skipped: CCamera::Process sway bytes do not match GTA SA 1.0 US.");
+        return false;
+    }
+    Log("Installed a real-time drunk camera sway rate.");
+    return true;
+}
+
 bool InstallAimingRifleWalkFix() {
     if (!InstallJump(g_aimingRifleWalkPatch, kAimingRifleWalkPatch,
                      &AimingRifleWalkThunk, kExpectedAimingRifleWalk)) {

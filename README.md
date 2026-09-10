@@ -138,6 +138,8 @@ stuntJumpCamera=1
 aimCameraShake=1
 followCameraRate=1
 idleCameraTimer=1
+drunkCameraShake=1
+drunkCameraShake=1
 
 [player]
 aimingRifleWalk=1
@@ -234,6 +236,7 @@ forPauseMenu=0
 | `aimCameraShake` | `1` | Temporarily raises both camera timesteps to the 50 FPS minimum while the on-foot aim camera is processed, then restores them before unrelated game processing continues. |
 | `followCameraRate` | `1` | Divides the follow cameras' turn rate by the real timestep instead of clamping the divisor at 1.0. The clamp only binds above 50 FPS, where it leaves the rate short by the ratio. |
 | `idleCameraTimer` | `1` | Same carry on `CIdleCam::ProcessIdleCamTicker`, which counts truncated frame time until the idle camera starts drifting. |
+| `drunkCameraShake` | `1` | Turns the drunk camera sway at its original speed. `CCamera::Process` offsets the camera by `Drunkness * amplitude * cos(phase)` while the player is drunk, and advances `phase` by a flat five degrees every rendered frame, so the sway spins at 150 degrees a second at 30 FPS and 600 at 120. The step is scaled by the timestep ratio; the amplitudes are untouched, so the sway is as wide as it always was and only its rate changes. |
 | `aimingRifleWalk` | `1` | Scales the walk step used while aiming a rifle. |
 | `swimPitchRate` | `1` | Raises the swim pitch rate decay in `CTaskSimpleSwim::ProcessSwimmingResistance` to the timestep. Unpatched, the rate at which a swimmer pitches up or down decays once per frame while the build-up and the angle integration two instructions away both use the timestep, so the swim angle barely responds at a high frame rate. |
 | `swimmingMovement` | `1` | Converts the per frame animation shift into a speed for the swim task, which is the target its already time-correct blend converges to. 
@@ -393,6 +396,8 @@ Patch sites for GTA San Andreas 1.0 US:
   both are scaled by the timestep ratio first, which leaves the saturation test
   and the clamp algebraically unchanged; the driving flags at `0xC1CDAD` and
   `0xC1CDB1` select that case.
+- `0x52C729`: the drunk camera sway phase step in `CCamera::Process`, a bare
+  `fadd` of the five degrees at `0x858C80` once per rendered frame.
 - `0x61E0CA`: aiming rifle walk step.
 - `0x68A42B`, `0x68A4CA`, `0x68A50E` and `0x6C27AE`: initial dive, ascent,
   swimming movement vectors and player buoyancy.

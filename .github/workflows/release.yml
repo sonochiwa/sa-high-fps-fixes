@@ -45,8 +45,12 @@ jobs:
           $stage = Join-Path build "release\HighFpsFixes-v$version"
           Remove-Item -LiteralPath $stage -Recurse -Force -ErrorAction SilentlyContinue
           New-Item -ItemType Directory -Path $stage -Force | Out-Null
-          Copy-Item build\HighFpsFixes.asi, build\HighFpsFixes.ini, tools\validate-game.ps1 -Destination $stage
-          Copy-Item vendor\minhook\LICENSE.txt -Destination (Join-Path $stage MinHook-LICENSE.txt)
+          Copy-Item build\HighFpsFixes.asi, build\HighFpsFixes.ini -Destination $stage
+
+          # MinHook's BSD licence requires its notice alongside any binary that
+          # links it. It rides in the README rather than as a file of its own so
+          # the archive stays at the plugin, its INI and one text file.
+          $minhookNotice = Get-Content vendor\minhook\LICENSE.txt -Encoding UTF8
 
           $readme = @(
               "High FPS Fixes v$version"
@@ -66,9 +70,13 @@ jobs:
               "in HighFpsFixes.ini; the plugin recreates that file beside itself if it is"
               "missing. Remove both files to uninstall."
               ""
-              "Optional preflight: run validate-game.ps1 against gta_sa.exe before installing."
-              ""
               "Source code: https://github.com/sonochiwa/sa-high-fps-fixes"
+              ""
+              "Third-party notices"
+              ""
+              "The plugin links the MinHook library, distributed under the terms below."
+              ""
+              $minhookNotice
           ) -join [Environment]::NewLine
           [IO.File]::WriteAllText(
               (Join-Path $stage README.txt),

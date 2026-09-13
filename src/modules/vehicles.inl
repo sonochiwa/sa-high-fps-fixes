@@ -6,59 +6,14 @@ float __cdecl GetFrameIndependentWheelFriction() {
     return ReadGameFloat(kWheelFriction, 0.9f) * TimeStepRatio();
 }
 
-// Returns the factor the two slip components are scaled by before the wheel's
-// saturation test, or an exact 1.0 wherever the stock arithmetic is already
-// consistent: under throttle, at and below 30 FPS, and on any unreadable state.
-// Returning a plain multiplier rather than branching in the thunk keeps the
-// no-op case bit-exact.
-float SlipScale(uintptr_t drivingFlag) {
-    uint8_t driving = 0;
-    __try {
-        driving = *reinterpret_cast<const uint8_t*>(drivingFlag);
-    } __except (EXCEPTION_EXECUTE_HANDLER) {
-        return 1.0f;
-    }
-    if (driving) {
-        return 1.0f;
-    }
-    const float ratio = TimeStepRatio();
-    if (!std::isfinite(ratio) || ratio <= 0.0001f || ratio >= 1.0f) {
-        return 1.0f;
-    }
-    return ratio;
-}
-
-float __cdecl GetCarSlipScale() {
-    return SlipScale(kCarWheelDriving);
-}
-
-float __cdecl GetBikeSlipScale() {
-    return SlipScale(kBikeWheelDriving);
-}
-
 float __cdecl GetSkimmerResistance() {
     return ReadGameFloat(kSkimmerResistanceConstant, 30.0f) * TimeStepRatio();
-}
-
-// The 0.99 is read through the game constant so mods that repoint it keep
-// working. Raising it to the timestep ratio rather than the raw timestep keeps
-// the result bit-exact `0.99` at 30 FPS, where the ratio is one.
-float __cdecl GetTurnAirResistanceFactor() {
-    const float base = ReadGameFloat(kTurnAirResistanceConstant, 0.99f);
-    return std::pow(base, TimeStepRatio());
 }
 
 float __cdecl GetBurnoutWheelSpeed() {
     return ReadGameFloat(kBurnoutConstant, 3000.0f) * TimeStepRatio();
 }
 
-// The push-out is a distance, not a decay, and the overlap it works against is
-// held by the shape the vehicle is riding rather than created by the previous
-// frame, so the fraction is scaled linearly: the same depth then leaves the
-// entity at the same speed per second whatever the frame rate. The ratio is
-// never raised above one, so at 30 FPS and below the stock constant is used
-// unchanged. Both constants live in writable globals and are read through the
-// original operand, so a mod that repoints or retunes them keeps working.
 // A lerp weight, so what has to hold across frames is the fraction of the gap
 // left over: `1 - weight` per original frame becomes `(1 - weight)` raised to
 // the timestep ratio per rendered frame. The ratio is capped at one so 30 FPS
@@ -70,16 +25,6 @@ float __cdecl GetWheelSettleWeight() {
         return weight;
     }
     return 1.0f - std::pow(1.0f - weight, ratio);
-}
-
-float __cdecl GetPushOutScaleMain() {
-    return ReadGameFloat(kPushOutConstantMain, 0.75f)
-         * std::min(TimeStepRatio(), 1.0f);
-}
-
-float __cdecl GetPushOutScaleAlt() {
-    return ReadGameFloat(kPushOutConstantAlt, 1.5f)
-         * std::min(TimeStepRatio(), 1.0f);
 }
 
 // The rotor speed constant is reached through the original instruction operand
@@ -339,62 +284,6 @@ bool __cdecl HookedBikeDamageKnockOffRider(
     return reinterpret_cast<Fn>(g_bikeDamageKnockOffPatch.gateway)(
         vehicle, damageIntensity, pieceType, damager, collisionPosition,
         collisionImpactVelocity);
-}
-
-bool __fastcall HookedSpringDampening(
-    void* physical, void*, float dampingForce, float springForceLimit,
-    float* direction, float* collisionPoint, float* collisionSpeed) {
-    using Fn = bool(__thiscall*)(
-        void*, float, float, float*, float*, float*);
-    float adjustedDampingForce = dampingForce;
-    __try {
-        const float timeStep = *reinterpret_cast<const float*>(kTimerTimeStep);
-        if (physical && std::isfinite(timeStep) && timeStep > 0.0f
-            && timeStep < kOriginalTimeStep
-            && std::isfinite(dampingForce) && dampingForce != 0.0f) {
-            const auto address = reinterpret_cast<uintptr_t>(physical);
-            const float massMultiplier =
-                (*reinterpret_cast<const uint8_t*>(
-                    address + kPhysicalFlags) & 0x01) != 0
-                    ? 2.0f : 1.0f;
-            const float stockAlpha = std::clamp(
-                kOriginalTimeStep * dampingForce * massMultiplier,
-                -kStockDampingLimitInFrame, kStockDampingLimitInFrame);
-            const float unclampedStockAlpha =
-                kOriginalTimeStep * dampingForce * massMultiplier;
-            float adjusted = dampingForce;
-            if (std::fabs(unclampedStockAlpha)
-                    <= kStockDampingLimitInFrame) {
-                // Linear Euler damping leaves a different amount of motion
-                // when the same interval is split into many short frames.
-                // Convert the stock 30 FPS alpha to the exactly equivalent
-                // short-frame alpha. Tahoma's 0.08 path is handled here.
-                const float absoluteAlpha = std::fabs(stockAlpha);
-                if (absoluteAlpha > 0.0f && absoluteAlpha < 1.0f) {
-                    const float frameRatio = timeStep / kOriginalTimeStep;
-                    const float desiredAlpha = std::copysign(
-                        1.0f - std::pow(1.0f - absoluteAlpha, frameRatio),
-                        stockAlpha);
-                    adjusted = desiredAlpha / (timeStep * massMultiplier);
-                }
-            } else {
-                // The stock game capped this coefficient at 30 FPS. At a short
-                // timestep the same raw dampingForce falls below the fixed cap,
-                // changing the suspension. Cap the coefficient itself at the
-                // equivalent rate; the original function can then keep all of
-                // its spring-force and direction limiting intact.
-                adjusted = stockAlpha / (kOriginalTimeStep * massMultiplier);
-            }
-            if (std::isfinite(adjusted)) {
-                adjustedDampingForce = adjusted;
-            }
-        }
-    } __except (EXCEPTION_EXECUTE_HANDLER) {
-    }
-
-    return reinterpret_cast<Fn>(g_suspensionDampingPatch.gateway)(
-        physical, adjustedDampingForce, springForceLimit, direction,
-        collisionPoint, collisionSpeed);
 }
 
 void __fastcall HookedBmxRiderFallEventAdd(

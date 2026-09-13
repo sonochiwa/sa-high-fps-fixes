@@ -5,7 +5,15 @@
 struct SitePatch {
     uintptr_t address{};
     std::array<uint8_t, 48> original{};
+    // The branch and padding this plugin wrote, so the guard can tell a site
+    // that still holds the patch from one another plugin has written over.
+    std::array<uint8_t, 48> written{};
+    // The bytes that followed the site when it was patched. A foreign patch
+    // that is longer than this one leaves its NOP padding over them, and they
+    // are what the guard puts back.
+    std::array<uint8_t, 16> tail{};
     size_t size{};
+    uint8_t reasserted{};
     bool installed{};
 };
 
@@ -76,21 +84,11 @@ SitePatch g_burnoutPatch{};
 SitePatch g_sirenPatch{};
 std::array<SitePatch, 4> g_fakePhysicsPatches{};
 std::array<SitePatch, 3> g_restThresholdPatches{};
-std::array<SitePatch, 6> g_moveSpeedSnapPatches{};
-SitePatch g_turnAirResistancePatch{};
-SitePatch g_carSlipScalePatch{};
-SitePatch g_bikeSlipScalePatch{};
-SitePatch g_groundFrictionPatch{};
 SitePatch g_bikeLeanTargetPatch{};
 SitePatch g_bikePitchExperimentPatch{};
 std::array<SitePatch, 2> g_bmxRiderFallTracePatches{};
 DetourPatch g_bmxLaunchBunnyHopPatch{};
 DetourPatch g_bikeDamageKnockOffPatch{};
-DetourPatch g_suspensionDampingPatch{};
-// Scratch for the six move speed snap thunks. The game is single threaded
-// through vehicle processing, and each thunk writes it and reads it back before
-// the next instruction.
-float g_scaledMoveSpeedSnap{};
 SitePatch g_scriptsProcessPatch{};
 SitePatch g_scriptSlideObjectPatch{};
 SitePatch g_scriptRotateObjectPatch{};
@@ -111,8 +109,6 @@ SitePatch g_followCarCameraPatch{};
 SitePatch g_attachedEntitySpeedPatch{};
 SitePatch g_aiAircraftSteerPatch{};
 std::array<SitePatch, kStatTruncSites.size()> g_statTruncPatches{};
-SitePatch g_rollOntoWheelsTurnPatch{};
-SitePatch g_rollOntoWheelsMovePatch{};
 std::array<SitePatch, 4> g_doorSwingPatches{};
 std::array<SitePatch, 6> g_wheelSpinPatches{};
 SitePatch g_boatEngineDampingPatch{};
@@ -123,7 +119,6 @@ std::array<SitePatch, 2> g_jetPackFxPatches{};
 std::array<SitePatch, 2> g_headBopPatches{};
 std::array<SitePatch, 4> g_bmxLeanPatches{};
 std::array<SitePatch, 6> g_jumpOutDampPatches{};
-std::array<SitePatch, 6> g_pushOutPatches{};
 std::array<SitePatch, 6> g_wheelSettlePatches{};
 SitePatch g_mapWheelSamplePatch{};
 SitePatch g_mapZoomInGatePatch{};
@@ -372,236 +367,6 @@ void Log(const char* message) {
     }
 }
 
-bool CreateDefaultIniIfMissing() {
-    if (g_iniPath.empty()) {
-        return false;
-    }
-    if (GetFileAttributesA(g_iniPath.c_str()) != INVALID_FILE_ATTRIBUTES) {
-        return true;
-    }
-
-    HANDLE file = CreateFileA(g_iniPath.c_str(), GENERIC_WRITE, 0, nullptr,
-                              CREATE_NEW, FILE_ATTRIBUTE_NORMAL, nullptr);
-    if (file == INVALID_HANDLE_VALUE) {
-        return false;
-    }
-
-    DWORD written{};
-    constexpr DWORD size = static_cast<DWORD>(sizeof(kDefaultIni) - 1);
-    const bool ok = WriteFile(file, kDefaultIni, size, &written, nullptr) != FALSE
-                 && written == size;
-    CloseHandle(file);
-    return ok;
-}
-
-struct IniCompletionResult {
-    size_t added{};
-    bool complete{true};
-};
-
-// Add only settings represented by the embedded canonical INI. Profile writes
-// insert a key into its existing section (or append a missing section) without
-// replacing the file, so user values, ordering, blank lines, comments and
-// non-canonical diagnostic settings survive an upgrade. Comments from the
-// template are deliberately not restored: deleting one is a harmless user edit
-// and must not make every launch rewrite the file.
-IniCompletionResult CompleteIniWithMissingDefaults() {
-    IniCompletionResult result{};
-    if (g_iniPath.empty()) {
-        result.complete = false;
-        return result;
-    }
-
-    constexpr char missingValue[] = "\x1Dhigh-fps-fixes-missing\x1D";
-    std::string section;
-    const char* cursor = kDefaultIni;
-    while (*cursor) {
-        const char* newline = std::strchr(cursor, '\n');
-        const size_t length = newline
-                                ? static_cast<size_t>(newline - cursor)
-                                : std::strlen(cursor);
-        std::string line(cursor, length);
-        if (!line.empty() && line.back() == '\r') {
-            line.pop_back();
-        }
-
-        if (line.size() >= 3 && line.front() == '[' && line.back() == ']') {
-            section.assign(line.data() + 1, line.size() - 2);
-        } else if (!section.empty() && !line.empty()
-                   && line.front() != '#' && line.front() != ';') {
-            const size_t equals = line.find('=');
-            if (equals != std::string::npos && equals != 0) {
-                const std::string key = line.substr(0, equals);
-                const std::string defaultValue = line.substr(equals + 1);
-                std::array<char, 128> existing{};
-                GetPrivateProfileStringA(
-                    section.c_str(), key.c_str(), missingValue,
-                    existing.data(), static_cast<DWORD>(existing.size()),
-                    g_iniPath.c_str());
-                if (std::strcmp(existing.data(), missingValue) == 0) {
-                    if (WritePrivateProfileStringA(
-                            section.c_str(), key.c_str(),
-                            defaultValue.c_str(), g_iniPath.c_str())) {
-                        ++result.added;
-                    } else {
-                        result.complete = false;
-                    }
-                }
-            }
-        }
-
-        if (!newline) {
-            break;
-        }
-        cursor = newline + 1;
-    }
-
-    if (result.added != 0) {
-        // The all-null form only flushes the profile API cache. Some Windows
-        // versions return zero for this form even when every preceding write
-        // succeeded, so it must not turn a successful migration into a warning.
-        WritePrivateProfileStringA(nullptr, nullptr, nullptr,
-                                   g_iniPath.c_str());
-    }
-    return result;
-}
-
-void RegisterConfigKey(const char* section, const char* key) {
-    for (size_t i = 0; i < g_knownConfigKeyCount; ++i) {
-        if (_stricmp(g_knownConfigKeys[i].section, section) == 0
-            && _stricmp(g_knownConfigKeys[i].key, key) == 0) {
-            return;
-        }
-    }
-    if (g_knownConfigKeyCount < g_knownConfigKeys.size()) {
-        g_knownConfigKeys[g_knownConfigKeyCount++] = {section, key};
-    }
-}
-
-void AddConfigWarning(const char* section, const char* key,
-                      const char* reason) {
-    if (g_configWarningCount >= g_configWarnings.size()) {
-        return;
-    }
-    std::string warning("Configuration warning: [");
-    warning += section;
-    warning += "] ";
-    warning += key;
-    warning += " ";
-    warning += reason;
-    g_configWarnings[g_configWarningCount++] = warning;
-}
-
-bool ReadSetting(const char* section, const char* key, bool defaultValue) {
-    RegisterConfigKey(section, key);
-    std::array<char, 64> value{};
-    GetPrivateProfileStringA(section, key, "", value.data(),
-                             static_cast<DWORD>(value.size()),
-                             g_iniPath.c_str());
-    if (value[0] == '\0') {
-        return defaultValue;
-    }
-    if (std::strcmp(value.data(), "0") == 0) {
-        return false;
-    }
-    if (std::strcmp(value.data(), "1") == 0) {
-        return true;
-    }
-    AddConfigWarning(section, key, "must be 0 or 1; using its default.");
-    return defaultValue;
-}
-
-int ReadNumber(const char* section, const char* key, int defaultValue) {
-    RegisterConfigKey(section, key);
-    std::array<char, 64> value{};
-    GetPrivateProfileStringA(section, key, "", value.data(),
-                             static_cast<DWORD>(value.size()),
-                             g_iniPath.c_str());
-    if (value[0] == '\0') {
-        return defaultValue;
-    }
-    char* end{};
-    const long parsed = std::strtol(value.data(), &end, 10);
-    while (end && *end == ' ') {
-        ++end;
-    }
-    if (!end || *end != '\0'
-        || parsed < std::numeric_limits<int>::min()
-        || parsed > std::numeric_limits<int>::max()) {
-        AddConfigWarning(section, key,
-                         "must be an integer; using its default.");
-        return defaultValue;
-    }
-    return static_cast<int>(parsed);
-}
-
-bool IsKnownConfigKey(const char* section, const char* key) {
-    for (size_t i = 0; i < g_knownConfigKeyCount; ++i) {
-        if (_stricmp(g_knownConfigKeys[i].section, section) == 0
-            && _stricmp(g_knownConfigKeys[i].key, key) == 0) {
-            return true;
-        }
-    }
-    return false;
-}
-
-void RegisterConditionalConfigKeys() {
-    constexpr ConfigKey keys[] = {
-        {"vehicles", "bikePitchExperimentStrength"},
-        {"vehicles", "disableSwingingCompletely"},
-        {"particles", "particlesPerSecond"},
-        {"hud", "disableFlashing"},
-        {"general", "traceWatchOffset"},
-        {"general", "traceWatchMode"},
-        {"general", "traceWatchHits"},
-        {"general", "traceWatchSamples"},
-        {"general", "traceWatchArmDelay"},
-        {"general", "traceWatchReports"},
-    };
-    for (const auto& item : keys) {
-        RegisterConfigKey(item.section, item.key);
-    }
-}
-
-void ValidateUnknownConfigKeys() {
-    g_iniSectionBuffer.fill('\0');
-    GetPrivateProfileSectionNamesA(g_iniSectionBuffer.data(),
-                                   static_cast<DWORD>(g_iniSectionBuffer.size()),
-                                   g_iniPath.c_str());
-    for (const char* section = g_iniSectionBuffer.data(); *section;
-         section += std::strlen(section) + 1) {
-        g_iniEntryBuffer.fill('\0');
-        GetPrivateProfileSectionA(section, g_iniEntryBuffer.data(),
-                                  static_cast<DWORD>(g_iniEntryBuffer.size()),
-                                  g_iniPath.c_str());
-        for (const char* entry = g_iniEntryBuffer.data(); *entry;
-             entry += std::strlen(entry) + 1) {
-            const char* equals = std::strchr(entry, '=');
-            if (!equals) {
-                continue;
-            }
-            std::string key(entry, static_cast<size_t>(equals - entry));
-            if (!IsKnownConfigKey(section, key.c_str())) {
-                AddConfigWarning(section, key.c_str(), "is not recognized.");
-            }
-        }
-    }
-}
-
-void ReportConfigWarnings() {
-    if (g_configWarningCount == 0) {
-        return;
-    }
-    const bool loggingWasEnabled = g_loggingEnabled;
-    g_loggingEnabled = true;
-    if (!loggingWasEnabled) {
-        Log("Logging enabled because the INI contains configuration warnings.");
-    }
-    for (size_t i = 0; i < g_configWarningCount; ++i) {
-        Log(g_configWarnings[i].c_str());
-    }
-}
-
 bool WriteBytes(uintptr_t address, const uint8_t* bytes, size_t size) {
     DWORD oldProtect{};
     void* destination = reinterpret_cast<void*>(address);
@@ -746,6 +511,176 @@ void ReleasePatchRange(uintptr_t address) {
         }
     }
 }
+
+// ---------------------------------------------------------------------------
+// Conflicting hooks
+// ---------------------------------------------------------------------------
+//
+// Other frame-rate plugins patch some of the same instructions this one does.
+// FramerateVigilante, for instance, writes its own branch over the wheel
+// friction, burnout, rotor and siren sites, and it does so from the RenderWare
+// init event, after this plugin has already patched them. Whichever wrote last
+// wins and the other's thunk is simply never reached, so two plugins side by
+// side would apply one or the other fix at random per site and, where their
+// spans differ, both halves at once.
+//
+// This plugin takes precedence at every site it patches. At install time a
+// site already holding another module's branch is patched over it, and the
+// guard below runs once a frame on the game thread and puts the patch back if
+// it was written over later. A site is only claimed when the foreign bytes are
+// recognisably a hook of the same shape: a five byte relative branch into some
+// other module, padded with NOPs to at most this plugin's span. Anything else
+// is left alone and reported, since overwriting an unknown modification could
+// split an instruction.
+
+bool g_overrideConflictingHooks{true};
+
+struct ImageRange {
+    uintptr_t begin{};
+    uintptr_t end{};
+};
+
+ImageRange ModuleImageRange(HMODULE module) {
+    ImageRange range{};
+    __try {
+        const auto base = reinterpret_cast<uintptr_t>(module);
+        const auto* dos = reinterpret_cast<const IMAGE_DOS_HEADER*>(base);
+        if (!dos || dos->e_magic != IMAGE_DOS_SIGNATURE) {
+            return range;
+        }
+        const auto* nt = reinterpret_cast<const IMAGE_NT_HEADERS*>(
+            base + static_cast<uintptr_t>(dos->e_lfanew));
+        if (nt->Signature != IMAGE_NT_SIGNATURE) {
+            return range;
+        }
+        range.begin = base;
+        range.end = base + nt->OptionalHeader.SizeOfImage;
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+        range = {};
+    }
+    return range;
+}
+
+ImageRange g_gameImage{};
+ImageRange g_pluginImage{};
+
+bool AddressInRange(uintptr_t address, const ImageRange& range) {
+    return range.end != 0 && address >= range.begin && address < range.end;
+}
+
+// Only the plugin's own correction sites inside the game image are contested.
+// The two hooks it uses to get a call each frame are shared with other
+// plugins by design: `CTheScripts::Process` is a function entry other mods
+// hook for their own script processing, and the menu background call is
+// where plugin-sdk's `drawMenuBackgroundEvent` chains through. Taking either
+// over would silently break the other plugin rather than pick a fix.
+bool SiteMayOverrideConflicts(uintptr_t address) {
+    return AddressInRange(address, g_gameImage)
+        && address != kScriptsProcess && address != kMenuBackground;
+}
+
+// The file name of whichever module owns `address`, or a placeholder when the
+// branch lands in memory no module maps, such as a hook library's trampoline.
+std::string ModuleNameForAddress(uintptr_t address) {
+    HMODULE owner{};
+    if (!GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS
+                                | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                            reinterpret_cast<LPCSTR>(address), &owner)
+        || !owner) {
+        return "an unknown module";
+    }
+    std::array<char, MAX_PATH> path{};
+    const DWORD length = GetModuleFileNameA(owner, path.data(),
+                                            static_cast<DWORD>(path.size()));
+    if (length == 0 || length >= path.size()) {
+        return "an unknown module";
+    }
+    std::string name(path.data(), length);
+    const size_t slash = name.find_last_of("\\/");
+    return slash == std::string::npos ? name : name.substr(slash + 1);
+}
+
+struct ForeignBranch {
+    bool found{};
+    // True when the foreign padding may run past the end of this plugin's
+    // span, so the bytes after it need restoring too.
+    bool mayOverrun{};
+    uintptr_t target{};
+};
+
+// Decides whether the `size` bytes at `address`, which no longer equal
+// `reference`, differ from it only by a foreign hook this plugin may safely
+// write over. `reference` is the stock code at install time and this plugin's
+// own branch afterwards.
+ForeignBranch AnalyzeForeignBranch(uintptr_t address, const uint8_t* reference,
+                                   size_t size) {
+    ForeignBranch result{};
+    std::array<uint8_t, 48> actual{};
+    uint8_t following = 0;
+    if (size > actual.size()
+        || !CopyMemoryForDiagnostics(address, actual.data(), size)
+        || !CopyMemoryForDiagnostics(address + size, &following, 1)) {
+        return result;
+    }
+
+    size_t mismatch = 0;
+    while (mismatch < size && actual[mismatch] == reference[mismatch]) {
+        ++mismatch;
+    }
+    if (mismatch == size) {
+        return result;
+    }
+    // A branch written at the start of the site can share its opcode with the
+    // reference and differ only in the displacement.
+    const size_t start = (mismatch < 5
+                          && (actual[0] == 0xE8 || actual[0] == 0xE9))
+                             ? 0 : mismatch;
+    if (start + 5 > size || (actual[start] != 0xE8 && actual[start] != 0xE9)) {
+        return result;
+    }
+    int32_t relative{};
+    std::memcpy(&relative, actual.data() + start + 1, sizeof(relative));
+    const uintptr_t target = address + start + 5
+                           + static_cast<uintptr_t>(relative);
+    if (AddressInRange(target, g_gameImage)
+        || AddressInRange(target, g_pluginImage)) {
+        return result;
+    }
+
+    size_t cursor = start + 5;
+    while (cursor < size && actual[cursor] == 0x90) {
+        ++cursor;
+    }
+    for (size_t i = cursor; i < size; ++i) {
+        if (actual[i] != reference[i]) {
+            return result;
+        }
+    }
+    result.found = true;
+    result.mayOverrun = cursor == size && following == 0x90;
+    result.target = target;
+    return result;
+}
+
+void LogSiteTakeover(uintptr_t address, uintptr_t target, const char* how) {
+    std::string message("Conflicting hook: 0x");
+    char number[24];
+    std::snprintf(number, sizeof(number), "%08X",
+                  static_cast<unsigned>(address));
+    message += number;
+    message += " was patched by ";
+    message += ModuleNameForAddress(target);
+    message += "; ";
+    message += how;
+    Log(message.c_str());
+}
+
+void RecordSiteTail(SitePatch& patch) {
+    patch.tail.fill(0);
+    CopyMemoryForDiagnostics(patch.address + patch.size, patch.tail.data(),
+                             patch.tail.size());
+}
+
 // Replaces `size` original bytes with a relative branch to `target` and pads
 // the remainder with NOPs. `opcode` is 0xE8 for a call or 0xE9 for a jump.
 bool InstallBranch(SitePatch& patch, uintptr_t address, const void* target,
@@ -755,8 +690,18 @@ bool InstallBranch(SitePatch& patch, uintptr_t address, const void* target,
         return false;
     }
     if (!MemoryMatchesRaw(address, expected, size)) {
-        ReportPatchMismatch(address, expected, size);
-        return false;
+        const ForeignBranch foreign =
+            g_overrideConflictingHooks && SiteMayOverrideConflicts(address)
+                ? AnalyzeForeignBranch(address, expected, size)
+                : ForeignBranch{};
+        // Without the stock bytes past the span there is nothing to put back
+        // under a longer foreign patch, so that case stays refused.
+        if (!foreign.found || foreign.mayOverrun) {
+            ReportPatchMismatch(address, expected, size);
+            return false;
+        }
+        LogSiteTakeover(address, foreign.target,
+                        "this plugin's patch is installed over it.");
     }
 
     const intptr_t displacement = reinterpret_cast<intptr_t>(target)
@@ -779,6 +724,9 @@ bool InstallBranch(SitePatch& patch, uintptr_t address, const void* target,
     replacement[0] = opcode;
     const int32_t relative = static_cast<int32_t>(displacement);
     std::memcpy(replacement.data() + 1, &relative, sizeof(relative));
+    patch.written = replacement;
+    patch.reasserted = 0;
+    RecordSiteTail(patch);
     patch.installed = WriteBytes(address, replacement.data(), size);
     if (!patch.installed) {
         ReleasePatchRange(address);
@@ -810,6 +758,95 @@ void RestoreSite(SitePatch& patch) {
         ReleasePatchRange(patch.address);
         patch.installed = false;
         UnregisterInstalledPatch(&patch);
+    }
+}
+
+// A plugin that keeps rewriting a site every frame would otherwise be fought
+// forever; after this many rounds the site is conceded and reported once.
+constexpr uint8_t kSiteReassertLimit = 3;
+
+// Puts this plugin's branch back over a site another module has written over.
+// Runs on the game thread, so no code can be executing at the site while it
+// is rewritten.
+void ReassertSite(SitePatch& patch) {
+    if (patch.reasserted > kSiteReassertLimit) {
+        return;
+    }
+    if (patch.reasserted == kSiteReassertLimit) {
+        ++patch.reasserted;
+        char line[128];
+        std::snprintf(line, sizeof(line),
+                      "Conflicting hook: 0x%08X keeps being rewritten by "
+                      "another module; giving it up.",
+                      static_cast<unsigned>(patch.address));
+        Log(line);
+        return;
+    }
+
+    // With the plugin's own branch intact only the padding has changed, and
+    // nothing in it executes, so restoring it needs no analysis.
+    const bool branchIntact = MemoryMatchesRaw(patch.address,
+                                               patch.written.data(), 5);
+    ForeignBranch foreign{};
+    if (!branchIntact) {
+        foreign = AnalyzeForeignBranch(patch.address, patch.written.data(),
+                                       patch.size);
+        if (!foreign.found) {
+            ++patch.reasserted;
+            char line[160];
+            std::snprintf(line, sizeof(line),
+                          "Conflicting hook: 0x%08X was modified in a way this "
+                          "plugin does not recognise; leaving it alone.",
+                          static_cast<unsigned>(patch.address));
+            Log(line);
+            patch.reasserted = kSiteReassertLimit + 1;
+            return;
+        }
+    }
+
+    if (!WriteBytes(patch.address, patch.written.data(), patch.size)) {
+        return;
+    }
+    if (foreign.mayOverrun) {
+        // The foreign padding ran past this span. Put back the bytes it
+        // replaced, stopping at the first one that was not padded over.
+        std::array<uint8_t, 16> after{};
+        if (CopyMemoryForDiagnostics(patch.address + patch.size, after.data(),
+                                     after.size())) {
+            size_t count = 0;
+            while (count < after.size() && after[count] == 0x90
+                   && patch.tail[count] != 0x90) {
+                ++count;
+            }
+            if (count != 0) {
+                WriteBytes(patch.address + patch.size, patch.tail.data(),
+                           count);
+            }
+        }
+    }
+    ++patch.reasserted;
+    if (!branchIntact) {
+        LogSiteTakeover(patch.address, foreign.target,
+                        "this plugin's patch has been put back.");
+    }
+}
+
+// Called once a frame from the game thread once every fix is installed.
+void __cdecl GuardInstalledSites() {
+    if (!g_overrideConflictingHooks) {
+        return;
+    }
+    for (size_t i = 0; i < g_installedPatchCount; ++i) {
+        if (g_installedPatches[i].kind != RegisteredPatchKind::site) {
+            continue;
+        }
+        auto& patch = *static_cast<SitePatch*>(g_installedPatches[i].patch);
+        if (!patch.installed || !SiteMayOverrideConflicts(patch.address)
+            || MemoryMatchesRaw(patch.address, patch.written.data(),
+                                patch.size)) {
+            continue;
+        }
+        ReassertSite(patch);
     }
 }
 

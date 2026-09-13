@@ -20,7 +20,6 @@ constexpr uintptr_t kWheelFriction = 0x00C2B9CC;
 constexpr uintptr_t kAimingRifleWalkConstant = 0x00858CA8;
 constexpr uintptr_t kSkimmerResistanceConstant = 0x00871DDC;
 constexpr uintptr_t kBurnoutConstant = 0x00859A94;
-constexpr uintptr_t kTurnAirResistanceConstant = 0x00862CD0;
 constexpr uintptr_t kHeliRotorSpeedOperand = 0x006C4EFE;
 constexpr uintptr_t kDoorApplyRateChassis = 0x00872328;
 constexpr float kStockDoorApplyRateChassis = 0.025f;
@@ -452,35 +451,6 @@ constexpr uintptr_t kBuoyancyThreshold = 0x006C27A2;
 constexpr uintptr_t kBuoyancyThresholdReturn = 0x006C27C8;
 constexpr uintptr_t kBuoyancyClampedStore = 0x006C27EC;
 
-// Wheel slip scale. `CVehicle::ProcessWheel` and `CVehicle::ProcessBikeWheel`
-// scale `adhesion` by the timestep at entry, making it a per-frame budget, but
-// off the throttle the slip weighed against it is a plain velocity: `fwd` and
-// `right` are `-contactSpeed / wheelsOnGround`, the delta that would cancel the
-// slip outright. At 30 FPS that delta is applied thirty times a second. At 120
-// it is applied a hundred and twenty times, so the wheel either grips four times
-// harder or, once the budget clamps it, gives up four times sooner. The second
-// is what happens in practice, and it is why a car keeps sliding at a high frame
-// rate where it would have hooked up at 30.
-//
-// The patched span is the `fld st(0)` / `fmul st,st(1)` / `fld [esp+10h]` that
-// begins squaring the two components for the saturation test. Scaling both by
-// the timestep ratio first makes the delta per frame carry the same momentum per
-// second as the stock 30 FPS one, and it does so without touching the test or
-// the clamp: `speedSq` and `adhesion * adhesion` then both scale as the square
-// of the ratio, so the saturation test becomes scale-invariant on its own, and
-// in the saturated case `adhesion * tractionLoss / l` divides the ratio straight
-// back out, leaving that path bit-identical to stock.
-//
-// Under throttle `thrust` already carries a timestep and `right` is pre-clamped
-// to `adhesion`, so both sides scale together there and the driving flags below
-// select the coasting and braking case that needs the correction.
-constexpr uintptr_t kCarSlipScale = 0x006D6F32;
-constexpr uintptr_t kCarSlipScaleReturn = 0x006D6F3A;
-constexpr uintptr_t kBikeSlipScale = 0x006D775A;
-constexpr uintptr_t kBikeSlipScaleReturn = 0x006D7762;
-constexpr uintptr_t kCarWheelDriving = 0x00C1CDAD;
-constexpr uintptr_t kBikeWheelDriving = 0x00C1CDB1;
-
 // Vehicles.
 constexpr uintptr_t kWheelFrictionCarDriveReturn = 0x006D6E6F;
 constexpr uintptr_t kWheelFrictionCarBrakeReturn = 0x006D6EAE;
@@ -495,7 +465,6 @@ constexpr uintptr_t kBikePreRender = 0x006BD090;
 constexpr uintptr_t kBikeRender = 0x006BDE20;
 constexpr uintptr_t kBmxLaunchBunnyHop = 0x006C0390;
 constexpr uintptr_t kBikeDamageKnockOffRider = 0x006B5A10;
-constexpr uintptr_t kApplySpringDampening = 0x00543E90;
 constexpr std::array<uintptr_t, 2> kBikeRiderFallEventAddCalls{
     0x006B74B4, // excessive turn speed
     0x006B769B  // excessive velocity along the bike's up axis
@@ -593,50 +562,6 @@ constexpr uintptr_t kBikeRestThresholdReturn = 0x006B995B;
 constexpr uintptr_t kTrailerRestThreshold = 0x006F9B92;
 constexpr uintptr_t kTrailerRestThresholdReturn = 0x006F9B98;
 
-// Move speed snap. `CAutomobile::ProcessControl` and `CBike::ProcessControl`
-// each compare all three components of `m_vecMoveSpeed` against a fixed 0.005
-// and, if every one of them is under it, zero the move speed outright. Move
-// speed is integrated per frame, so what accumulates between two frames shrinks
-// with the timestep: gravity contributes `CTimer::GetTimeStep() * 0.008`, which
-// is 0.0133 at 30 FPS but only 0.0008 at 500 FPS. Above about 80 FPS a single
-// frame can no longer clear 0.005, so the speed is wiped as fast as it is built
-// and the entity can never start moving again. That is what pins a bike in
-// mid-air at the apex of a jump, where its speed passes through zero, and what
-// stops a pushed car dead between shoves.
-//
-// Each site is a standalone six byte `fcomp dword ptr ds:[0x00858B4C]`, and the
-// thunks read that same operand back so a mod that repoints it keeps working.
-constexpr std::array<uintptr_t, 6> kMoveSpeedSnapSites{
-    0x006B33F6, 0x006B340C, 0x006B3422,  // CAutomobile::ProcessControl, x/y/z
-    0x006BC101, 0x006BC117, 0x006BC129   // CBike::ProcessControl, x/y/z
-};
-constexpr uintptr_t kMoveSpeedSnapCarXReturn = 0x006B33FC;
-constexpr uintptr_t kMoveSpeedSnapCarYReturn = 0x006B3412;
-constexpr uintptr_t kMoveSpeedSnapCarZReturn = 0x006B3428;
-constexpr uintptr_t kMoveSpeedSnapBikeXReturn = 0x006BC107;
-constexpr uintptr_t kMoveSpeedSnapBikeYReturn = 0x006BC11D;
-constexpr uintptr_t kMoveSpeedSnapBikeZReturn = 0x006BC12F;
-
-// Turn speed air resistance. `CPhysical::ApplyAirResistance` raises the linear
-// drag to the power of the timestep and then damps all three components of
-// `m_vecTurnSpeed` by a flat 0.99 per rendered frame, two instructions apart in
-// the same function. Over one second that retains `0.99^30`, about 0.74, at
-// 30 FPS but `0.99^500`, about 0.0066, at 500 FPS, so angular velocity is bled
-// away roughly 112 times faster.
-constexpr uintptr_t kTurnAirResistance = 0x00544D29;
-constexpr uintptr_t kTurnAirResistanceReturn = 0x00544D4D;
-
-// Ground friction budget. `CPhysical::ApplyFriction(float, CColPoint&)` limits
-// how much tangential speed one contact may remove, to `fFriction`. The ped
-// branch of the same function computes that limit as
-// `CTimer::GetTimeStep() / m_fMass * fFriction`, but the vehicle branch uses
-// `fFriction` unscaled, so it is a per-rendered-frame budget.
-//
-// The site is `fld [esp+0x68]; fchs; fstp [esp+0x68]`, reached by a jump, so the
-// thunk sees the same `esp` and the same x87 stack depth.
-constexpr uintptr_t kGroundFrictionClamp = 0x00545736;
-constexpr uintptr_t kGroundFrictionClampReturn = 0x00545740;
-
 // Bike lean target. `CBike::ProcessControl` aims the rider lean at
 //
 //     target = lateralAcceleration / (max(0.01, CTimer::GetTimeStep()) * 0.008)
@@ -678,22 +603,6 @@ constexpr uintptr_t kGravityConstant = 0x00863984;
 // Each site is a five byte `call` to `0x542A50`. The force vector is the first
 // argument, so at the moment of the call it sits at `[esp]`.
 constexpr uintptr_t kApplyTurnForce = 0x00542A50;
-constexpr uintptr_t kApplyMoveForce = 0x005429F0;
-
-// Roll onto wheels. When a car is nearly stationary and resting on one side,
-// `CAutomobile::ProcessSuspension` pushes it back onto its wheels:
-//
-//     force = GetUp() * dir * ROLL_ONTO_WHEELS_FORCE * m_fTurnMass
-//     ApplyTurnForce(force, GetRight() * boundingBox.max.x)
-//     ApplyMoveForce(-right * ROLL_ONTO_WHEELS_FORCE * m_fMass * dir)
-//
-// with no timestep anywhere. `ProcessSuspension` runs once per frame from
-// `ProcessControl`, so the righting impulse is applied per frame rather than
-// per unit of time and the assist gets stronger in proportion to the frame
-// rate. Both force vectors are scaled by the timestep ratio, which is 1.0 at
-// 30 FPS and leaves the original behaviour untouched there.
-constexpr uintptr_t kRollOntoWheelsTurnForce = 0x006B0603;
-constexpr uintptr_t kRollOntoWheelsMoveForce = 0x006B0677;
 
 // Swinging doors, boots, bonnets, the lowrider chassis and the firetruck
 // ladder. Smooth angular input comes from the difference between the current
@@ -710,29 +619,6 @@ constexpr uintptr_t kDoorDampingOther = 0x006F43D8;
 constexpr uintptr_t kDoorDampingOtherReturn = 0x006F43DE;
 constexpr uintptr_t kDoorIntegration = 0x006F4422;
 constexpr uintptr_t kDoorIntegrationReturn = 0x006F4427;
-
-// Suspension damping limit. `CPhysical::ApplySpringDampening` computes the
-// per-frame damping as `GetTimeStep() * m_fSuspensionDampingLevel` and then
-// clamps it against the constant at 0x8CD7A0, which is 0.25. The clamp is a
-// per-step stability guard, which is a reasonable thing to have, but it is
-// measured in frames and so it binds at 30 FPS and stops binding as the frame
-// rate rises.
-//
-// It is not academic. Handling damping levels sit around 0.06 to 0.12 for most
-// cars, which never reaches the limit, but Infernus at 0.19 and Cheetah,
-// Super GT, Elegy, Benson, Washington, the kart and the Wayfarer and Freeway
-// bikes at 0.20 all compute 0.317 to 0.333 per frame at 30 FPS and are clipped
-// to 0.25. At 500 FPS the same vehicles compute 0.019 to 0.020 and are not
-// clipped at all, so their suspension damps about a third harder per second
-// than the game intends.
-//
-// Do not rewrite that global constant from a polling thread. The function entry
-// is wrapped instead. Uncapped damping is converted to the short-frame alpha
-// that leaves exactly the same velocity after one 30 FPS interval. Coefficients
-// which reached the stock cap use its equivalent linear rate, leaving the
-// nonlinear spring-force and direction clamps inside ApplySpringDampening.
-constexpr uintptr_t kDampingLimitInFrame = 0x008CD7A0;
-constexpr float kStockDampingLimitInFrame = 0.25f;
 
 // Free wheel spin. In `CAutomobile::ProcessCarWheelPair`, a wheel that is not
 // touching the ground has its speed changed once per frame with no timestep,
@@ -977,27 +863,6 @@ constexpr uintptr_t kWheelSettleHeli = 0x006C559E;
 constexpr uintptr_t kWheelSettlePlane = 0x006C95AE;
 constexpr uintptr_t kWheelSettleConstant = 0x00858F34;
 
-// Penetration push-out. `CPhysical::ProcessShiftSectorList` ends by adding a
-// shift straight onto the entity's matrix position: the deepest collision point
-// found this frame, along the averaged contact normal, times `0.75` at
-// `0x8CD7D8` on one branch and `1.5` at `0x8CD7D4` on the other. Nothing in
-// that product is a timestep, so the push-out happens once per rendered frame.
-// A one-off impact does not show it, because the penetration is created by the
-// same frame's movement and cancels out, but a vehicle riding a shape it
-// overlaps by a fixed geometric depth — a rail, a kerb, a low wall — is pushed
-// out by the same fraction of the same depth every frame. At 30 FPS that is a
-// steady nudge; at 150 FPS it is five times the speed for as long as the
-// overlap lasts, which throws the car off the rail instead of easing it over.
-// Three sites per constant, one for each component of the shift vector.
-constexpr uintptr_t kPushOutScaleA = 0x00546ACA;
-constexpr uintptr_t kPushOutScaleB = 0x00546ADE;
-constexpr uintptr_t kPushOutScaleC = 0x00546AEC;
-constexpr uintptr_t kPushOutScaleD = 0x00546B8E;
-constexpr uintptr_t kPushOutScaleE = 0x00546B9A;
-constexpr uintptr_t kPushOutScaleF = 0x00546BA4;
-constexpr uintptr_t kPushOutConstantMain = 0x008CD7D8;
-constexpr uintptr_t kPushOutConstantAlt = 0x008CD7D4;
-
 constexpr uintptr_t kJumpOutTurnDampX = 0x006D2113;
 constexpr uintptr_t kJumpOutTurnDampY = 0x006D211F;
 constexpr uintptr_t kJumpOutTurnDampZ = 0x006D212B;
@@ -1013,15 +878,6 @@ constexpr std::array<uint8_t, 6> kExpectedJumpOutDamp{
 // fmul dword ptr ds:[00858F34h]   (0.75)
 constexpr std::array<uint8_t, 6> kExpectedWheelSettle{
     0xD8, 0x0D, 0x34, 0x8F, 0x85, 0x00
-};
-
-// fmul dword ptr ds:[008CD7D8h]   (0.75)
-constexpr std::array<uint8_t, 6> kExpectedPushOutMain{
-    0xD8, 0x0D, 0xD8, 0xD7, 0x8C, 0x00
-};
-// fmul dword ptr ds:[008CD7D4h]   (1.5)
-constexpr std::array<uint8_t, 6> kExpectedPushOutAlt{
-    0xD8, 0x0D, 0xD4, 0xD7, 0x8C, 0x00
 };
 
 // Pause menu map zoom. The map input block gates every zoom and pan step behind

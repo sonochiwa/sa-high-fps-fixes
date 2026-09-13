@@ -48,6 +48,7 @@ DWORD WINAPI Initialize(void*) {
     const bool iniCreatedOrPresent = CreateDefaultIniIfMissing();
     const IniCompletionResult iniCompletion =
         CompleteIniWithMissingDefaults();
+    const bool iniHeaderRefreshed = RefreshIniVersionHeader();
     RegisterConditionalConfigKeys();
 
     // Keep logging explicit in the generated INI. It is enabled by default so
@@ -66,6 +67,9 @@ DWORD WINAPI Initialize(void*) {
                       iniCompletion.added == 1 ? "" : "s");
         Log(message);
     }
+    if (iniHeaderRefreshed) {
+        Log("Updated the HighFpsFixes.ini version header.");
+    }
 
     g_activeGameProfile = DetectGameProfile();
     if (!g_activeGameProfile) {
@@ -74,7 +78,12 @@ DWORD WINAPI Initialize(void*) {
         return 0;
     }
 
-    Log("Initializing High FPS Fixes v0.9.9.");
+    g_gameImage = ModuleImageRange(GetModuleHandleA(nullptr));
+    g_pluginImage = ModuleImageRange(g_module);
+    g_overrideConflictingHooks =
+        ReadSetting("general", "overrideConflictingHooks", true);
+
+    Log("Initializing High FPS Fixes v1.0.0.");
     std::string profileMessage("Detected executable profile: ");
     profileMessage += g_activeGameProfile->name;
     profileMessage += ".";
@@ -125,14 +134,6 @@ DWORD WINAPI Initialize(void*) {
                InstallBikeLeanTargetFix},
         {"vehicles", "bikePitchExperiment", "Bike pitch experiment",
                InstallBikePitchExperiment, false},
-        {"vehicles", "groundFriction", "Ground friction fix",
-               InstallGroundFrictionFix},
-        {"vehicles", "turnAirResistance", "Turn air resistance fix",
-               InstallTurnAirResistanceFix},
-        {"vehicles", "wheelSlipScale", "Wheel slip scale fix",
-               InstallWheelSlipScaleFix},
-        {"vehicles", "moveSpeedSnap", "Move speed snap fix",
-               InstallMoveSpeedSnapFix},
         {"vehicles", "physicsSleepRate", "Physics sleep rate fix",
                InstallPhysicsSleepRateFix},
         {"vehicles", "wheelFriction", "Wheel friction fix",
@@ -158,13 +159,6 @@ DWORD WINAPI Initialize(void*) {
                InstallVehicleTimersFix},
         {"vehicles", "burnTimers", "Vehicle burn timer fix",
                InstallBurnTimersFix},
-        {"vehicles", "rollOntoWheels", "Roll onto wheels fix",
-               InstallRollOntoWheelsFix},
-        {"vehicles", "suspensionDampingLimit",
-               "Suspension damping limit fix",
-               InstallSuspensionDampingLimitFix},
-        {"vehicles", "collisionPushOut", "Collision push-out fix",
-               InstallCollisionPushOutFix},
         {"vehicles", "wheelSettle", "Wheel settle fix",
                InstallWheelSettleFix},
         {"vehicles", "wheelSpin", "Free wheel spin fix",
@@ -388,6 +382,11 @@ DWORD WINAPI Initialize(void*) {
         ReadSetting("autoLimitFps", "forPauseMenu", false);
     if (g_autoLimit.value != 0) {
         InstallAutoFpsLimit();
+    }
+    if (g_overrideConflictingHooks) {
+        InstallConflictingHookGuard();
+    } else {
+        Log("Conflicting hook guard disabled by configuration.");
     }
 
     ValidateUnknownConfigKeys();

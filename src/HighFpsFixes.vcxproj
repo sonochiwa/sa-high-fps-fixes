@@ -116,6 +116,7 @@
     <None Include="modules\installers\vehicle_installers.inl" />
     <None Include="modules\installers\world_optional_installers.inl" />
     <None Include="modules\patching.inl" />
+    <None Include="modules\ini_settings.inl" />
     <None Include="modules\player.inl" />
     <None Include="modules\README.md" />
     <None Include="modules\runtime_features.inl" />

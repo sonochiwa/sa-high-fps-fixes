@@ -234,67 +234,6 @@ bool InstallBikePitchExperiment() {
     return true;
 }
 
-bool InstallGroundFrictionFix() {
-    if (!InstallJump(g_groundFrictionPatch, kGroundFrictionClamp,
-                     &GroundFrictionClampThunk, kExpectedGroundFriction)) {
-        Log("Ground friction fix skipped: executable bytes do not match GTA SA 1.0 US.");
-        return false;
-    }
-    Log("Installed a timestep-normalized ground friction budget for vehicles.");
-    return true;
-}
-
-bool InstallWheelSlipScaleFix() {
-    PatchSet patches("Wheel slip scale fix");
-    if (!patches.Track(InstallJump(g_carSlipScalePatch, kCarSlipScale,
-                                   &CarSlipScaleThunk, kExpectedSlipScale),
-                       g_carSlipScalePatch)) {
-        Log("Wheel slip scale fix skipped: CVehicle::ProcessWheel bytes do not match GTA SA 1.0 US.");
-        return false;
-    }
-    if (!patches.Track(InstallJump(g_bikeSlipScalePatch, kBikeSlipScale,
-                                   &BikeSlipScaleThunk, kExpectedSlipScale),
-                       g_bikeSlipScalePatch)) {
-        Log("Wheel slip scale fix skipped: CVehicle::ProcessBikeWheel bytes do not match GTA SA 1.0 US.");
-        return false;
-    }
-    patches.Commit();
-    Log("Installed timestep-scaled wheel slip corrections.");
-    return true;
-}
-
-bool InstallTurnAirResistanceFix() {
-    if (!InstallJump(g_turnAirResistancePatch, kTurnAirResistance,
-                     &TurnAirResistanceThunk, kExpectedTurnAirResistance)) {
-        Log("Turn air resistance fix skipped: executable bytes do not match GTA SA 1.0 US.");
-        return false;
-    }
-    Log("Installed timestep-normalized turn speed air resistance.");
-    return true;
-}
-
-bool InstallMoveSpeedSnapFix() {
-    PatchSet patches("Move speed snap fix");
-    const std::array<const void*, 6> thunks{
-        &MoveSpeedSnapCarXThunk,
-        &MoveSpeedSnapCarYThunk,
-        &MoveSpeedSnapCarZThunk,
-        &MoveSpeedSnapBikeXThunk,
-        &MoveSpeedSnapBikeYThunk,
-        &MoveSpeedSnapBikeZThunk,
-    };
-
-    if (!InstallJumpTable(patches, g_moveSpeedSnapPatches,
-                          kMoveSpeedSnapSites, thunks,
-                          kExpectedMoveSpeedSnap)) {
-        Log("Move speed snap fix skipped: executable bytes do not match the active game profile.");
-        return false;
-    }
-    patches.Commit();
-    Log("Installed a timestep-normalized move speed snap limit for cars and bikes.");
-    return true;
-}
-
 bool InstallPhysicsSleepRateFix() {
     PatchSet patches("Physics sleep rate fix");
     constexpr std::array<uintptr_t, 4> addresses{
@@ -469,5 +408,23 @@ bool InstallAutoFpsLimit() {
     }
     patches.Commit();
     Log("Installed automatic FPS limiting for the configured game cases.");
+    return true;
+}
+
+// Gets the guard its once-a-frame call. The automatic FPS limit uses the same
+// hook, so when that installed first the guard simply rides along.
+bool InstallConflictingHookGuard() {
+    if (g_scriptsProcessPatch.installed) {
+        Log("Conflicting hook guard is sharing the CTheScripts::Process hook.");
+        return true;
+    }
+    if (!InstallJump(g_scriptsProcessPatch, kScriptsProcess,
+                     &ScriptsProcessThunk, kExpectedScriptsProcess)) {
+        Log("Conflicting hook guard skipped: CTheScripts::Process bytes do not "
+            "match GTA SA 1.0 US. Sites patched over by another plugin later "
+            "in startup will not be reclaimed.");
+        return false;
+    }
+    Log("Installed the conflicting hook guard.");
     return true;
 }

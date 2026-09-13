@@ -206,43 +206,6 @@ __declspec(naked) void BikeLeanTargetThunk() {
     }
 }
 
-// Reached by a jump, so `esp` still addresses the caller frame and `fFriction`
-// is where the replaced instruction expected it. The push and pop leave the x87
-// stack exactly as the original three instructions did.
-__declspec(naked) void GroundFrictionClampThunk() {
-    __asm {
-        fld dword ptr [esp + 0x68]
-        fmul dword ptr ds:[0x00B7CB5C]
-        fdiv g_originalTimeStepValue
-        fchs
-        fstp dword ptr [esp + 0x68]
-        jmp kGroundFrictionClampReturn
-    }
-}
-
-__declspec(naked) void TurnAirResistanceThunk() {
-    __asm {
-        pushfd
-        push eax
-        push ecx
-        push edx
-        call GetTurnAirResistanceFactor
-        pop edx
-        pop ecx
-        pop eax
-        popfd
-        fld st(0)
-        fmul dword ptr [esi + 0x50]
-        fstp dword ptr [esi + 0x50]
-        fld st(0)
-        fmul dword ptr [esi + 0x54]
-        fstp dword ptr [esi + 0x54]
-        fmul dword ptr [esi + 0x58]
-        fstp dword ptr [esi + 0x58]
-        jmp kTurnAirResistanceReturn
-    }
-}
-
 __declspec(naked) void ObjectFakePhysicsThunk() {
     __asm {
         pushfd
@@ -329,7 +292,7 @@ __declspec(naked) void ScriptsProcessThunk() {
     __asm {
         pushfd
         pushad
-        call ProcessAutoFpsLimit
+        call ProcessFrameHooks
         popad
         popfd
         mov al, byte ptr ds:[0x00A43088]

@@ -329,37 +329,6 @@ bool InstallWheelSettleFix() {
     return true;
 }
 
-bool InstallCollisionPushOutFix() {
-    PatchSet patches("Collision push-out fix");
-    struct Site {
-        uintptr_t address;
-        const void* thunk;
-        const uint8_t* expected;
-    };
-    const Site sites[] = {
-        {kPushOutScaleA, &PushOutMainThunk, kExpectedPushOutMain.data()},
-        {kPushOutScaleB, &PushOutMainThunk, kExpectedPushOutMain.data()},
-        {kPushOutScaleC, &PushOutMainThunk, kExpectedPushOutMain.data()},
-        {kPushOutScaleD, &PushOutAltThunk, kExpectedPushOutAlt.data()},
-        {kPushOutScaleE, &PushOutAltThunk, kExpectedPushOutAlt.data()},
-        {kPushOutScaleF, &PushOutAltThunk, kExpectedPushOutAlt.data()},
-    };
-    for (size_t i = 0; i < g_pushOutPatches.size(); ++i) {
-        if (!patches.Track(
-                InstallBranch(g_pushOutPatches[i], sites[i].address,
-                              sites[i].thunk, sites[i].expected, 6, 0xE8),
-                g_pushOutPatches[i])) {
-            Log("Collision push-out fix skipped: "
-                "CPhysical::ProcessShiftSectorList bytes do not match "
-                "GTA SA 1.0 US.");
-            return false;
-        }
-    }
-    patches.Commit();
-    Log("Installed a timestep-scaled collision push-out.");
-    return true;
-}
-
 bool InstallBmxLeanSettleFix() {
     PatchSet patches("BMX lean settle fix");
     struct Site {
@@ -421,54 +390,5 @@ bool InstallBoatEngineSpeedFix() {
         return false;
     }
     Log("Installed a timestep-scaled boat engine coast down.");
-    return true;
-}
-
-bool InstallSuspensionDampingLimitFix() {
-    __try {
-        if (!NearlyEqual(*reinterpret_cast<const float*>(kDampingLimitInFrame),
-                         kStockDampingLimitInFrame)) {
-            Log("Suspension damping limit fix skipped: the limit does not match "
-                "GTA SA 1.0 US.");
-            return false;
-        }
-    } __except (EXCEPTION_EXECUTE_HANDLER) {
-        Log("Suspension damping limit fix skipped: the limit is unreadable.");
-        return false;
-    }
-
-    if (!InstallDetour(g_suspensionDampingPatch, kApplySpringDampening,
-                       &HookedSpringDampening,
-                       kExpectedApplySpringDampening.data(),
-                       kExpectedApplySpringDampening.size())) {
-        Log("Suspension damping fix skipped: ApplySpringDampening entry does "
-            "not match GTA SA 1.0 US.");
-        return false;
-    }
-    Log("Installed exact real-time suspension damping with a stable cap.");
-    return true;
-}
-
-bool InstallRollOntoWheelsFix() {
-    PatchSet patches("Roll onto wheels fix");
-    if (!patches.Track(
-            RepointCall(g_rollOntoWheelsTurnPatch,
-                        kRollOntoWheelsTurnForce, kApplyTurnForce,
-                        &RollOntoWheelsTurnForceThunk),
-            g_rollOntoWheelsTurnPatch)) {
-        Log("Roll onto wheels fix skipped: CAutomobile::ProcessSuspension turn "
-            "force bytes do not match GTA SA 1.0 US.");
-        return false;
-    }
-    if (!patches.Track(
-            RepointCall(g_rollOntoWheelsMovePatch,
-                        kRollOntoWheelsMoveForce, kApplyMoveForce,
-                        &RollOntoWheelsMoveForceThunk),
-            g_rollOntoWheelsMovePatch)) {
-        Log("Roll onto wheels fix skipped: the move force site does not match.");
-        return false;
-    }
-    patches.Commit();
-    Log("Installed a timestep-scaled roll onto wheels assist.");
     return true;
 }

@@ -243,6 +243,16 @@ void __cdecl ProcessAutoFpsLimit() {
     }
 }
 
+// The one call this plugin gets each frame on the game thread, from the
+// `CTheScripts::Process` hook. Everything that has to run per frame from
+// inside the game rather than from a worker thread hangs off it.
+void __cdecl ProcessFrameHooks() {
+    if (g_autoLimit.value != 0) {
+        ProcessAutoFpsLimit();
+    }
+    GuardInstalledSites();
+}
+
 void __cdecl OnPauseMenuBackground() {
     g_isOnPauseMenu = true;
     if (g_lastFpsLimit == 0) {

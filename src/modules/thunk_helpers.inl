@@ -108,20 +108,6 @@ float __cdecl GetDrunkCameraPhaseStep() {
     return ReadGameFloat(kDrunkCameraPhaseStep, 5.0f) * TimeStepRatio();
 }
 
-void __cdecl ScaleRollOntoWheelsForce(float* force) {
-    __try {
-        const float ratio = TimeStepRatio();
-        if (!std::isfinite(ratio) || ratio <= 0.0f || ratio >= 1.0f) {
-            return;
-        }
-        force[0] *= ratio;
-        force[1] *= ratio;
-        force[2] *= ratio;
-    } __except (EXCEPTION_EXECUTE_HANDLER) {
-        return;
-    }
-}
-
 int __cdecl ConsumeBreakObjectLifetimeTicks(int32_t* lifetime) {
     if (!lifetime || *lifetime <= 0) {
         return 0;

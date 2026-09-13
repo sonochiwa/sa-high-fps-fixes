@@ -501,10 +501,15 @@ __declspec(naked) void HeliRotorFastThunk() {
     }
 }
 
+// Wheels of a simple (on-rails) AI car turn by `-dot(forward, moveSpeed) / radius`
+// once per frame with no timestep. The physics wheels integrate the same kind of
+// speed as `GetTimeStep() * m_wheelSpeed`, so the raw timestep is applied here
+// too, exactly as FramerateVigilante does, rather than the ratio: at 30 FPS the
+// stock rotation is 1.67 times too slow next to a physics car and this brings
+// the two into step at every frame rate.
 __declspec(naked) void RailWheelSpinThunk0() {
     __asm {
         fmul dword ptr ds:[0x00B7CB5C]
-        fdiv g_originalTimeStepValue
         fadd dword ptr [esi + 0x828]
         jmp kRailWheelSpinReturn0
     }
@@ -513,7 +518,6 @@ __declspec(naked) void RailWheelSpinThunk0() {
 __declspec(naked) void RailWheelSpinThunk1() {
     __asm {
         fmul dword ptr ds:[0x00B7CB5C]
-        fdiv g_originalTimeStepValue
         fadd dword ptr [esi + 0x82C]
         jmp kRailWheelSpinReturn1
     }
@@ -522,7 +526,6 @@ __declspec(naked) void RailWheelSpinThunk1() {
 __declspec(naked) void RailWheelSpinThunk2() {
     __asm {
         fmul dword ptr ds:[0x00B7CB5C]
-        fdiv g_originalTimeStepValue
         fadd dword ptr [esi + 0x830]
         jmp kRailWheelSpinReturn2
     }
@@ -531,7 +534,6 @@ __declspec(naked) void RailWheelSpinThunk2() {
 __declspec(naked) void RailWheelSpinThunk3() {
     __asm {
         fmul dword ptr ds:[0x00B7CB5C]
-        fdiv g_originalTimeStepValue
         fadd dword ptr [esi + 0x834]
         jmp kRailWheelSpinReturn3
     }

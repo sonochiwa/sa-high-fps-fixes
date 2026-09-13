@@ -23,6 +23,7 @@ namespace {
 #include "modules/game_profiles.inl"
 #include "modules/configuration.inl"
 #include "modules/patching.inl"
+#include "modules/ini_settings.inl"
 #include "modules/weapons_and_particles.inl"
 #include "modules/player.inl"
 #include "modules/vehicles.inl"

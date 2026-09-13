@@ -1,5 +1,14 @@
 # Vehicle physics audit
 
+> **Status (2026-09-13):** superseded. Player reports of excessive sliding and
+> wrong in-air rotation led to the driving physics being reset to exactly what
+> FramerateVigilante patches: `wheelFriction`, `burnout` and `railWheelSpin`.
+> `turnAirResistance`, `groundFriction`, `wheelSlipScale`, `moveSpeedSnap`,
+> `rollOntoWheels`, `suspensionDampingLimit` and `collisionPushOut` were
+> removed from the plugin. The analysis below is kept as the record of why
+> each was tried and what it changed; `bikeLeanTarget` and
+> `bikePitchExperiment` remain.
+
 Why cars feel different at a high frame rate, what this plugin changes, and
 which of those changes are corrections rather than preferences. Addresses are
 GTA SA 1.0 US. Source references are `D:\dev\_refs\gta-reversed`.

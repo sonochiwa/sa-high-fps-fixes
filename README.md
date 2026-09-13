@@ -37,16 +37,14 @@ Player:
 
 Vehicles:
 
-- Keeps a vehicle from being snapped to a standstill at high FPS, which froze
-  bikes in mid-air after a jump and stopped pushed cars dead between shoves.
-- Damps vehicle turn speed by real time rather than once per rendered frame, so
-  angular velocity is not bled away far faster at high FPS.
-- Delivers the wheel slip corrections at the original rate per second, so a car
-  hooks up out of a slide the way it does at 30 FPS instead of sliding on.
+- Driving physics — braking, wheel slip, air resistance and suspension — is
+  left exactly as FramerateVigilante leaves it: only wheel friction, burnout
+  wheel speed and on-rails wheel rotation are scaled. Earlier attempts to
+  correct turn damping, ground friction, wheel slip, the stand-still snap,
+  suspension damping, the roll-onto-wheels assist and collision push-out
+  changed how cars slide and fly and have been removed.
 - Stops a bike rocking from side to side while standing still, by measuring the
   rider lean over real time instead of over one rendered frame.
-- Measures the friction that holds a vehicle to the ground in real time rather
-  than per rendered frame, so a parked vehicle can still be pushed at high FPS.
 - Keeps the engine from parking an abandoned or wrecked vehicle sooner in real
   time at high FPS.
 - Scales wheel friction to stop cars and bikes from braking or losing inertia
@@ -59,10 +57,8 @@ Vehicles:
   siren at high FPS instead of sounding the horn.
 - Eases drawn bike and aircraft wheels back down in real time; automobile
   wheels retain their stock response to avoid excessive visual suspension travel.
-- Pushes a vehicle out of world geometry it overlaps at the original rate, so
-  riding a rail or a kerb does not throw the car at high FPS.
-- Keeps suspension damping, free wheel spin, boat propeller coast-down, rider
-  lean, head bop and the roll-onto-wheels assist on real time.
+- Keeps free wheel spin, boat propeller coast-down, rider lean and head bop on
+  real time.
 
 Weapons:
 
@@ -120,18 +116,20 @@ particle ceiling remain hidden because they are only useful for diagnostics.
 | Key | Section | Default | Meaning |
 | --- | --- | ---: | --- |
 | `enableLogging` | `general` | `1` | Writes `HighFpsFixes.log` beside the ASI, listing every fix that installed and every one that was skipped with the reason. Set it to `0` to suppress routine logging; configuration and patch errors still force it on. |
+| `overrideConflictingHooks` | `general` | `1` | Makes this plugin win at every instruction it patches when another frame-rate plugin, such as FramerateVigilante, patches the same one. A site already holding another module's branch is patched over it, and a once-a-frame guard puts the patch back if it is written over later in startup. Only hooks of the same shape are claimed, a relative branch into another module padded with NOPs; anything else is left alone and logged. Set it to `0` to fall back to first-come-first-served. |
 | `traceVehicleState`, `traceWatchOffset`, `traceWatchMode`, `traceWatchHits`, `traceWatchSamples`, `traceWatchReports`, `traceWatchArmDelay`, `tracePlayerPed`, `traceCycleSkill`, `traceChainsaw` | `general` | `0` | Development traces. They sample vehicle or player state, or count a specific loop, into `HighFpsFixes.trace.log` and the main log. Only useful with the source at hand. |
 | `particlesPerSecond` | `particles` | `0` | A hard ceiling on new particles a second, the way FxLimiter capped them. This trades effects away for frame time rather than correcting a frame-rate dependence, and `emissionRate` already restores the intended density, so it is off unless asked for by hand. |
 
 The shipped file, and what every switch means:
 
 ```ini
-# High FPS Fixes v0.9.9
+# High FPS Fixes v1.0.0
 # Created by sonochiwa
 # Source code: https://github.com/sonochiwa/sa-high-fps-fixes
 
 [general]
 enableLogging=1
+overrideConflictingHooks=1
 
 [camera]
 stuntJumpCamera=1
@@ -161,10 +159,6 @@ taskTimers=1
 bikeLeanTarget=1
 bikePitchExperiment=1
 bikePitchExperimentStrength=100
-groundFriction=1
-turnAirResistance=1
-wheelSlipScale=1
-moveSpeedSnap=1
 restThreshold=1
 physicsSleepRate=1
 wheelFriction=1
@@ -180,9 +174,6 @@ aiAircraftSteer=1
 upsideDownTimer=1
 vehicleTimers=1
 burnTimers=1
-rollOntoWheels=1
-suspensionDampingLimit=1
-collisionPushOut=0
 wheelSettle=1
 wheelSpin=1
 boatEngineSpeed=1
@@ -252,12 +243,8 @@ forPauseMenu=0
 | `jetPackFlame` | `1` | Ramps the jetpack thruster flame by time rather than by frames. `CTaskSimpleJetPack::DoJetPackEffect` moves `m_FxKeyTime` by 0.1 per frame toward 1 while the thrusters fire and back toward 0 when they stop, and hands it to the particle system as its constant time; ten frames is a third of a second at 30 FPS and twenty milliseconds at 500, so the flame snaps between its two states instead of blending. Cosmetic. |
 | `fatCounter` | `1` | Carries the remainder that `CStats::UpdateFatAndMuscleStats` throws away. The counter takes `milliseconds * exerciseRate / 10` in integer arithmetic, and that divide keeps no remainder: at 30 FPS the numerator is 33 times the rate, at 500 FPS it is 2 times the rate, so any exercise rate below five yields zero on every frame and fat never burns off however far the player runs. The divide is done in floating point and the fraction is kept for the next frame. Sits below the `_ftol` that `skillProgress` already repaired, and needs it. |
 | `bikeLeanTarget` | `1` | Measures the lean target over one original frame and blends that stabilized value in continuously above 30 FPS; the correction is exactly zero at the stock rate. The measurement carries the whole velocity vector and projects it onto the bike's right axis only after differencing, so a steady corner still reports its centripetal term. |
-| `bikePitchExperiment` | `1` | Corrects excessive backward pitch acquired at takeoff. Motorcycles are corrected only in the rear-wheel takeoff phase after the front suspension has cleared the ramp. A BMX bunny hop gets one measured correction after its stock launch physics pass, preventing the small initial angular-speed error from accumulating into several extra degrees before landing. Its wheel rebound is handled independently by `suspensionDampingLimit`. Level-ground wheelies, nose-down pitch, yaw, roll, and 30 FPS or below remain stock. |
+| `bikePitchExperiment` | `1` | Corrects excessive backward pitch acquired at takeoff. Motorcycles are corrected only in the rear-wheel takeoff phase after the front suspension has cleared the ramp. A BMX bunny hop gets one measured correction after its stock launch physics pass, preventing the small initial angular-speed error from accumulating into several extra degrees before landing. Level-ground wheelies, nose-down pitch, yaw, roll, and 30 FPS or below remain stock. |
 | `bikePitchExperimentStrength` | `100` | Percentage of the frame-rate excess removed from positive pitch during that takeoff window. The actual correction is also multiplied by `1 - current timestep / 30-FPS timestep`, so it fades continuously to zero at 30 FPS. Changing this value does not require rebuilding the plugin. |
-| `groundFriction` | `1` | Scales the per-contact friction budget that holds a vehicle to the ground by the timestep ratio. |
-| `turnAirResistance` | `1` | Raises the `0.99` turn speed damping to the timestep ratio instead of applying it once per frame. |
-| `wheelSlipScale` | `1` | Scales the wheel slip corrections by the timestep ratio off the throttle. `fwd` and `right` are the deltas that would cancel the wheel's slip outright, and the stock code applies them once per rendered frame, so a high frame rate either grips several times harder or, once `adhesion` clamps them, gives up several times sooner. Scaling them first makes the momentum applied per second match 30 FPS. The saturation test and the clamp are untouched and cancel the ratio back out, so a genuinely sliding wheel behaves exactly as it does in stock. Under throttle the stock arithmetic is already consistent and stays bit-exact. |
-| `moveSpeedSnap` | `1` | Rescales the fixed move speed limit that cars and bikes snap to a stop under. |
 | `restThreshold` | `1` | Rescales the at-rest move distance limit for abandoned and wrecked vehicles. |
 | `physicsSleepRate` | `1` | Steps the `m_nFakePhysics` sleep counter in real time instead of once per frame. |
 | `wheelFriction` | `1` | Scales car and bike wheel friction by the current timestep. |
@@ -273,9 +260,6 @@ forPauseMenu=0
 | `upsideDownTimer` | `1` | Same carry applied to `CUpsideDownCarCheck::UpdateTimers`, which adds the truncated frame time to the timer of every car currently on its roof. |
 | `vehicleTimers` | `1` | Same carry on the `CCarCtrl::UpdateCarAI` timer and the `CVehicle::FlyingControl` timer. |
 | `burnTimers` | `1` | Same carry on the burn timers of cars, bikes and boats, which count how long a burning vehicle has before it explodes. |
-| `rollOntoWheels` | `1` | Scales the roll-onto-wheels assist in `CAutomobile::ProcessSuspension` by the timestep ratio. Unpatched it applies a fixed righting impulse once per frame with no timestep, so a car resting on its side is pushed upright in proportion to the frame rate. Only fires while a nearly stationary car is on its side. |
-| `suspensionDampingLimit` | `1` | Wraps `CPhysical::ApplySpringDampening`. Ordinary suspension damping is converted to the exact short-frame equivalent of one 30-FPS step; values that reached the stock `0.25` limit use its stable equivalent rate while the game's nonlinear spring-force and direction clamps remain intact. The shared global constant is never rewritten. |
-| `collisionPushOut` | `0` | Experimental A/B for persistent overlaps. It linearly scales the penetration correction in `CPhysical::ProcessShiftSectorList`, but that correction is a geometric constraint rather than a rate: the stock `1.5` branch deliberately clears the surface in one pass. It is disabled by default because enabling it can leave fresh impacts penetrating and force repeated collision retries. |
 | `wheelSettle` | `1` | Eases drawn bike, BMX and aircraft wheels back down in real time. Automobile wheels deliberately keep their stock visual response: stretching their downward travel to the 30-FPS duration can leave long-travel rear wheels visibly hanging below the body after the physical suspension has already moved. Cosmetic — the drawn wheel, not the suspension. |
 | `boatEngineSpeed` | `1` | Scales the boat engine coast down in `CBoat::ProcessControl` by the timestep. The propeller speed of a boat nobody is driving falls by a fixed 5% per frame, while the three branches that drive the same field under control all use the timestep, so an abandoned boat's propeller stops and its engine note dies far sooner at a high frame rate. |
 | `bikeWheelSpin` | `1` | Coasts a bike's free front wheel down in real time. `CBike::ProcessControl` holds two copies of the same five instructions, on the two sides of a rider flag; the copy at `0x6BB59B` multiplies the wheel's angular velocity by the timestep before the pitch angle integrates it and the copy at `0x6BAC77` does not, so the free front wheel spins sixteen times as fast at 500 FPS as at 30. The rear wheel a page below carries the timestep too, which makes that one copy the odd one out of three. The `0.95` decay, the same instruction `wheelSpin` fixes on cars, is raised to the timestep in both copies. Cosmetic; it is the visible wheel spin, not the physics. |
@@ -344,7 +328,7 @@ contains the ZIP archive, a SHA-256 checksum file, and a signed GitHub artifact
 attestation that binds the archive to its source commit and workflow:
 
 ```bat
-gh attestation verify HighFpsFixes-v0.9.9.zip -R sonochiwa/sa-high-fps-fixes
+gh attestation verify HighFpsFixes-v1.0.0.zip -R sonochiwa/sa-high-fps-fixes
 ```
 
 The attestation is provenance and integrity verification: it proves the bytes
@@ -391,11 +375,6 @@ Patch sites for GTA San Andreas 1.0 US:
 - `0x52B730` and `0x521500`: MinHook detours around `CCamera::Process` and
   `CCam::Process_AimWeapon` temporarily raise both GTA camera timesteps while
   an on-foot aim camera is active, then restore their exact prior values.
-- `0x6D6F32` and `0x6D775A`: the squaring of the two wheel slip components in
-  `CVehicle::ProcessWheel` and `CVehicle::ProcessBikeWheel`. Off the throttle
-  both are scaled by the timestep ratio first, which leaves the saturation test
-  and the clamp algebraically unchanged; the driving flags at `0xC1CDAD` and
-  `0xC1CDB1` select that case.
 - `0x52C729`: the drunk camera sway phase step in `CCamera::Process`, a bare
   `fadd` of the five degrees at `0x858C80` once per rendered frame.
 - `0x61E0CA`: aiming rifle walk step.
@@ -410,15 +389,8 @@ Patch sites for GTA San Andreas 1.0 US:
   wheel friction.
 - `0x6B523F`, `0x6B524F`, `0x6B525D` and `0x6B5269`: on-rails wheel rotation.
 - `0x6A4FE6`: burnout wheel speed.
-- `0x544D29`: the flat per-frame turn speed damping in
-  `CPhysical::ApplyAirResistance`.
-- `0x545736`: the per-frame friction budget in the vehicle branch of
-  `CPhysical::ApplyFriction`, beside a ped branch that already scales it.
 - `0x6BBB0D`: the rider lean target in `CBike::ProcessControl`, a per-call
   derivative whose conditioning collapses as the timestep shrinks.
-- `0x6B33F6`, `0x6B340C`, `0x6B3422`, `0x6BC101`, `0x6BC117` and `0x6BC129`: the
-  fixed move speed limit that `CAutomobile::ProcessControl` and
-  `CBike::ProcessControl` snap an entity to a standstill under.
 - `0x6B1C9C`, `0x6B9955` and `0x6F9B92`: the at-rest move distance limit for
   abandoned and wrecked vehicles.
 - `0x5A241F`, `0x6B1D2A`, `0x6B9972` and `0x6F9BD1`: the `m_nFakePhysics` sleep
@@ -501,17 +473,16 @@ Each was checked by comparing a capped 30 FPS run against an uncapped one.
 | `chainsawStrikeRate` | Fifteen strikes a second at 30 FPS and uncapped, against roughly forty-eight before |
 | `continuousWeaponParticles` | Extinguisher foam confirmed 2026-08-21; spraycan and flamethrower pending |
 | `continuousWeaponAmmo` | Extinguisher confirmed 2026-08-21; spraycan and flamethrower pending |
-| `groundFriction`, `moveSpeedSnap`, `wheelFriction`, `doorSwing` | Initially confirmed as a group at about 500 FPS. The Tahoma rear-body symptom was subsequently isolated to `doorSwing` and reconfirmed after separating its chassis and firetruck input paths |
+| `wheelFriction`, `doorSwing` | Initially confirmed as a group at about 500 FPS. The Tahoma rear-body symptom was subsequently isolated to `doorSwing` and reconfirmed after separating its chassis and firetruck input paths |
 
 ### Implemented, not yet checked
 
 `stuntJumpCamera`, `aimCameraShake`, `aimingRifleWalk`, `pedPushVehicle`,
 `drunkSteerDelay`, `jetPackFlame`, `fatCounter`, `stuntCounters`, `taskTimers`,
-`turnAirResistance`, `restThreshold`, `physicsSleepRate`, `railWheelSpin`,
+`restThreshold`, `physicsSleepRate`, `railWheelSpin`,
 `burnout`, `sirenTap`, `heliRotorSpeed`, `skimmerResistance`,
 `attachedEntitySpeed`, `aiAircraftSteer`, `upsideDownTimer`, `vehicleTimers`,
-`burnTimers`, `rollOntoWheels`, `suspensionDampingLimit`, `collisionPushOut`,
-`wheelSpin`, `boatEngineSpeed`, `bmxSprintLean`, `bmxLeanSettle`,
+`burnTimers`, `wheelSpin`, `boatEngineSpeed`, `bmxSprintLean`, `bmxLeanSettle`,
 `bikeWheelSpin`, `headBopping`, `jumpOutCarSpeed`, `emissionRate`,
 `gangWarTimer`, `fireSpread`, `scriptObjectRotate`,
 `mapZoomWheel`.
@@ -529,9 +500,6 @@ frame rate, an A/B that shows no difference is a real result.
 | `burnTimers` | Set a car on fire and time it to the explosion |
 | `upsideDownTimer` | Flip a car onto its roof and time it to catching fire |
 | `wheelSpin` | Get a drive wheel off the ground and watch it spin up, then watch a free wheel stop |
-| `suspensionDampingLimit` | Drive an Infernus, Cheetah, Super GT or Elegy over bumps at both frame rates |
-| `collisionPushOut` | Ride a rail, a kerb and a low wall at both frame rates, and check that nothing sinks into or sticks in world geometry |
-| `rollOntoWheels` | Tip a car onto its side and time the righting. The code predicts faster at high FPS; the old report says slower, so one of them is wrong |
 | `boatEngineSpeed` | Leave a boat with the propeller turning and listen to it die |
 | `drunkSteerDelay` | Get drunk, drive, and see whether the wheel lags |
 | `emissionRate` | Watch exhaust smoke, tyre spray and boat wake at both frame rates, and confirm shell casings, sparks and shattering glass still appear |
@@ -547,7 +515,6 @@ frame rate, an A/B that shows no difference is a real result.
 | `taskTimers`, `vehicleTimers` | Hard to see directly; the climb timeout and AI car behavior are the likeliest to show |
 | `gangWarTimer` | Start a gang war and time a wave |
 | `continuousWeaponParticles`, `continuousWeaponAmmo` | Spraycan and flamethrower; only the extinguisher has been checked |
-| `groundFriction`, `moveSpeedSnap`, `wheelFriction` | Disable one at a time at high FPS to separate which member carries the remaining combined drivability improvement |
 
 ### Open work
 

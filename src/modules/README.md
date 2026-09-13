@@ -13,7 +13,8 @@ The include order is architectural:
 
 1. game addresses, expected instruction bytes, executable profiles and
    configuration;
-2. patch infrastructure and gameplay helpers;
+2. patch infrastructure, then INI file handling and settings, then gameplay
+   helpers;
 3. subsystem implementations and diagnostics;
 4. C++ thunk helpers, naked assembly bridges, installers and bootstrap/shutdown.
 

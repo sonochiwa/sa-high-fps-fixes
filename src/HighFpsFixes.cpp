@@ -1,42 +1,16 @@
-#define NOMINMAX
-#include <windows.h>
-#include <share.h>
-#include <intrin.h>
+// GTA San Andreas ties a long list of behaviours to the rendered frame
+// rather than to game time: swimming, vehicle physics, camera timers, HUD
+// counters, particle emission and more were tuned at 30 FPS and drift above
+// it. Each fix here patches one of those sites so it reads the real
+// timestep, verifies the expected bytes first, and has its own switch in
+// HighFpsFixes.ini. Behaviour at 30 FPS is unchanged. The modules under
+// src\modules own their addresses, thunks and installers; this file only
+// pins the module, starts the initializer off the loader lock and restores
+// everything on unload.
 
-#include <algorithm>
-#include <array>
-#include <atomic>
-#include <cmath>
-#include <cstdint>
-#include <cstdio>
-#include <cstring>
-#include <cstdlib>
-#include <limits>
-#include <string>
+#include "modules/modules.h"
 
-#include "MinHook.h"
-
-namespace {
-
-#include "modules/game_addresses.inl"
-#include "modules/expected_bytes.inl"
-#include "modules/game_profiles.inl"
-#include "modules/configuration.inl"
-#include "modules/patching.inl"
-#include "modules/ini_settings.inl"
-#include "modules/weapons_and_particles.inl"
-#include "modules/player.inl"
-#include "modules/vehicles.inl"
-#include "modules/hud.inl"
-#include "modules/diagnostics.inl"
-#include "modules/bike_lean_filter.inl"
-#include "modules/runtime_features.inl"
-#include "modules/thunk_helpers.inl"
-#include "modules/thunks.inl"
-#include "modules/installers.inl"
-#include "modules/bootstrap.inl"
-
-} // namespace
+using namespace hff;
 
 BOOL WINAPI DllMain(HINSTANCE instance, DWORD reason, void* reserved) {
     if (reason == DLL_PROCESS_ATTACH) {

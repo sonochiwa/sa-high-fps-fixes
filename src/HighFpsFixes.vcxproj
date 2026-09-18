@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -10,6 +10,7 @@
       <Platform>Win32</Platform>
     </ProjectConfiguration>
   </ItemGroup>
+
   <PropertyGroup Label="Globals">
     <VCProjectVersion>17.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>
@@ -17,13 +18,16 @@
     <RootNamespace>HighFpsFixes</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
+
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <PlatformToolset>v143</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
+
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
@@ -31,7 +35,9 @@
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
+
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+
   <PropertyGroup>
     <OutDir>$(SolutionDir)build\</OutDir>
     <IntDir>$(SolutionDir)build\obj\$(ProjectName)\$(Platform)\$(Configuration)\</IntDir>
@@ -39,94 +45,145 @@
     <TargetExt>.asi</TargetExt>
     <VcpkgEnabled>false</VcpkgEnabled>
   </PropertyGroup>
+
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <WarningLevel>Level4</WarningLevel>
-      <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <TreatWarningAsError>true</TreatWarningAsError>
+      <SDLCheck>false</SDLCheck>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;_USRDLL;_CRT_SECURE_NO_WARNINGS;WIN32_LEAN_AND_MEAN;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
-      <AdditionalIncludeDirectories>$(SolutionDir)vendor\minhook\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <AdditionalIncludeDirectories>$(SolutionDir)src;$(SolutionDir)vendor\minhook\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>kernel32.lib;user32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
+
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
       <WarningLevel>Level4</WarningLevel>
+      <TreatWarningAsError>true</TreatWarningAsError>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <SDLCheck>false</SDLCheck>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;_USRDLL;_CRT_SECURE_NO_WARNINGS;WIN32_LEAN_AND_MEAN;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
-      <AdditionalIncludeDirectories>$(SolutionDir)vendor\minhook\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <AdditionalIncludeDirectories>$(SolutionDir)src;$(SolutionDir)vendor\minhook\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>false</GenerateDebugInformation>
+      <AdditionalDependencies>kernel32.lib;user32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
-  <ItemDefinitionGroup>
-    <ClCompile>
-      <TreatWarningAsError>true</TreatWarningAsError>
-    </ClCompile>
-    <PostBuildEvent>
-      <Command>copy /Y "$(SolutionDir)Config\HighFpsFixes.ini" "$(OutDir)HighFpsFixes.ini"</Command>
-    </PostBuildEvent>
-  </ItemDefinitionGroup>
+
   <ItemGroup>
     <ClCompile Include="HighFpsFixes.cpp" />
+    <ClCompile Include="modules\aim_camera.cpp" />
+    <ClCompile Include="modules\bike_hooks.cpp" />
+    <ClCompile Include="modules\bike_lean_filter.cpp" />
+    <ClCompile Include="modules\bike_pitch.cpp" />
+    <ClCompile Include="modules\bike_transform.cpp" />
+    <ClCompile Include="modules\bootstrap.cpp" />
+    <ClCompile Include="modules\game_profiles.cpp" />
+    <ClCompile Include="modules\hud.cpp" />
+    <ClCompile Include="modules\ini_settings.cpp" />
+    <ClCompile Include="modules\installers\core_installers.cpp" />
+    <ClCompile Include="modules\installers\core_vehicle_installers.cpp" />
+    <ClCompile Include="modules\installers\vehicle_installers.cpp" />
+    <ClCompile Include="modules\installers\world_optional_installers.cpp" />
+    <ClCompile Include="modules\move_speed_watch.cpp" />
+    <ClCompile Include="modules\particles.cpp" />
+    <ClCompile Include="modules\patch_conflicts.cpp" />
+    <ClCompile Include="modules\patch_infrastructure.cpp" />
+    <ClCompile Include="modules\patching.cpp" />
+    <ClCompile Include="modules\player.cpp" />
+    <ClCompile Include="modules\push_telemetry.cpp" />
+    <ClCompile Include="modules\runtime_features.cpp" />
+    <ClCompile Include="modules\stat_carries.cpp" />
+    <ClCompile Include="modules\thunk_helpers.cpp" />
+    <ClCompile Include="modules\thunks\base_thunks.cpp" />
+    <ClCompile Include="modules\thunks\camera_thunks.cpp" />
+    <ClCompile Include="modules\thunks\player_thunks.cpp" />
+    <ClCompile Include="modules\thunks\runtime_thunks.cpp" />
+    <ClCompile Include="modules\thunks\vehicle_thunks.cpp" />
+    <ClCompile Include="modules\thunks\world_runtime_thunks.cpp" />
+    <ClCompile Include="modules\timestep.cpp" />
+    <ClCompile Include="modules\vehicles.cpp" />
     <ClCompile Include="..\vendor\minhook\src\buffer.c">
-      <DisableSpecificWarnings>4100;4201;4244;4310;4701;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <WarningLevel>Level3</WarningLevel>
+      <TreatWarningAsError>false</TreatWarningAsError>
+      <ObjectFileName>$(IntDir)minhook_%(Filename).obj</ObjectFileName>
     </ClCompile>
     <ClCompile Include="..\vendor\minhook\src\hook.c">
-      <DisableSpecificWarnings>4100;4201;4244;4310;4701;26454;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <WarningLevel>Level3</WarningLevel>
+      <TreatWarningAsError>false</TreatWarningAsError>
+      <ObjectFileName>$(IntDir)minhook_%(Filename).obj</ObjectFileName>
     </ClCompile>
     <ClCompile Include="..\vendor\minhook\src\trampoline.c">
-      <DisableSpecificWarnings>4100;4201;4244;4310;4701;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <WarningLevel>Level3</WarningLevel>
+      <TreatWarningAsError>false</TreatWarningAsError>
+      <ObjectFileName>$(IntDir)minhook_%(Filename).obj</ObjectFileName>
     </ClCompile>
     <ClCompile Include="..\vendor\minhook\src\hde\hde32.c">
-      <DisableSpecificWarnings>4100;4201;4244;4310;4701;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <WarningLevel>Level3</WarningLevel>
+      <TreatWarningAsError>false</TreatWarningAsError>
+      <ObjectFileName>$(IntDir)minhook_%(Filename).obj</ObjectFileName>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\Config\HighFpsFixes.ini" />
+    <ClInclude Include="resource.h" />
+    <ClInclude Include="version.h" />
+    <ClInclude Include="modules\bike_lean_filter.h" />
+    <ClInclude Include="modules\bootstrap.h" />
+    <ClInclude Include="modules\diagnostics.h" />
+    <ClInclude Include="modules\expected_bytes.h" />
+    <ClInclude Include="modules\game_addresses.h" />
+    <ClInclude Include="modules\game_profiles.h" />
+    <ClInclude Include="modules\hud.h" />
+    <ClInclude Include="modules\ini_settings.h" />
+    <ClInclude Include="modules\modules.h" />
+    <ClInclude Include="modules\patching.h" />
+    <ClInclude Include="modules\player.h" />
+    <ClInclude Include="modules\prelude.h" />
+    <ClInclude Include="modules\runtime_features.h" />
+    <ClInclude Include="modules\thunk_helpers.h" />
+    <ClInclude Include="modules\vehicles.h" />
+    <ClInclude Include="modules\weapons_and_particles.h" />
+    <ClInclude Include="modules\installers\core_installers.h" />
+    <ClInclude Include="modules\installers\vehicle_installers.h" />
+    <ClInclude Include="modules\installers\world_optional_installers.h" />
+    <ClInclude Include="modules\thunks\base_thunks.h" />
+    <ClInclude Include="modules\thunks\vehicle_thunks.h" />
+    <ClInclude Include="modules\thunks\world_runtime_thunks.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="HighFpsFixes.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\.github\workflows\release.yml" />
+    <None Include="..\CHANGELOG.md" />
     <None Include="..\LICENSE" />
-    <None Include="..\vendor\minhook\LICENSE.txt" />
     <None Include="..\README.md" />
-    <None Include="modules\bootstrap.inl" />
-    <None Include="modules\bike_lean_filter.inl" />
-    <None Include="modules\configuration.inl" />
-    <None Include="modules\diagnostics.inl" />
-    <None Include="modules\expected_bytes.inl" />
-    <None Include="modules\game_addresses.inl" />
-    <None Include="modules\game_profiles.inl" />
-    <None Include="modules\hud.inl" />
-    <None Include="modules\installers.inl" />
-    <None Include="modules\installers\core_installers.inl" />
-    <None Include="modules\installers\vehicle_installers.inl" />
-    <None Include="modules\installers\world_optional_installers.inl" />
-    <None Include="modules\patching.inl" />
-    <None Include="modules\ini_settings.inl" />
-    <None Include="modules\player.inl" />
-    <None Include="modules\README.md" />
-    <None Include="modules\runtime_features.inl" />
-    <None Include="modules\thunk_helpers.inl" />
-    <None Include="modules\thunks.inl" />
-    <None Include="modules\thunks\base_thunks.inl" />
-    <None Include="modules\thunks\vehicle_thunks.inl" />
-    <None Include="modules\thunks\world_runtime_thunks.inl" />
-    <None Include="modules\vehicles.inl" />
-    <None Include="modules\weapons_and_particles.inl" />
+    <None Include="..\Config\HighFpsFixes.ini" />
+    <None Include="..\.github\workflows\build.yml" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+
+  <Target Name="CopyReleaseConfig" AfterTargets="Build"
+          Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Copy SourceFiles="$(SolutionDir)Config\HighFpsFixes.ini"
+          DestinationFolder="$(OutDir)" />
+  </Target>
 </Project>

@@ -1,7 +1,7 @@
 # High FPS Fixes
 
-`HighFpsFixes.asi` corrects frame-rate-dependent behavior in GTA San Andreas
-without imposing an FPS cap.
+`HighFpsFixes.asi` is a standalone GTA San Andreas plugin that corrects
+frame-rate-dependent behavior without imposing an FPS cap.
 
 The current build targets GTA San Andreas 1.0 US Compact and Hoodlum. Both use
 the same address layout; the plugin detects their distinct entry signatures,
@@ -84,37 +84,37 @@ General:
 
 ## Requirements
 
-- GTA San Andreas 1.0 US (Compact or Hoodlum executable).
-- A compatible ASI loader.
-- Windows on x86-compatible hardware.
+- GTA San Andreas 1.0 US (Compact or Hoodlum executable). Both use the same
+  address layout; the plugin detects their distinct entry signatures and
+  verifies the original instructions at every patch site.
+- An ASI loader, such as Silent's ASI Loader or Ultimate ASI Loader.
+
+Other executables are unsupported and are left untouched; the log names the
+first site that did not match.
 
 ## Installation
 
-The release archive contains `HighFpsFixes.asi` and `HighFpsFixes.ini` at its
-root.
+1. Extract `HighFpsFixes.asi` and `HighFpsFixes.ini` into the GTA San Andreas
+   directory or its `scripts` directory.
+2. Start the game.
 
-1. Copy `HighFpsFixes.asi` and `HighFpsFixes.ini` into the game's `scripts`
-   directory.
-2. Start the game normally.
-
-The plugin creates the canonical INI beside itself if it is missing. On later
-updates it adds missing canonical keys with their current defaults without
-overwriting user values, comments, blank lines, ordering or extra diagnostic
-keys. Deleted comments stay deleted; a deleted setting is restored, so use
-`setting=0` rather than removing a line to keep a fix disabled. The ASI is pinned
-for the lifetime of the process so background callbacks can never return into
-an unloaded module. Exit the game before replacing or removing the ASI and INI.
+The plugin creates the canonical INI beside itself when it is missing. On
+later updates it adds missing keys with their defaults without overwriting
+user values, comments, blank lines, ordering or extra diagnostic keys. A
+deleted setting is restored, so use `setting=0` rather than removing a line
+to keep a fix disabled. The plugin is pinned for the lifetime of the process,
+so exit the game before replacing or removing the files.
 
 ## Configuration
 
-The shipped INI contains a `[general]` section and the individual fix switches.
-Routine logging is enabled by default; invalid keys, invalid values and
-executable-byte mismatches also force it on. Development trace keys and the
-particle ceiling remain hidden because they are only useful for diagnostics.
+The shipped INI contains a `[general]` section and the individual fix
+switches. Invalid keys, invalid values and executable-byte mismatches force
+the log on even with `log=0`. Development trace keys and the particle ceiling
+are not shipped because they are only useful for diagnostics.
 
 | Key | Section | Default | Meaning |
 | --- | --- | ---: | --- |
-| `enableLogging` | `general` | `1` | Writes `HighFpsFixes.log` beside the ASI, listing every fix that installed and every one that was skipped with the reason. Set it to `0` to suppress routine logging; configuration and patch errors still force it on. |
+| `log` | `general` | `0` | Writes `HighFpsFixes.log` beside the plugin, listing every fix that installed and every one that was skipped with the reason. Configuration and patch errors force it on. |
 | `overrideConflictingHooks` | `general` | `1` | Makes this plugin win at every instruction it patches when another frame-rate plugin, such as FramerateVigilante, patches the same one. A site already holding another module's branch is patched over it, and a once-a-frame guard puts the patch back if it is written over later in startup. Only hooks of the same shape are claimed, a relative branch into another module padded with NOPs; anything else is left alone and logged. Set it to `0` to fall back to first-come-first-served. |
 | `traceVehicleState`, `traceWatchOffset`, `traceWatchMode`, `traceWatchHits`, `traceWatchSamples`, `traceWatchReports`, `traceWatchArmDelay`, `tracePlayerPed`, `traceCycleSkill`, `traceChainsaw` | `general` | `0` | Development traces. They sample vehicle or player state, or count a specific loop, into `HighFpsFixes.trace.log` and the main log. Only useful with the source at hand. |
 | `particlesPerSecond` | `particles` | `0` | A hard ceiling on new particles a second, the way FxLimiter capped them. This trades effects away for frame time rather than correcting a frame-rate dependence, and `emissionRate` already restores the intended density, so it is off unless asked for by hand. |
@@ -122,12 +122,12 @@ particle ceiling remain hidden because they are only useful for diagnostics.
 The shipped file, and what every switch means:
 
 ```ini
-# High FPS Fixes v1.0.0
+# High FPS Fixes v1.1.0
 # Created by sonochiwa
 # Source code: https://github.com/sonochiwa/sa-high-fps-fixes
 
 [general]
-enableLogging=1
+log=0
 overrideConflictingHooks=1
 
 [camera]
@@ -299,13 +299,18 @@ Settings are read when the ASI loads; restart the game after changing them.
 
 ## Building
 
-Open `HighFpsFixes.sln` in Visual Studio 2022 and build `Release|Win32` with the
-v143 toolset. Outputs are written to `build`, and the canonical INI is copied
-there after a successful build.
+Visual Studio 2022 (v143), `Release|Win32`. Open `HighFpsFixes.sln` or run:
 
-Pull requests and pushes build both Win32 configurations with warnings treated
-as errors and MSVC code analysis enabled. `tools\validate-project.ps1` also
-checks version synchronization, project module registration and module size.
+```powershell
+msbuild HighFpsFixes.sln /t:Rebuild /p:Configuration=Release /p:Platform=Win32
+```
+
+The plugin is written to `build\HighFpsFixes.asi` next to a copy of the INI.
+`Config\HighFpsFixes.ini` is compiled into the plugin as an `RCDATA`
+resource, so the INI written when the file is missing is byte for byte the
+canonical one. Pushes and pull requests build both configurations with
+warnings as errors and code analysis; `tools\validate-project.ps1` checks
+that the version, the project file list and the file sizes agree.
 
 Before installing into an unfamiliar game directory, the executable can be
 checked without launching it:
@@ -314,41 +319,77 @@ checked without launching it:
 .\tools\validate-game.ps1 "C:\Games\GTA San Andreas\gta_sa.exe"
 ```
 
-The validator recognizes the Compact and Hoodlum GTA SA 1.0 US profiles and
-checks representative player, vehicle and world patch signatures. Every enabled
-patch still validates its complete byte sequence again at runtime, the two
-aim-camera entry points included; MinHook only decodes and relocates a prologue
-that has already been confirmed stock.
-
-## Release Integrity
-
-Tagged releases are compiled and packaged by GitHub Actions. Each release
-contains the ZIP archive, a SHA-256 checksum file, and a signed GitHub artifact
-attestation that binds the archive to its source commit and workflow:
-
-```bat
-gh attestation verify HighFpsFixes-v1.0.0.zip -R sonochiwa/sa-high-fps-fixes
-```
-
-The attestation is provenance and integrity verification: it proves the bytes
-were produced by this repository's workflow from a specific revision. It does
-not by itself say anything about the behavior of that revision.
-
-GitHub does not issue attestations for user-owned private repositories, so while
-the repository is private the workflow skips that step and the release ships the
-archive and its checksum only.
+The validator recognizes the Compact and Hoodlum 1.0 US profiles and checks
+representative player, vehicle and world patch signatures. Every enabled
+patch still validates its complete byte sequence again at runtime.
 
 ## Repository Layout
 
 ```text
-HighFpsFixes.sln              Visual Studio solution
-Config\HighFpsFixes.ini       Canonical release configuration
-src\HighFpsFixes.cpp          Translation-unit entry point
-src\modules\                  Implementation grouped by subsystem
-src\HighFpsFixes.vcxproj      Visual Studio project
-vendor\minhook\               Vendored x86 hook library and its license
-build\                        Generated binaries and intermediates
-references\                   Local research material; not published
+HighFpsFixes.sln
+README.md
+CHANGELOG.md
+ROADMAP.md                      Validation status and open work
+LICENSE
+.github\workflows\
+  build.yml                     Debug and Release build on every push
+  release.yml                   Tagged release build, checksum and attestation
+Config\
+  HighFpsFixes.ini              Canonical configuration, embedded as RCDATA
+docs\
+  bike-physics-reverse.md       Bike physics reverse-engineering notes
+  vehicle-physics-audit.md      Vehicle physics audit
+src\
+  HighFpsFixes.cpp              DllMain, module pinning, initializer thread
+  HighFpsFixes.rc               Version resource and the embedded INI
+  HighFpsFixes.vcxproj
+  resource.h
+  version.h
+  modules\
+    aim_camera.cpp                           Weapon helpers and the aim camera timestep guard
+    bike_hooks.cpp                           Bike process, collision and render hooks for the abandoned bike step
+    bike_lean_filter.cpp / bike_lean_filter.h Standing-still lean wobble filter
+    bike_pitch.cpp                           Experimental bike ramp pitch isolation
+    bike_transform.cpp                       Bike transform copies and the abandoned bike physics step
+    bootstrap.cpp / bootstrap.h              Initialization, fix table, shutdown
+    diagnostics.h                            Bike balance and wheel turn tracing
+    expected_bytes.h                         Original instruction bytes verified before patching
+    game_addresses.h                         Every address, offset and return point in gta_sa.exe
+    game_profiles.cpp / game_profiles.h      Compact and Hoodlum executable profiles
+    hud.cpp / hud.h                          HUD flash rate and timed text
+    ini_settings.cpp / ini_settings.h        INI creation, upgrade and reading
+    modules.h                                Includes every module header in dependency order
+    move_speed_watch.cpp                     Hardware watchpoint tracing of move speed writes
+    particles.cpp                            Particle emission carry and the optional budget
+    patch_conflicts.cpp                      Claiming sites held by other frame-rate plugins
+    patch_infrastructure.cpp                 Patch sets, jump tables, guards
+    patching.cpp / patching.h                Patch records and their rollback
+    player.cpp / player.h                    Player movement, swimming, buoyancy, stats
+    prelude.h                                System and MinHook includes
+    push_telemetry.cpp                       Ped push and player vehicle telemetry threads
+    runtime_features.cpp / runtime_features.h Frame limiter, refresh rate and auto limits
+    stat_carries.cpp                         Fraction carries for truncated stats, ammo and chainsaw timing
+    thunk_helpers.cpp / thunk_helpers.h      C++ calculations called by the naked bridges
+    timestep.cpp                             Shared timestep ratio helpers
+    vehicles.cpp / vehicles.h                Vehicle helpers
+    weapons_and_particles.h                  Weapon and particle state shared by the hooks
+    installers\
+      core_installers.cpp / core_installers.h Camera, player and HUD fix installers
+      core_vehicle_installers.cpp            Vehicle fix installers and the timer groups
+      vehicle_installers.cpp / vehicle_installers.h Vehicle physics fix installers
+      world_optional_installers.cpp / world_optional_installers.h World, script and optional fix installers
+    thunks\
+      base_thunks.cpp / base_thunks.h        Timer, damage, footprint, chainsaw, ammo and wheel friction bridges
+      camera_thunks.cpp                      Camera rate and aim FOV bridges
+      player_thunks.cpp                      Stat, money, climb, buoyancy and player movement bridges
+      runtime_thunks.cpp                     Siren, script and runtime bridges
+      vehicle_thunks.cpp / vehicle_thunks.h  Vehicle physics bridges
+      world_runtime_thunks.cpp / world_runtime_thunks.h Fake physics and object bridges
+tools\
+  validate-game.ps1             Checks an executable's patch signatures without launching it
+  validate-project.ps1          Version, project file list and file size checks
+vendor\
+  minhook\                      MinHook, compiled into the plugin
 ```
 
 ## How It Works
@@ -434,119 +475,22 @@ of the test, so a build whose frame layout differs cannot match it. When
 nothing matches, or more than one thing does, the fix logs and skips, and every
 other fix is unaffected. Verified against two different 0.3.7 builds, whose sites sit 0x4F26 apart.
 
-## Validation Status
+## Release Integrity
 
-Implementation and runtime validation are tracked separately. A fix that
-compiles and installs is not a validated fix.
+Tagged releases are built by GitHub Actions from the tagged commit. Each
+release carries `HighFpsFixes-vX.Y.Z.zip`, its SHA-256 in
+`HighFpsFixes-vX.Y.Z.zip.sha256` and a signed build-provenance attestation,
+which proves that the archive was produced by this repository's workflow
+from that revision. It does not prove the code is bug-free.
 
-61 behavioral fixes ship enabled by default, across more than 230 patched
-instruction sites. 22 of them have been checked in game: 18 individually, and
-four more as one group whose combined symptom was confirmed without separating
-which member carries the improvement. That is about 36 percent of the shipped
-fixes validated, and roughly half of the work this project has mapped out
-closed. Three of the fixes — the HUD flash clock, the money counter and the 46
-timed-text accumulators — share the single `hudTiming` switch, so there are 59
-switches for 61 fixes.
+```text
+gh attestation verify HighFpsFixes-vX.Y.Z.zip -R sonochiwa/sa-high-fps-fixes
+```
 
-### Confirmed in game
+## Roadmap
 
-Each was checked by comparing a capped 30 FPS run against an uncapped one.
-
-| Key | Evidence |
-| --- | --- |
-| `followCameraRate` | Confirmed 2026-08-25 |
-| `idleCameraTimer` | Confirmed 2026-08-27 |
-| `swimmingMovement` | Underwater swimming ran at roughly a seventeenth speed at 500 FPS and matches 30 FPS after the rewrite |
-| `waterBuoyancy` | Surfacing near the waterline was very slow at 500 FPS and is normal after the fix |
-| `swimPitchRate` | Confirmed 2026-08-27 |
-| `climbSpeed` | The trace shows the clamp engaging: 61 consecutive samples pinned at 0.200000 where the unpatched division reached 3.16 |
-| `drowningDamage` | Confirmed 2026-08-25 |
-| `skillProgress` | Cycling confirmed 2026-08-27: 1000 a second at 550+ FPS, the same as at 30 FPS. The other twenty counters have never been run |
-| `bikeLeanTarget` | Standing wobble fell from 12-20 degrees peak to peak to 1.31, and cornering lean was confirmed after the projection order was corrected |
-| `wheelSettle` | Bike and aircraft paths retain the previously validated real-time easing; automobile easing was removed after it exposed excessive long-travel wheel extension |
-| `doorSwing` | Reconfirmed 2026-09-01 on Tahoma: the isolated swinging-chassis input fix matches the 30-FPS rear-body response without suppressing the separate firetruck ladder path; ordinary vehicle doors are not separately checked |
-| `hudTiming` | Money counter confirmed 2026-08-25; the flash clock and the 46 text timers it also switches are pending |
-| `scriptObjectSlide` | Confirmed on the airport gates: normal, 30-FPS-compatible duration at high FPS |
-| `fallingGlass` | Confirmed with shattered vehicle glass |
-| `breakableObjectLifetime` | Confirmed at 30 FPS and uncapped; a long-session regression test is still open |
-| `chainsawStrikeRate` | Fifteen strikes a second at 30 FPS and uncapped, against roughly forty-eight before |
-| `continuousWeaponParticles` | Extinguisher foam confirmed 2026-08-21; spraycan and flamethrower pending |
-| `continuousWeaponAmmo` | Extinguisher confirmed 2026-08-21; spraycan and flamethrower pending |
-| `wheelFriction`, `doorSwing` | Initially confirmed as a group at about 500 FPS. The Tahoma rear-body symptom was subsequently isolated to `doorSwing` and reconfirmed after separating its chassis and firetruck input paths |
-
-### Implemented, not yet checked
-
-`stuntJumpCamera`, `aimCameraShake`, `aimingRifleWalk`, `pedPushVehicle`,
-`drunkSteerDelay`, `jetPackFlame`, `fatCounter`, `stuntCounters`, `taskTimers`,
-`restThreshold`, `physicsSleepRate`, `railWheelSpin`,
-`burnout`, `sirenTap`, `heliRotorSpeed`, `skimmerResistance`,
-`attachedEntitySpeed`, `aiAircraftSteer`, `upsideDownTimer`, `vehicleTimers`,
-`burnTimers`, `wheelSpin`, `boatEngineSpeed`, `bmxSprintLean`, `bmxLeanSettle`,
-`bikeWheelSpin`, `headBopping`, `jumpOutCarSpeed`, `emissionRate`,
-`gangWarTimer`, `fireSpread`, `scriptObjectRotate`,
-`mapZoomWheel`.
-
-What each one corrects is described in the configuration table above.
-
-### How to check the rest
-
-Cheapest and most visible first. For entries noted as an identity below a given
-frame rate, an A/B that shows no difference is a real result.
-
-| Fix | Test |
-| --- | --- |
-| `hudTiming` | Trigger help text or a mission title and time how long it stays up. Not an identity at 30 FPS; expect about 1% longer than stock |
-| `burnTimers` | Set a car on fire and time it to the explosion |
-| `upsideDownTimer` | Flip a car onto its roof and time it to catching fire |
-| `wheelSpin` | Get a drive wheel off the ground and watch it spin up, then watch a free wheel stop |
-| `boatEngineSpeed` | Leave a boat with the propeller turning and listen to it die |
-| `drunkSteerDelay` | Get drunk, drive, and see whether the wheel lags |
-| `emissionRate` | Watch exhaust smoke, tyre spray and boat wake at both frame rates, and confirm shell casings, sparks and shattering glass still appear |
-| `fireSpread` | Set a car alight next to another car, and watch a fire spread on grass |
-| `mapZoomWheel` | Open the pause menu map and zoom with the wheel |
-| `bmxSprintLean`, `bmxLeanSettle`, `bikeWheelSpin`, `jetPackFlame`, `headBopping` | Cosmetic ramps and decays; watch each settle at both frame rates |
-| `jumpOutCarSpeed` | Roll slowly, hold the exit key without leaving, and see how fast the car stops |
-| `skillProgress` | Run, swim, drive and fly for a fixed wall-clock time and compare the stat bars. Only the cycling counter has been measured |
-| `fatCounter` | Get fat, then run for a fixed wall-clock time at both frame rates. Needs `skillProgress` on |
-| `stuntCounters` | Hold a wheelie for a fixed wall-clock time and compare the counter |
-| `attachedEntitySpeed` | Drive with a trailer, or a forklift or crane load. Identity at or below 50 FPS |
-| `aiAircraftSteer` | Hydra or Hunter at five stars, watching it turn toward the player. Identity at or below 50 FPS |
-| `taskTimers`, `vehicleTimers` | Hard to see directly; the climb timeout and AI car behavior are the likeliest to show |
-| `gangWarTimer` | Start a gang war and time a wave |
-| `continuousWeaponParticles`, `continuousWeaponAmmo` | Spraycan and flamethrower; only the extinguisher has been checked |
-
-### Open work
-
-- **Airborne motorcycle throttle pitch.** Holding the throttle in the air
-  pitches a bike backward faster at high FPS. Traced as far as the excess speed
-  appearing on the ramp rather than from wheel spin in the air; the engine and
-  brake reaction torque is already timestep scaled, so the cause is elsewhere.
-- **The last half degree of bike roll while standing still**, left over after
-  `bikeLeanTarget` removed the large wobble.
-- **Landing after a jump.** The apex matches 30 FPS and its remaining gap is the
-  integrator, with nothing to patch. The landing is a genuine defect: the
-  suspension absorber is one call site that stops firing at high FPS.
-- **Remaining uses of the 0.005 rest limit** outside the sites `restThreshold`
-  covers.
-- **Vehicle input smoothing** and the remaining swimming state machine, neither
-  yet reproduced here as a single-player defect.
-- **Effects and world scheduling** — creeping fire grid, explosion cadence,
-  population and traffic generation — gated behind a confirmed high-FPS symptom.
-
-### Out of scope
-
-- Mission script cadence, for the compatibility surface it would touch.
-- A global "make vehicle physics frame-rate independent" rewrite. Work is split
-  into narrowly testable single-player behaviors instead.
-- FPS caps for missions, minigames, schools and cutscenes as a substitute for
-  fixing the underlying behavior. They are implemented for parity, disabled by
-  default.
-- `CCam::Process_Cam_TwoPlayer`, the same clamp defect in a mode that cannot be
-  verified here.
-- MTA-only behavior such as `setCameraShakeLevel`, whose API path may not exist
-  in single-player.
+Planned and unvalidated work is tracked in [ROADMAP.md](ROADMAP.md).
 
 ## License
 
-High FPS Fixes is released under the [MIT License](LICENSE). The vendored
-MinHook library retains its [BSD-style license](vendor/minhook/LICENSE.txt).
+MIT. See [LICENSE](LICENSE).

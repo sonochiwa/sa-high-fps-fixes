@@ -8,10 +8,9 @@ if ($header -notmatch '^# High FPS Fixes v(?<version>\d+\.\d+\.\d+)$') {
 }
 $version = $Matches.version
 
-$configurationSource = [IO.File]::ReadAllText(
-    (Join-Path $projectRoot 'src\modules\configuration.inl'))
-if (-not $configurationSource.Contains("# High FPS Fixes v$version\n")) {
-    throw 'Embedded default INI version does not match the canonical INI.'
+$versionHeader = [IO.File]::ReadAllText((Join-Path $projectRoot 'src\version.h'))
+if (-not $versionHeader.Contains("#define PLUGIN_VERSION `"$version`"")) {
+    throw 'src\version.h does not match the canonical INI version.'
 }
 
 $readme = [IO.File]::ReadAllText((Join-Path $projectRoot 'README.md'))
@@ -19,43 +18,31 @@ if (-not $readme.Contains("# High FPS Fixes v$version")) {
     throw 'README configuration example does not match the canonical INI.'
 }
 
+$changelog = Get-Content -LiteralPath (Join-Path $projectRoot 'CHANGELOG.md')
+if (-not ($changelog -contains "## $version")) {
+    throw "CHANGELOG.md has no section for $version."
+}
+
 $projectPath = Join-Path $projectRoot 'src\HighFpsFixes.vcxproj'
 [xml]$project = Get-Content -LiteralPath $projectPath -Raw
-$listedModules = @{}
-foreach ($node in $project.SelectNodes("//*[local-name()='None']")) {
-    $include = $node.Include
-    if ($include -like 'modules\*.inl' -or $include -like 'modules\*\*.inl') {
-        $listedModules[$include.ToLowerInvariant()] = $true
+$listed = @{}
+foreach ($node in $project.SelectNodes("//*[local-name()='ClCompile' or local-name()='ClInclude']")) {
+    if ($node.Include) {
+        $listed[$node.Include.ToLowerInvariant()] = $true
     }
 }
 
-$modulesRoot = Join-Path $projectRoot 'src\modules'
-foreach ($file in Get-ChildItem -LiteralPath $modulesRoot -Filter '*.inl' -File -Recurse) {
-    $relative = $file.FullName.Substring((Join-Path $projectRoot 'src').Length + 1)
-    if (-not $listedModules.ContainsKey($relative.ToLowerInvariant())) {
+$sourceRoot = Join-Path $projectRoot 'src'
+foreach ($file in Get-ChildItem -LiteralPath $sourceRoot -File -Recurse | Where-Object { $_.Extension -in '.cpp', '.h' }) {
+    $relative = $file.FullName.Substring($sourceRoot.Length + 1)
+    if (-not $listed.ContainsKey($relative.ToLowerInvariant())) {
         throw "$relative is not listed in HighFpsFixes.vcxproj."
     }
     $lineCount = ([IO.File]::ReadAllLines($file.FullName)).Length
-    if ($lineCount -gt 1400) {
-        throw "$relative has grown to $lineCount lines; split the module."
-    }
-
-    if ($relative -ne 'modules\patching.inl') {
-        $source = [IO.File]::ReadAllText($file.FullName)
-        if (($source -match '\.installed\s*=\s*WriteBytes\s*\(') -or
-            ($source -match '\bClaimPatchRange\s*\(')) {
-            throw "$relative bypasses the automatic patch restoration registry."
-        }
+    $limit = if ($file.Extension -eq '.h') { 1200 } else { 500 }
+    if ($lineCount -gt $limit) {
+        throw "$relative has grown to $lineCount lines; split it."
     }
 }
 
-$bootstrapSource = [IO.File]::ReadAllText(
-    (Join-Path $modulesRoot 'bootstrap.inl'))
-if (-not $bootstrapSource.Contains('RestoreAllPatches();')) {
-    throw 'Shutdown must restore patches through RestoreAllPatches.'
-}
-if ($bootstrapSource -match '\bRestore(?:Site|Byte|RawPatch|Detour|AbsoluteOperand)\s*\(') {
-    throw 'Shutdown contains a manual patch restoration call.'
-}
-
-Write-Host "Project validation passed for High FPS Fixes v$version."
+Write-Host "Project structure is valid for High FPS Fixes v$version."

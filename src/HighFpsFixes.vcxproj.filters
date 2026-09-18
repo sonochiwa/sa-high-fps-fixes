@@ -1,0 +1,185 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="modules" />
+    <Filter Include="modules\installers" />
+    <Filter Include="modules\thunks" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="HighFpsFixes.cpp" />
+    <ClCompile Include="modules\aim_camera.cpp">
+      <Filter>modules</Filter>
+    </ClCompile>
+    <ClCompile Include="modules\bike_hooks.cpp">
+      <Filter>modules</Filter>
+    </ClCompile>
+    <ClCompile Include="modules\bike_lean_filter.cpp">
+      <Filter>modules</Filter>
+    </ClCompile>
+    <ClCompile Include="modules\bike_pitch.cpp">
+      <Filter>modules</Filter>
+    </ClCompile>
+    <ClCompile Include="modules\bike_transform.cpp">
+      <Filter>modules</Filter>
+    </ClCompile>
+    <ClCompile Include="modules\bootstrap.cpp">
+      <Filter>modules</Filter>
+    </ClCompile>
+    <ClCompile Include="modules\game_profiles.cpp">
+      <Filter>modules</Filter>
+    </ClCompile>
+    <ClCompile Include="modules\hud.cpp">
+      <Filter>modules</Filter>
+    </ClCompile>
+    <ClCompile Include="modules\ini_settings.cpp">
+      <Filter>modules</Filter>
+    </ClCompile>
+    <ClCompile Include="modules\installers\core_installers.cpp">
+      <Filter>modules\installers</Filter>
+    </ClCompile>
+    <ClCompile Include="modules\installers\core_vehicle_installers.cpp">
+      <Filter>modules\installers</Filter>
+    </ClCompile>
+    <ClCompile Include="modules\installers\vehicle_installers.cpp">
+      <Filter>modules\installers</Filter>
+    </ClCompile>
+    <ClCompile Include="modules\installers\world_optional_installers.cpp">
+      <Filter>modules\installers</Filter>
+    </ClCompile>
+    <ClCompile Include="modules\move_speed_watch.cpp">
+      <Filter>modules</Filter>
+    </ClCompile>
+    <ClCompile Include="modules\particles.cpp">
+      <Filter>modules</Filter>
+    </ClCompile>
+    <ClCompile Include="modules\patch_conflicts.cpp">
+      <Filter>modules</Filter>
+    </ClCompile>
+    <ClCompile Include="modules\patch_infrastructure.cpp">
+      <Filter>modules</Filter>
+    </ClCompile>
+    <ClCompile Include="modules\patching.cpp">
+      <Filter>modules</Filter>
+    </ClCompile>
+    <ClCompile Include="modules\player.cpp">
+      <Filter>modules</Filter>
+    </ClCompile>
+    <ClCompile Include="modules\push_telemetry.cpp">
+      <Filter>modules</Filter>
+    </ClCompile>
+    <ClCompile Include="modules\runtime_features.cpp">
+      <Filter>modules</Filter>
+    </ClCompile>
+    <ClCompile Include="modules\stat_carries.cpp">
+      <Filter>modules</Filter>
+    </ClCompile>
+    <ClCompile Include="modules\thunk_helpers.cpp">
+      <Filter>modules</Filter>
+    </ClCompile>
+    <ClCompile Include="modules\thunks\base_thunks.cpp">
+      <Filter>modules\thunks</Filter>
+    </ClCompile>
+    <ClCompile Include="modules\thunks\camera_thunks.cpp">
+      <Filter>modules\thunks</Filter>
+    </ClCompile>
+    <ClCompile Include="modules\thunks\player_thunks.cpp">
+      <Filter>modules\thunks</Filter>
+    </ClCompile>
+    <ClCompile Include="modules\thunks\runtime_thunks.cpp">
+      <Filter>modules\thunks</Filter>
+    </ClCompile>
+    <ClCompile Include="modules\thunks\vehicle_thunks.cpp">
+      <Filter>modules\thunks</Filter>
+    </ClCompile>
+    <ClCompile Include="modules\thunks\world_runtime_thunks.cpp">
+      <Filter>modules\thunks</Filter>
+    </ClCompile>
+    <ClCompile Include="modules\timestep.cpp">
+      <Filter>modules</Filter>
+    </ClCompile>
+    <ClCompile Include="modules\vehicles.cpp">
+      <Filter>modules</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="resource.h" />
+    <ClInclude Include="version.h" />
+    <ClInclude Include="modules\bike_lean_filter.h">
+      <Filter>modules</Filter>
+    </ClInclude>
+    <ClInclude Include="modules\bootstrap.h">
+      <Filter>modules</Filter>
+    </ClInclude>
+    <ClInclude Include="modules\diagnostics.h">
+      <Filter>modules</Filter>
+    </ClInclude>
+    <ClInclude Include="modules\expected_bytes.h">
+      <Filter>modules</Filter>
+    </ClInclude>
+    <ClInclude Include="modules\game_addresses.h">
+      <Filter>modules</Filter>
+    </ClInclude>
+    <ClInclude Include="modules\game_profiles.h">
+      <Filter>modules</Filter>
+    </ClInclude>
+    <ClInclude Include="modules\hud.h">
+      <Filter>modules</Filter>
+    </ClInclude>
+    <ClInclude Include="modules\ini_settings.h">
+      <Filter>modules</Filter>
+    </ClInclude>
+    <ClInclude Include="modules\modules.h">
+      <Filter>modules</Filter>
+    </ClInclude>
+    <ClInclude Include="modules\patching.h">
+      <Filter>modules</Filter>
+    </ClInclude>
+    <ClInclude Include="modules\player.h">
+      <Filter>modules</Filter>
+    </ClInclude>
+    <ClInclude Include="modules\prelude.h">
+      <Filter>modules</Filter>
+    </ClInclude>
+    <ClInclude Include="modules\runtime_features.h">
+      <Filter>modules</Filter>
+    </ClInclude>
+    <ClInclude Include="modules\thunk_helpers.h">
+      <Filter>modules</Filter>
+    </ClInclude>
+    <ClInclude Include="modules\vehicles.h">
+      <Filter>modules</Filter>
+    </ClInclude>
+    <ClInclude Include="modules\weapons_and_particles.h">
+      <Filter>modules</Filter>
+    </ClInclude>
+    <ClInclude Include="modules\installers\core_installers.h">
+      <Filter>modules\installers</Filter>
+    </ClInclude>
+    <ClInclude Include="modules\installers\vehicle_installers.h">
+      <Filter>modules\installers</Filter>
+    </ClInclude>
+    <ClInclude Include="modules\installers\world_optional_installers.h">
+      <Filter>modules\installers</Filter>
+    </ClInclude>
+    <ClInclude Include="modules\thunks\base_thunks.h">
+      <Filter>modules\thunks</Filter>
+    </ClInclude>
+    <ClInclude Include="modules\thunks\vehicle_thunks.h">
+      <Filter>modules\thunks</Filter>
+    </ClInclude>
+    <ClInclude Include="modules\thunks\world_runtime_thunks.h">
+      <Filter>modules\thunks</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="HighFpsFixes.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\.github\workflows\release.yml" />
+    <None Include="..\CHANGELOG.md" />
+    <None Include="..\LICENSE" />
+    <None Include="..\README.md" />
+    <None Include="..\Config\HighFpsFixes.ini" />
+    <None Include="..\.github\workflows\build.yml" />
+  </ItemGroup>
+</Project>

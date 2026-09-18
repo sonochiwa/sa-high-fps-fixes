@@ -1,9 +1,9 @@
-name: Verified release
+name: Release
 
 on:
   push:
     tags:
-      - "v*"
+      - "v[0-9]+.[0-9]+.[0-9]+"
 
 permissions:
   contents: write
@@ -29,14 +29,10 @@ jobs:
         shell: pwsh
         run: |
           $version = "${{ github.ref_name }}" -replace '^v', ''
-          if ($version -notmatch '^\d+\.\d+\.\d+$') {
-              throw "Release tag must contain a semantic version."
-          }
 
-          $expected = "# High FPS Fixes v$version"
           $iniHeader = (Get-Content Config\HighFpsFixes.ini -TotalCount 1)
-          if ($iniHeader -ne $expected) {
-              throw "Config\HighFpsFixes.ini declares '$iniHeader', expected '$expected'."
+          if ($iniHeader -ne "# High FPS Fixes v$version") {
+              throw "Config\HighFpsFixes.ini declares '$iniHeader', not version $version."
           }
 
           $archiveName = "HighFpsFixes-v$version.zip"
@@ -51,17 +47,18 @@ jobs:
           $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $archive).Hash.ToLowerInvariant()
           "$hash  $archiveName" | Set-Content -LiteralPath $checksum -Encoding ascii
 
-          $notes = @(
-              "High FPS Fixes corrects behavior in GTA San Andreas 1.0 US that the original"
-              "game ties to the rendered frame rate, without imposing an FPS cap. Every fix"
-              "has its own switch in ``HighFpsFixes.ini``, and behavior at 30 FPS is unchanged."
-              ""
-              "The README lists every fix, which of them have been checked in game and how to"
-              "check the rest."
-          ) -join [Environment]::NewLine
+          $changelog = Get-Content CHANGELOG.md -Raw
+          # The optional suffix after the heading must stay on the heading
+          # line: under (?s) a \s+ there crosses the blank line and swallows the
+          # first bullet of the section.
+          $pattern = "(?ms)^##[ \t]+$([regex]::Escape($version))(?:[ \t]+-[^\r\n]+)?[ \t]*\r?\n(?<body>.*?)(?=^##[ \t]|\z)"
+          $match = [regex]::Match($changelog, $pattern)
+          if (-not $match.Success) {
+              throw "CHANGELOG.md has no section for $version."
+          }
           [IO.File]::WriteAllText(
               (Join-Path build release-notes.md),
-              $notes,
+              $match.Groups['body'].Value.Trim(),
               [Text.UTF8Encoding]::new($false)
           )
 
@@ -70,7 +67,6 @@ jobs:
           "checksum=$checksum" >> $env:GITHUB_OUTPUT
 
       - name: Attest release archive
-        if: ${{ !github.event.repository.private }}
         uses: actions/attest@v4
         with:
           subject-path: ${{ steps.package.outputs.archive }}

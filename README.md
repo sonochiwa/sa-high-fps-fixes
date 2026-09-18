@@ -90,8 +90,7 @@ General:
 
 ## Installation
 
-The release archive contains `HighFpsFixes.asi`, `HighFpsFixes.ini`, the
-optional `validate-game.ps1` preflight tool and a short `README.txt` at its
+The release archive contains `HighFpsFixes.asi` and `HighFpsFixes.ini` at its
 root.
 
 1. Copy `HighFpsFixes.asi` and `HighFpsFixes.ini` into the game's `scripts`

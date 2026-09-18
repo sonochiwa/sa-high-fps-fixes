@@ -259,6 +259,26 @@ __declspec(naked) void FollowCarCameraRateThunk() {
     }
 }
 
+// Replaces the timestep load ahead of the aim camera FOV step. The site runs
+// inside the guarded CCam::Process_AimWeapon call, where the global holds the
+// pinned 1.0, so the step takes the real frame duration from UnguardedTimeStep
+// instead. The helper leaves it in st(0), exactly as the replaced `fld` did,
+// and the `fmul` that follows scales it into the per-frame step.
+__declspec(naked) void AimWeaponFovStepThunk() {
+    __asm {
+        pushfd
+        push eax
+        push ecx
+        push edx
+        call UnguardedTimeStep
+        pop edx
+        pop ecx
+        pop eax
+        popfd
+        jmp kAimWeaponFovStepReturn
+    }
+}
+
 // Leaves the FPU stack exactly as the replaced block did: the reciprocal goes
 // to the same slot and the three deltas underneath it are untouched.
 // Also reached from CCamera::Process, so the divisor is the unguarded timestep

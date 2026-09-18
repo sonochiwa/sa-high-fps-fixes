@@ -76,6 +76,10 @@ constexpr std::array<uint8_t, 10> kExpectedCameraProcess{
 constexpr std::array<uint8_t, 5> kExpectedProcessAimWeapon{
     0xA0, 0x10, 0x01, 0xB7, 0x00
 };
+// fld dword ptr ds:[00B7CB5Ch], the timestep load ahead of the FOV step.
+constexpr std::array<uint8_t, 6> kExpectedAimWeaponFovStep{
+    0xD9, 0x05, 0x5C, 0xCB, 0xB7, 0x00
+};
 constexpr std::array<uint8_t, 6> kExpectedWheelFriction{
     0xD9, 0x05, 0xCC, 0xB9, 0xC2, 0x00
 };

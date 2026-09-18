@@ -33,7 +33,16 @@ bool InstallAimCameraShakeFix() {
             "or another plugin already hooks them.");
         return false;
     }
+    // The guard pins the timestep the FOV step reads, so the zoom site goes
+    // in with the hooks and comes out with them: one without the other would
+    // either leave the zoom running at the frame rate or change nothing.
+    if (!InstallJump(g_aimWeaponFovStepPatch, kAimWeaponFovStep,
+                     &AimWeaponFovStepThunk, kExpectedAimWeaponFovStep)) {
+        Log("Aim camera shake fix skipped: the aim FOV step bytes do not match GTA SA 1.0 US.");
+        return false;
+    }
     if (MH_Initialize() != MH_OK) {
+        RestoreSite(g_aimWeaponFovStepPatch);
         Log("Aim camera shake fix skipped: MinHook initialization failed.");
         return false;
     }
@@ -52,10 +61,12 @@ bool InstallAimCameraShakeFix() {
         && MH_EnableHook(reinterpret_cast<void*>(kProcessAimWeapon)) == MH_OK;
     if (!enabled) {
         RemoveAimCameraHooks();
+        RestoreSite(g_aimWeaponFovStepPatch);
         Log("Aim camera shake fix skipped: camera hooks could not be installed.");
         return false;
     }
-    Log("Installed scoped aim-camera timestep guards around CCamera::Process and Process_AimWeapon.");
+    Log("Installed scoped aim-camera timestep guards around CCamera::Process and "
+        "Process_AimWeapon, with the aim FOV zoom kept on the real timestep.");
     return true;
 }
 

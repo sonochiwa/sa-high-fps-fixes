@@ -25,7 +25,7 @@ Camera:
 
 - Prevents unique stunt jump camera timers from stalling at very high FPS.
 - Prevents high-FPS aiming-camera shake while keeping player task and roll
-  timing on the real game timestep.
+  timing, and the aim FOV zoom, on the real game timestep.
 
 Player:
 
@@ -224,7 +224,7 @@ forPauseMenu=0
 | Setting | Default | Meaning |
 | --- | ---: | --- |
 | `stuntJumpCamera` | `1` | Enables fraction-preserving stunt timers. |
-| `aimCameraShake` | `1` | Temporarily raises both camera timesteps to the 50 FPS minimum while the on-foot aim camera is processed, then restores them before unrelated game processing continues. |
+| `aimCameraShake` | `1` | Temporarily raises both camera timesteps to the 50 FPS minimum while the on-foot aim camera is processed, then restores them before unrelated game processing continues. The aim FOV zoom inside that window keeps reading the real timestep, so zooming in on a weapon takes as long as it does at 30 FPS instead of speeding up with the frame rate. |
 | `followCameraRate` | `1` | Divides the follow cameras' turn rate by the real timestep instead of clamping the divisor at 1.0. The clamp only binds above 50 FPS, where it leaves the rate short by the ratio. |
 | `idleCameraTimer` | `1` | Same carry on `CIdleCam::ProcessIdleCamTicker`, which counts truncated frame time until the idle camera starts drifting. |
 | `drunkCameraShake` | `1` | Turns the drunk camera sway at its original speed. `CCamera::Process` offsets the camera by `Drunkness * amplitude * cos(phase)` while the player is drunk, and advances `phase` by a flat five degrees every rendered frame, so the sway spins at 150 degrees a second at 30 FPS and 600 at 120. The step is scaled by the timestep ratio; the amplitudes are untouched, so the sway is as wide as it always was and only its rate changes. |

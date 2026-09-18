@@ -129,6 +129,15 @@ constexpr size_t kCameraWeaponMode = 0x830;
 constexpr size_t kCamSize = 0x238;
 constexpr size_t kCamMode = 0x0C;
 constexpr size_t kPedFlagsInVehicle = 0x46D;
+// Aim camera zoom. `CCam::Process_AimWeapon` walks `m_fFOV` toward the
+// weapon's aim FOV by `GetTimeStep() * 1.0` degrees a frame, 50 degrees a
+// second at any frame rate. The aim guard above pins the timestep at 1.0 for
+// the whole call, so above 50 FPS the step stops shrinking with the frame and
+// the zoom runs at the frame rate instead: 144 degrees a second at 144 FPS,
+// nearly three times the stock speed. The load is replaced by the real frame
+// duration, which is what the original reads when no guard is in place.
+constexpr uintptr_t kAimWeaponFovStep = 0x0052167A;
+constexpr uintptr_t kAimWeaponFovStepReturn = 0x00521680;
 
 // Drunk camera sway. While `CMBlur::Drunkness` at 0xC73C58 is above zero,
 // `CCamera::Process` sways the camera's front, up and position vectors by

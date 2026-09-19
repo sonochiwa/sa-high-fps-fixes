@@ -13,6 +13,7 @@ struct IniCompletionResult {
 };
 bool RefreshIniVersionHeader();
 IniCompletionResult CompleteIniWithMissingDefaults();
+void MigrateIniLayout();
 void RegisterConfigKey(const char* section, const char* key);
 void AddConfigWarning(const char* section, const char* key, const char* reason);
 bool ReadSetting(const char* section, const char* key, bool defaultValue);

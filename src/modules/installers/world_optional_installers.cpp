@@ -364,20 +364,6 @@ bool InstallFrameLimit(int limit) {
     return true;
 }
 
-bool InstallRefreshRate(int refreshRate) {
-    if (!MemoryMatches(kRefreshRateCompare, kExpectedRefreshRate)) {
-        Log("Refresh rate skipped: mode selection bytes do not match GTA SA 1.0 US.");
-        return false;
-    }
-    if (!InstallByte(g_refreshRatePatch, kRefreshRateOperand,
-                     static_cast<uint8_t>(refreshRate))) {
-        Log("Refresh rate failed while patching mode selection.");
-        return false;
-    }
-    Log("Installed the configured minimum display refresh rate.");
-    return true;
-}
-
 bool InstallAutoFpsLimit() {
     PatchSet patches("Automatic FPS limit");
     if (!patches.Track(

@@ -194,6 +194,57 @@ IniCompletionResult CompleteIniWithMissingDefaults() {
     return result;
 }
 
+// 1.2.0 folded [autoLimitFps] into [framerate] and dropped refreshRate.
+// Values move over once and the old section is removed, so an upgraded
+// file has no unknown keys to warn about.
+void MigrateIniLayout() {
+    if (g_iniPath.empty()) {
+        return;
+    }
+    constexpr const char* keys[] = {
+        "forMissions", "forMinigames", "forSchools",
+        "forCutscenes", "forScriptedCutscenes", "forPauseMenu",
+    };
+    constexpr char missingValue[] = "\x1Dhigh-fps-fixes-missing\x1D";
+    bool changed = false;
+    for (const char* key : keys) {
+        std::array<char, 128> oldValue{};
+        GetPrivateProfileStringA("autoLimitFps", key, missingValue,
+                                 oldValue.data(),
+                                 static_cast<DWORD>(oldValue.size()),
+                                 g_iniPath.c_str());
+        if (std::strcmp(oldValue.data(), missingValue) == 0) {
+            continue;
+        }
+        std::array<char, 128> newValue{};
+        GetPrivateProfileStringA("framerate", key, missingValue,
+                                 newValue.data(),
+                                 static_cast<DWORD>(newValue.size()),
+                                 g_iniPath.c_str());
+        if (std::strcmp(newValue.data(), missingValue) == 0) {
+            WritePrivateProfileStringA("framerate", key, oldValue.data(),
+                                       g_iniPath.c_str());
+        }
+        changed = true;
+    }
+    std::array<char, 128> refreshRate{};
+    GetPrivateProfileStringA("framerate", "refreshRate", missingValue,
+                             refreshRate.data(),
+                             static_cast<DWORD>(refreshRate.size()),
+                             g_iniPath.c_str());
+    if (std::strcmp(refreshRate.data(), missingValue) != 0) {
+        WritePrivateProfileStringA("framerate", "refreshRate", nullptr,
+                                   g_iniPath.c_str());
+        changed = true;
+    }
+    if (changed) {
+        WritePrivateProfileStringA("autoLimitFps", nullptr, nullptr,
+                                   g_iniPath.c_str());
+        WritePrivateProfileStringA(nullptr, nullptr, nullptr,
+                                   g_iniPath.c_str());
+    }
+}
+
 void RegisterConfigKey(const char* section, const char* key) {
     for (size_t i = 0; i < g_knownConfigKeyCount; ++i) {
         if (_stricmp(g_knownConfigKeys[i].section, section) == 0

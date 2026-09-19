@@ -133,7 +133,6 @@ extern std::array<SitePatch, 4> g_railWheelSpinPatches;
 extern std::array<SitePatch, 2> g_heliRotorPatches;
 extern BytePatch g_frameLimiterGatePatch;
 extern BytePatch g_frameLimitStorePatch;
-extern BytePatch g_refreshRatePatch;
 extern DetourPatch g_fxCreateParticlesPatch;
 extern DetourPatch g_fxAddParticlePatch;
 extern float g_endTimerFraction;
@@ -169,7 +168,6 @@ struct HornTapState {
 };
 extern std::array<HornTapState, 2> g_hornTapStates;
 extern int g_fpsLimit;
-extern int g_refreshRate;
 extern int g_lastFpsLimit;
 extern bool g_isOnPauseMenu;
 extern AutoLimitFlags g_autoLimit;

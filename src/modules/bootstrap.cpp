@@ -24,6 +24,7 @@ DWORD WINAPI Initialize(void*) {
     g_iniPath = ModulePathWithExtension(".ini");
     g_logPath = ModulePathWithExtension(".log");
     const bool iniCreatedOrPresent = CreateDefaultIniIfMissing();
+    MigrateIniLayout();
     const IniCompletionResult iniCompletion =
         CompleteIniWithMissingDefaults();
     const bool iniHeaderRefreshed = RefreshIniVersionHeader();
@@ -230,13 +231,8 @@ DWORD WINAPI Initialize(void*) {
     InstallFixes(worldAndMenuFixes);
 
     g_fpsLimit = std::clamp(ReadNumber("framerate", "fpsLimit", 0), 0, 255);
-    g_refreshRate = std::clamp(ReadNumber("framerate", "refreshRate", 0), 0,
-                               255);
     if (g_fpsLimit > 0) {
         InstallFrameLimit(g_fpsLimit);
-    }
-    if (g_refreshRate > 0 && g_refreshRate != 60) {
-        InstallRefreshRate(g_refreshRate);
     }
     g_traceCycleSkill = ReadSetting("general", "traceCycleSkill", false);
     g_traceChainsaw = ReadSetting("general", "traceChainsaw", false);
@@ -347,17 +343,17 @@ DWORD WINAPI Initialize(void*) {
 
     g_autoLimit.value = 0;
     g_autoLimit.flags.forMissions =
-        ReadSetting("autoLimitFps", "forMissions", false);
+        ReadSetting("framerate", "forMissions", false);
     g_autoLimit.flags.forMinigames =
-        ReadSetting("autoLimitFps", "forMinigames", false);
+        ReadSetting("framerate", "forMinigames", false);
     g_autoLimit.flags.forSchools =
-        ReadSetting("autoLimitFps", "forSchools", false);
+        ReadSetting("framerate", "forSchools", false);
     g_autoLimit.flags.forCutscenes =
-        ReadSetting("autoLimitFps", "forCutscenes", false);
+        ReadSetting("framerate", "forCutscenes", false);
     g_autoLimit.flags.forScriptedCutscenes =
-        ReadSetting("autoLimitFps", "forScriptedCutscenes", false);
+        ReadSetting("framerate", "forScriptedCutscenes", false);
     g_autoLimit.flags.forPauseMenu =
-        ReadSetting("autoLimitFps", "forPauseMenu", false);
+        ReadSetting("framerate", "forPauseMenu", false);
     if (g_autoLimit.value != 0) {
         InstallAutoFpsLimit();
     }

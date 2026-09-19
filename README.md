@@ -25,6 +25,8 @@ is reached at any higher frame rate. Each fix has its own switch.
   falling glass, breakable objects, pause menu map zoom.
 - Optional frame limiting and automatic FPS limits for specific game cases,
   all off by default.
+- Verifies the bytes it replaces before writing and refuses to patch any
+  other executable.
 
 ## Requirements
 
@@ -46,104 +48,8 @@ when the game starts.
 
 ## Configuration
 
-```ini
-# High FPS Fixes v1.1.0
-# Created by sonochiwa
-# Source code: https://github.com/sonochiwa/sa-high-fps-fixes
-
-[general]
-log=0
-overrideConflictingHooks=1
-
-[camera]
-stuntJumpCamera=1
-aimCameraShake=1
-followCameraRate=1
-idleCameraTimer=1
-drunkCameraShake=1
-drunkCameraShake=1
-
-[player]
-aimingRifleWalk=1
-swimmingMovement=1
-swimPitchRate=1
-pedPushVehicle=1
-bloodyFootprints=1
-drowningDamage=1
-drunkSteerDelay=1
-jetPackFlame=1
-fatCounter=1
-waterBuoyancy=1
-climbSpeed=1
-skillProgress=1
-stuntCounters=1
-taskTimers=1
-
-[vehicles]
-bikeLeanTarget=1
-bikePitchExperiment=1
-bikePitchExperimentStrength=100
-restThreshold=1
-physicsSleepRate=1
-wheelFriction=1
-abandonedBikePhysicsStep=1
-railWheelSpin=1
-burnout=1
-disableSwingingCompletely=0
-sirenTap=1
-heliRotorSpeed=1
-skimmerResistance=1
-attachedEntitySpeed=1
-aiAircraftSteer=1
-upsideDownTimer=1
-vehicleTimers=1
-burnTimers=1
-wheelSettle=1
-wheelSpin=1
-boatEngineSpeed=1
-bmxSprintLean=1
-bmxLeanSettle=1
-bikeWheelSpin=1
-headBopping=1
-jumpOutCarSpeed=1
-doorSwing=1
-
-[weapons]
-continuousWeaponParticles=1
-continuousWeaponAmmo=1
-chainsawStrikeRate=1
-
-[particles]
-emissionRate=1
-
-[hud]
-hudTiming=1
-disableFlashing=0
-
-[world]
-gangWarTimer=1
-fireSpread=1
-scriptObjectSlide=1
-scriptObjectRotate=1
-sampObjectRotation=1
-fallingGlass=1
-breakableObjectLifetime=1
-
-[menu]
-mapZoomWheel=1
-
-[framerate]
-fpsLimit=0
-refreshRate=0
-
-[autoLimitFps]
-forMissions=0
-forMinigames=0
-forSchools=0
-forCutscenes=0
-forScriptedCutscenes=0
-forPauseMenu=0
-```
+`HighFpsFixes.ini` next to the plugin, created with these defaults when it is
+missing:
 
 | Setting | Default | Meaning |
 | --- | ---: | --- |
@@ -220,8 +126,6 @@ forPauseMenu=0
 | `mapZoomWheel` | `1` | The mouse wheel zooms the pause menu map at high FPS. |
 | `[framerate]` | | |
 | `fpsLimit` | `0` | Frame limit in FPS, `1` to `255`. `0` leaves the game's limiter alone. |
-| `refreshRate` | `0` | Minimum display refresh rate accepted during mode selection. `0` and `60` leave it alone. |
-| `[autoLimitFps]` | | |
 | `forMissions` | `0` | Limits FPS during missions known to break at high FPS. |
 | `forMinigames` | `0` | Limits FPS to 30 during pool and the intimacy minigame. |
 | `forSchools` | `0` | Limits FPS to 80 during driving, boat and bike school. |

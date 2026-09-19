@@ -85,7 +85,6 @@ std::array<SitePatch, 4> g_railWheelSpinPatches{};
 std::array<SitePatch, 2> g_heliRotorPatches{};
 BytePatch g_frameLimiterGatePatch{};
 BytePatch g_frameLimitStorePatch{};
-BytePatch g_refreshRatePatch{};
 DetourPatch g_fxCreateParticlesPatch{};
 DetourPatch g_fxAddParticlePatch{};
 
@@ -126,7 +125,6 @@ int32_t g_fakePhysicsTick{1};
 std::array<HornTapState, 2> g_hornTapStates{};
 
 int g_fpsLimit{};
-int g_refreshRate{};
 int g_lastFpsLimit{};
 bool g_isOnPauseMenu{};
 AutoLimitFlags g_autoLimit{};

@@ -21,7 +21,6 @@ bool InstallDrowningDamageFix();
 bool InstallContinuousWeaponAmmoFix();
 bool InstallChainsawStrikeRateFix();
 bool InstallFrameLimit(int limit);
-bool InstallRefreshRate(int refreshRate);
 bool InstallAutoFpsLimit();
 bool InstallConflictingHookGuard();
 

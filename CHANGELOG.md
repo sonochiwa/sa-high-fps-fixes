@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.0
+
+- Removed `refreshRate`; use SilentPatch for that.
+- Merged `[autoLimitFps]` into `[framerate]`. An existing INI is migrated.
+- Added `README.txt` to the release archive.
+
 ## 1.1.0
 
 - Changed the `enableLogging` setting to `log`, off by default. Configuration

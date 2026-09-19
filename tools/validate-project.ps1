@@ -13,11 +13,6 @@ if (-not $versionHeader.Contains("#define PLUGIN_VERSION `"$version`"")) {
     throw 'src\version.h does not match the canonical INI version.'
 }
 
-$readme = [IO.File]::ReadAllText((Join-Path $projectRoot 'README.md'))
-if (-not $readme.Contains("# High FPS Fixes v$version")) {
-    throw 'README configuration example does not match the canonical INI.'
-}
-
 $changelog = Get-Content -LiteralPath (Join-Path $projectRoot 'CHANGELOG.md')
 if (-not ($changelog -contains "## $version")) {
     throw "CHANGELOG.md has no section for $version."

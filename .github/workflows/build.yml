@@ -11,6 +11,7 @@ jobs:
   build:
     runs-on: windows-2022
     strategy:
+      fail-fast: false
       matrix:
         configuration: [Debug, Release]
 
@@ -25,9 +26,5 @@ jobs:
         shell: pwsh
         run: .\tools\validate-project.ps1
 
-      - name: Build and analyze
-        run: >-
-          msbuild HighFpsFixes.sln /m /t:Rebuild
-          /p:Configuration=${{ matrix.configuration }}
-          /p:Platform=Win32
-          /p:RunCodeAnalysis=true
+      - name: Build ${{ matrix.configuration }}|Win32
+        run: msbuild HighFpsFixes.sln /t:Rebuild /p:Configuration=${{ matrix.configuration }} /p:Platform=Win32 /warnaserror

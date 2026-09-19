@@ -1,96 +1,38 @@
 # High FPS Fixes
 
-`HighFpsFixes.asi` is a standalone GTA San Andreas plugin that corrects
+`HighFpsFixes.asi` is a GTA San Andreas plugin that corrects
 frame-rate-dependent behavior without imposing an FPS cap.
 
-The current build targets GTA San Andreas 1.0 US Compact and Hoodlum. Both use
-the same address layout; the plugin detects their distinct entry signatures,
-then validates the original instructions at every patch site. The aim camera
-uses MinHook, after checking that both entry points belong to the game image
-and still hold their stock prologues. Other executable versions are left
-untouched.
-
-Every fix rescales one original engine calculation against the timestep the
-game had at 30 FPS, so behavior at 30 FPS is unchanged and the same result is
-reached at any higher frame rate. Ordinary fixes do not rewrite GTA's global
-timestep. The aim-camera fix and optional experimental abandoned-bike mode
-scope a temporary timestep around their stock game calls and restore it
-immediately.
-The plugin never caps the frame rate unless the optional frame limiting
-settings are enabled explicitly.
+Much of the game was tuned for 30 FPS: above it, cars brake too abruptly,
+bikes rock while standing still, swimming and climbing change speed, timers
+run fast and the HUD strobes. Every fix rescales one original calculation to
+the real frame time, so behavior at 30 FPS is unchanged and the same result
+is reached at any higher frame rate. Each fix has its own switch.
 
 ## Features
 
-Camera:
-
-- Prevents unique stunt jump camera timers from stalling at very high FPS.
-- Prevents high-FPS aiming-camera shake while keeping player task and roll
-  timing, and the aim FOV zoom, on the real game timestep.
-
-Player:
-
-- Keeps the walk step used while aiming a rifle independent of FPS.
-- Normalizes surface swimming, the initial dive, underwater movement, ascent
-  and player buoyancy against the original 30 FPS behavior.
-- Delivers the push a ped gives any vehicle at the original rate, so a walking
-  ped cannot shove either a parked or occupied car excessively at high FPS.
-
-Vehicles:
-
-- Driving physics — braking, wheel slip, air resistance and suspension — is
-  left exactly as FramerateVigilante leaves it: only wheel friction, burnout
-  wheel speed and on-rails wheel rotation are scaled. Earlier attempts to
-  correct turn damping, ground friction, wheel slip, the stand-still snap,
-  suspension damping, the roll-onto-wheels assist and collision push-out
-  changed how cars slide and fly and have been removed.
-- Stops a bike rocking from side to side while standing still, by measuring the
-  rider lean over real time instead of over one rendered frame.
-- Keeps the engine from parking an abandoned or wrecked vehicle sooner in real
-  time at high FPS.
-- Scales wheel friction to stop cars and bikes from braking or losing inertia
-  too abruptly at high FPS.
-- Keeps on-rails wheel rotation, burnout wheel speed, helicopter rotor
-  acceleration and skimmer water resistance independent of FPS.
-- Keeps lowrider swinging chassis from amplifying suspension-contact jitter at
-  high FPS while preserving responsive fire truck ladder movement.
-- Detects a horn tap by wall-clock time, so tapping the horn still toggles the
-  siren at high FPS instead of sounding the horn.
-- Eases drawn bike and aircraft wheels back down in real time; automobile
-  wheels retain their stock response to avoid excessive visual suspension travel.
-- Keeps free wheel spin, boat propeller coast-down, rider lean and head bop on
-  real time.
-
-Weapons:
-
-- Keeps extinguisher foam, spraycan paint and flamethrower particles visible
-  when the frame limiter is disabled.
-- Keeps extinguisher, spraycan and flamethrower ammunition consumption at the
-  original 30 FPS rate when the game runs faster.
-- Holds a chainsaw's sustained attack to its original fifteen strikes a second
-  instead of letting the hit rate rise with the frame rate.
-
-HUD:
-
-- Keeps the low-health, armor, breath and wanted-star flashes, and the
-  scripted radar flash, blinking at their original rate instead of strobing.
-
-General:
-
-- Optional frame limiting, minimum display refresh rate and automatic FPS
-  limiting for specific game cases. All are disabled by default.
-- Can disable any individual fix through an INI file.
-- Writes an installation log by default so executable-profile and patch issues
-  can be diagnosed. Logging can be disabled in the `[general]` section.
+- Camera: stunt jump, aim shake, follow, idle and drunk camera timing.
+- Player: swimming, diving, buoyancy, climbing, aiming walk, skill and
+  stunt counters, drowning, drunk steering, jetpack flame.
+- Vehicles: wheel friction, burnout, bike lean and pitch, rotor and
+  propeller speed, door swing, head bop, siren tap and the timers that
+  park, burn or flip a vehicle.
+- Weapons: extinguisher, spraycan and flamethrower particles and ammunition,
+  chainsaw strike rate.
+- HUD: health, armor, breath, wanted-star and radar flashes at their
+  original rate.
+- World: gang war countdown, fire spread, scripted and SA-MP object movement,
+  falling glass, breakable objects, pause menu map zoom.
+- Optional frame limiting and automatic FPS limits for specific game cases,
+  all off by default.
 
 ## Requirements
 
-- GTA San Andreas 1.0 US (Compact or Hoodlum executable). Both use the same
-  address layout; the plugin detects their distinct entry signatures and
-  verifies the original instructions at every patch site.
+- GTA San Andreas 1.0 US (Compact or Hoodlum executable).
 - An ASI loader, such as Silent's ASI Loader or Ultimate ASI Loader.
 
-Other executables are unsupported and are left untouched; the log names the
-first site that did not match.
+Other executables are left untouched; the log names the first site that did
+not match.
 
 ## Installation
 
@@ -98,28 +40,11 @@ first site that did not match.
    directory or its `scripts` directory.
 2. Start the game.
 
-The plugin creates the canonical INI beside itself when it is missing. On
-later updates it adds missing keys with their defaults without overwriting
-user values, comments, blank lines, ordering or extra diagnostic keys. A
-deleted setting is restored, so use `setting=0` rather than removing a line
-to keep a fix disabled. The plugin is pinned for the lifetime of the process,
-so exit the game before replacing or removing the files.
+Missing keys are added to an existing INI with their defaults, so keep a fix
+disabled with `setting=0` rather than by deleting its line. Settings are read
+when the game starts.
 
 ## Configuration
-
-The shipped INI contains a `[general]` section and the individual fix
-switches. Invalid keys, invalid values and executable-byte mismatches force
-the log on even with `log=0`. Development trace keys and the particle ceiling
-are not shipped because they are only useful for diagnostics.
-
-| Key | Section | Default | Meaning |
-| --- | --- | ---: | --- |
-| `log` | `general` | `0` | Writes `HighFpsFixes.log` beside the plugin, listing every fix that installed and every one that was skipped with the reason. Configuration and patch errors force it on. |
-| `overrideConflictingHooks` | `general` | `1` | Makes this plugin win at every instruction it patches when another frame-rate plugin, such as FramerateVigilante, patches the same one. A site already holding another module's branch is patched over it, and a once-a-frame guard puts the patch back if it is written over later in startup. Only hooks of the same shape are claimed, a relative branch into another module padded with NOPs; anything else is left alone and logged. Set it to `0` to fall back to first-come-first-served. |
-| `traceVehicleState`, `traceWatchOffset`, `traceWatchMode`, `traceWatchHits`, `traceWatchSamples`, `traceWatchReports`, `traceWatchArmDelay`, `tracePlayerPed`, `traceCycleSkill`, `traceChainsaw` | `general` | `0` | Development traces. They sample vehicle or player state, or count a specific loop, into `HighFpsFixes.trace.log` and the main log. Only useful with the source at hand. |
-| `particlesPerSecond` | `particles` | `0` | A hard ceiling on new particles a second, the way FxLimiter capped them. This trades effects away for frame time rather than correcting a frame-rate dependence, and `emissionRate` already restores the intended density, so it is off unless asked for by hand. |
-
-The shipped file, and what every switch means:
 
 ```ini
 # High FPS Fixes v1.1.0
@@ -222,68 +147,81 @@ forPauseMenu=0
 
 | Setting | Default | Meaning |
 | --- | ---: | --- |
-| `stuntJumpCamera` | `1` | Enables fraction-preserving stunt timers. |
-| `aimCameraShake` | `1` | Temporarily raises both camera timesteps to the 50 FPS minimum while the on-foot aim camera is processed, then restores them before unrelated game processing continues. The aim FOV zoom inside that window keeps reading the real timestep, so zooming in on a weapon takes as long as it does at 30 FPS instead of speeding up with the frame rate. |
-| `followCameraRate` | `1` | Divides the follow cameras' turn rate by the real timestep instead of clamping the divisor at 1.0. The clamp only binds above 50 FPS, where it leaves the rate short by the ratio. |
-| `idleCameraTimer` | `1` | Same carry on `CIdleCam::ProcessIdleCamTicker`, which counts truncated frame time until the idle camera starts drifting. |
-| `drunkCameraShake` | `1` | Turns the drunk camera sway at its original speed. `CCamera::Process` offsets the camera by `Drunkness * amplitude * cos(phase)` while the player is drunk, and advances `phase` by a flat five degrees every rendered frame, so the sway spins at 150 degrees a second at 30 FPS and 600 at 120. The step is scaled by the timestep ratio; the amplitudes are untouched, so the sway is as wide as it always was and only its rate changes. |
-| `aimingRifleWalk` | `1` | Scales the walk step used while aiming a rifle. |
-| `swimPitchRate` | `1` | Raises the swim pitch rate decay in `CTaskSimpleSwim::ProcessSwimmingResistance` to the timestep. Unpatched, the rate at which a swimmer pitches up or down decays once per frame while the build-up and the angle integration two instructions away both use the timestep, so the swim angle barely responds at a high frame rate. |
-| `swimmingMovement` | `1` | Converts the per frame animation shift into a speed for the swim task, which is the target its already time-correct blend converges to. 
-| `waterBuoyancy` | `1` | Evaluates the buoyancy cutoff in original timestep units. Unpatched, a rising swimmer loses all lift above a few hundred FPS and surfacing crawls. |
-| `climbSpeed` | `1` | Clamps the climb move speed the way the sibling branch already does. Unpatched, the last part of a climb leaves a move speed the impact code reads as a lethal fall. |
-| `skillProgress` | `1` | Carries the fraction that `_ftol` discards in all 21 stat counter truncations in `CStats::UpdateStatsWhen*`. Unpatched, every skill that levels through use (stamina, cycling, swimming, lung capacity, driving, flying, motorbike, fat, max health) advances more slowly the higher the frame rate, and stops entirely above about 1000 FPS. |
-| `stuntCounters` | `1` | Same carry applied to the wheelie, stoppie and two-wheel counters in `CPlayerInfo::Process`, and to the grace buffers that let a stunt survive a brief interruption. Unpatched, stunt time accumulates more slowly the higher the frame rate. |
-| `taskTimers` | `1` | Same carry on six ped and player task timers: target evaluation, stealth kill, time in air, the climb timeout and the melee combo window. Each is compared against a threshold in milliseconds, so the truncation moves the threshold. |
-| `pedPushVehicle` | `1` | Delivers the impulse an on-foot ped gives a vehicle at the original 30 Hz cadence. Only the vehicle-side force is rate-limited; the ped-side response remains stock so contacts cannot build up penetration and release it as an oversized shove. This applies to both empty and occupied vehicles. At 30 FPS the fix is an exact no-op. |
-| `bloodyFootprints` | `1` | Runs the bloody-footprint countdown in real time. Above 30 FPS the right-foot shadow keeps its own X/Y position but uses the immediately preceding working left-foot projection height for the same ped. At 30 FPS the shadow position remains completely stock. |
-| `drowningDamage` | `1` | Carries the fraction of drowning damage that integer truncation discards into the next frame. Above roughly 150 FPS the unpatched game deals none at all. |
-| `drunkSteerDelay` | `1` | Shifts the steering delay line in `CPad::Update` at the original 30 FPS rate. The buffer is a ten deep FIFO of steering samples shifted once per frame, and a script sets how many entries of lag the player gets when drunk, so the lag is measured in frames: nine entries are 300 ms at 30 FPS and 4.5 ms at 2000, which removes the effect entirely. |
-| `jetPackFlame` | `1` | Ramps the jetpack thruster flame by time rather than by frames. `CTaskSimpleJetPack::DoJetPackEffect` moves `m_FxKeyTime` by 0.1 per frame toward 1 while the thrusters fire and back toward 0 when they stop, and hands it to the particle system as its constant time; ten frames is a third of a second at 30 FPS and twenty milliseconds at 500, so the flame snaps between its two states instead of blending. Cosmetic. |
-| `fatCounter` | `1` | Carries the remainder that `CStats::UpdateFatAndMuscleStats` throws away. The counter takes `milliseconds * exerciseRate / 10` in integer arithmetic, and that divide keeps no remainder: at 30 FPS the numerator is 33 times the rate, at 500 FPS it is 2 times the rate, so any exercise rate below five yields zero on every frame and fat never burns off however far the player runs. The divide is done in floating point and the fraction is kept for the next frame. Sits below the `_ftol` that `skillProgress` already repaired, and needs it. |
-| `bikeLeanTarget` | `1` | Measures the lean target over one original frame and blends that stabilized value in continuously above 30 FPS; the correction is exactly zero at the stock rate. The measurement carries the whole velocity vector and projects it onto the bike's right axis only after differencing, so a steady corner still reports its centripetal term. |
-| `bikePitchExperiment` | `1` | Corrects excessive backward pitch acquired at takeoff. Motorcycles are corrected only in the rear-wheel takeoff phase after the front suspension has cleared the ramp. A BMX bunny hop gets one measured correction after its stock launch physics pass, preventing the small initial angular-speed error from accumulating into several extra degrees before landing. Level-ground wheelies, nose-down pitch, yaw, roll, and 30 FPS or below remain stock. |
-| `bikePitchExperimentStrength` | `100` | Percentage of the frame-rate excess removed from positive pitch during that takeoff window. The actual correction is also multiplied by `1 - current timestep / 30-FPS timestep`, so it fades continuously to zero at 30 FPS. Changing this value does not require rebuilding the plugin. |
-| `restThreshold` | `1` | Rescales the at-rest move distance limit for abandoned and wrecked vehicles. |
-| `physicsSleepRate` | `1` | Steps the `m_nFakePhysics` sleep counter in real time instead of once per frame. |
-| `wheelFriction` | `1` | Scales car and bike wheel friction by the current timestep. |
-| `abandonedBikePhysicsStep` | `1` | Experimental riderless-bike mode. Above 30 FPS, only bikes in `STATUS_ABANDONED` run their complete control, collision, and penetration-shift pipeline at the original 30 Hz cadence and timestep. Their RenderWare transform and render-only lean matrix used by lights are interpolated every rendered frame, while the collision matrix retains exact 30 Hz states. A bike being picked up returns to normal per-frame processing as soon as the game's `bGettingPickedUp` flag is set, keeping that animation smooth. Player-controlled vehicles remain on the normal high-FPS path. |
-| `railWheelSpin` | `1` | Scales on-rails wheel rotation by the current timestep. |
-| `burnout` | `1` | Scales burnout wheel speed by the current timestep. |
-| `disableSwingingCompletely` | `0` | Keeps lowrider and similar swinging bodies rigid. This is a preference rather than an FPS fix; it suppresses the stock sway at 30 FPS too. |
-| `sirenTap` | `1` | Detects a horn tap by wall-clock time instead of frame count. |
-| `heliRotorSpeed` | `1` | Scales helicopter rotor acceleration by the current timestep. |
-| `skimmerResistance` | `1` | Scales skimmer water resistance by the current timestep. |
-| `attachedEntitySpeed` | `1` | Divides the distance an attached entity moved by the real timestep instead of clamping the divisor at 1.0. The clamp only binds above 50 FPS, where the resulting speed, and the force fed back into whatever the entity hangs off, come out short by the ratio. |
-| `aiAircraftSteer` | `1` | Divides the AI aircraft autopilot damping term by the real timestep instead of clamping the divisor at 1.0. The clamp only binds above 50 FPS, where the term fades out as the frame rate rises and leaves AI planes and helicopters under-damped. |
-| `upsideDownTimer` | `1` | Same carry applied to `CUpsideDownCarCheck::UpdateTimers`, which adds the truncated frame time to the timer of every car currently on its roof. |
-| `vehicleTimers` | `1` | Same carry on the `CCarCtrl::UpdateCarAI` timer and the `CVehicle::FlyingControl` timer. |
-| `burnTimers` | `1` | Same carry on the burn timers of cars, bikes and boats, which count how long a burning vehicle has before it explodes. |
-| `wheelSettle` | `1` | Eases drawn bike, BMX and aircraft wheels back down in real time. Automobile wheels deliberately keep their stock visual response: stretching their downward travel to the 30-FPS duration can leave long-travel rear wheels visibly hanging below the body after the physical suspension has already moved. Cosmetic — the drawn wheel, not the suspension. |
-| `boatEngineSpeed` | `1` | Scales the boat engine coast down in `CBoat::ProcessControl` by the timestep. The propeller speed of a boat nobody is driving falls by a fixed 5% per frame, while the three branches that drive the same field under control all use the timestep, so an abandoned boat's propeller stops and its engine note dies far sooner at a high frame rate. |
-| `bikeWheelSpin` | `1` | Coasts a bike's free front wheel down in real time. `CBike::ProcessControl` holds two copies of the same five instructions, on the two sides of a rider flag; the copy at `0x6BB59B` multiplies the wheel's angular velocity by the timestep before the pitch angle integrates it and the copy at `0x6BAC77` does not, so the free front wheel spins sixteen times as fast at 500 FPS as at 30. The rear wheel a page below carries the timestep too, which makes that one copy the odd one out of three. The `0.95` decay, the same instruction `wheelSpin` fixes on cars, is raised to the timestep in both copies. Cosmetic; it is the visible wheel spin, not the physics. |
-| `headBopping` | `1` | Ramps the driver's head bop by time rather than by frames. `CTaskSimpleCarDrive::ProcessHeadBopping` moves the bop weight by 0.05 per frame between 0 and 1, twenty frames from still to full, and the weight drives how far the head actually moves. Cosmetic. |
-| `bmxSprintLean` | `1` | Raises the BMX sprint lean decay in `CBmx::ProcessControl` to the timestep. Cosmetic: the rider's body sway returns to neutral once per frame regardless of frame length, so it snaps back instead of easing at a high frame rate. |
-| `bmxLeanSettle` | `1` | Settles the BMX rider's animated lean in real time. `CBmx::ProcessDrivingAnims` decays `AnimLeanLeft` and `AnimLeanFwd` by `0.95` once per frame in two branches, four instructions in all, while twenty bytes above the first pair the same function decays another field with `pow(rate, GetTimeStep())`. At 500 FPS the lean snaps to neutral instead of easing. Cosmetic, and the sibling of `bmxSprintLean`. |
-| `jumpOutCarSpeed` | `1` | Raises the two speed dampings in `CVehicle::CanPedJumpOutCar` to the timestep. Both are applied once per call with no timestep, between a comparison and a fallthrough that are timestep-correct, so a slow vehicle the player is bailing out of is brought to a halt harder the higher the frame rate. |
-| `wheelSpin` | `1` | Scales the free wheel spin rate in `CAutomobile::ProcessCarWheelPair` by the timestep. The wheel rotation is integrated with a timestep two instructions later, but the speed feeding it is changed once per frame without one, so an airborne wheel spins up or stops almost instantly at a high frame rate. |
-| `doorSwing` | `1` | Corrects damping and angle integration in `CDoor::Process`, and normalizes only the contact-driven angular input used by swinging chassis. Ordinary doors and the firetruck ladder keep their stock input so the ladder remains responsive, while lowrider bodies no longer amplify rear-suspension contact jitter at high FPS. |
-| `continuousWeaponParticles` | `1` | Preserves fractional continuous-weapon particle emission. |
-| `continuousWeaponAmmo` | `1` | Limits continuous area-effect weapon ammo use to the original 30 FPS rate. |
-| `chainsawStrikeRate` | `1` | Holds the player's held chainsaw to the original fifteen strikes a second. `CTaskSimpleFight::ProcessPed` keeps the cut going by rewinding the moving-attack animation to `hit - 0.01` every time it passes `chain`, and `melee.dat` places the chainsaw's `hit` and `chain` 0.0033 s apart, which is shorter than one frame even at 30 FPS. The rewind and the strike cannot fall on the same frame, so the loop costs a near constant two to four frames whatever the frame rate: fifteen hits a second at 30 FPS, three times that at 144 FPS, against peds and vehicles alike. A strike is now armed on a millisecond clock every 66.7 ms; the passes in between park the animation just past `hit`, where the strike test cannot fire. No effect at 30 FPS or below. |
-| `emissionRate` | `1` | Opens each direct particle call site in `FxSystem_c::AddParticle` thirty times a second. Almost every one of the 43 sites sits in a per-frame update and adds a fixed number of particles with no timestep, so exhaust smoke, tyre spray, boat wake, water cannon and sandstorm all thicken with the frame rate — about 66 times the intended density at 2000 FPS. A site idle for at least one original 30 Hz frame is treated as a fresh event, so shell casings, sparks and debris are retained while short random gaps in exhaust emission remain part of the same limited stream. No effect at 30 FPS or below. |
-| `hudTiming` | `1` | One switch over the three HUD timing fixes. The flash clock is driven from real time instead of the frame counter, at the original 320 ms period. The money counter step is scaled into the current frame with the fraction carried, so it counts at the original rate instead of racing through the difference. And the same carry is applied across all 46 timers behind the HUD's timed text and bars: area and vehicle names, help text, mission title, odd job, busted and wasted, success and failed, the fade state, the wanted stars and the player info bars. The timer carry is not an identity at 30 FPS; text stays up about 1% longer than stock. |
+| `[general]` | | |
+| `log` | `0` | Writes `HighFpsFixes.log` beside the plugin. Forced on when a setting or a patch fails. |
+| `overrideConflictingHooks` | `1` | Wins over another frame-rate plugin, such as FramerateVigilante, at the sites both patch. `0` leaves the first one in place. |
+| `[camera]` | | |
+| `stuntJumpCamera` | `1` | Stunt jump camera timers no longer stall at very high FPS. |
+| `aimCameraShake` | `1` | Removes the aim camera shake at high FPS. |
+| `followCameraRate` | `1` | Follow camera turns at the same speed at any FPS. |
+| `idleCameraTimer` | `1` | Idle camera starts after the same time at any FPS. |
+| `drunkCameraShake` | `1` | Drunk camera sways at its original speed. |
+| `[player]` | | |
+| `aimingRifleWalk` | `1` | Walk step while aiming a rifle. |
+| `swimmingMovement` | `1` | Surface swimming, diving and underwater movement speed. |
+| `swimPitchRate` | `1` | Swim pitch settles at the original rate. |
+| `pedPushVehicle` | `1` | A walking ped no longer shoves cars at high FPS. |
+| `bloodyFootprints` | `1` | Bloody footprints fade in real time. |
+| `drowningDamage` | `1` | Drowning damage at the original rate. |
+| `drunkSteerDelay` | `1` | Drunk steering delay at the original rate. |
+| `jetPackFlame` | `1` | Jetpack flame ramps in real time. |
+| `fatCounter` | `1` | Fat and muscle change at the original rate. |
+| `waterBuoyancy` | `1` | Buoyancy no longer fails at high FPS. |
+| `climbSpeed` | `1` | Climb speed at the original rate. |
+| `skillProgress` | `1` | Skill stats progress at the original rate. |
+| `stuntCounters` | `1` | Wheelie, stoppie and two-wheel counters run in real time. |
+| `taskTimers` | `1` | Ped task timers run in real time. |
+| `[vehicles]` | | |
+| `bikeLeanTarget` | `1` | A standing bike no longer rocks from side to side. |
+| `bikePitchExperiment` | `1` | Removes the excessive backward pitch at bike takeoff. |
+| `bikePitchExperimentStrength` | `100` | Percent of that excess removed. |
+| `restThreshold` | `1` | Abandoned and wrecked vehicles come to rest after the same time. |
+| `physicsSleepRate` | `1` | Vehicle physics sleep in real time. |
+| `wheelFriction` | `1` | Cars and bikes brake and coast as at 30 FPS. |
+| `abandonedBikePhysicsStep` | `1` | Experimental: riderless bikes run their physics at the original rate. |
+| `railWheelSpin` | `1` | Train wheels turn at the original rate. |
+| `burnout` | `1` | Burnout wheel speed at the original rate. |
+| `disableSwingingCompletely` | `0` | `1` keeps lowrider and similar swinging bodies rigid. |
+| `sirenTap` | `1` | A horn tap toggles the siren at any FPS. |
+| `heliRotorSpeed` | `1` | Helicopter rotors accelerate at the original rate. |
+| `skimmerResistance` | `1` | Skimmer water resistance at the original rate. |
+| `attachedEntitySpeed` | `1` | Attached entities move at the same speed at any FPS. |
+| `aiAircraftSteer` | `1` | AI aircraft steer at the same rate at any FPS. |
+| `upsideDownTimer` | `1` | Upside-down vehicle timer runs in real time. |
+| `vehicleTimers` | `1` | AI and flight timers run in real time. |
+| `burnTimers` | `1` | Burning vehicles explode after the same time. |
+| `wheelSettle` | `1` | Bike and aircraft wheels settle in real time. |
+| `wheelSpin` | `1` | Free wheel spin at the original rate. |
+| `boatEngineSpeed` | `1` | Boat propellers coast down in real time. |
+| `bmxSprintLean` | `1` | BMX sprint lean returns at the original rate. |
+| `bmxLeanSettle` | `1` | BMX rider lean settles in real time. |
+| `bikeWheelSpin` | `1` | Free bike wheels coast down in real time. |
+| `headBopping` | `1` | Driver head bop in real time. |
+| `jumpOutCarSpeed` | `1` | Jumping out of a car is allowed at the same speeds at any FPS. |
+| `doorSwing` | `1` | Vehicle doors swing at the original rate. |
+| `[weapons]` | | |
+| `continuousWeaponParticles` | `1` | Extinguisher, spraycan and flamethrower particles stay visible without the frame limiter. |
+| `continuousWeaponAmmo` | `1` | Those weapons use ammunition at the original rate. |
+| `chainsawStrikeRate` | `1` | Chainsaw hits fifteen times a second at any FPS. |
+| `[particles]` | | |
+| `emissionRate` | `1` | Particle effects emit at the original rate. |
+| `[hud]` | | |
+| `hudTiming` | `1` | Health, armor, breath, wanted-star and radar flashes blink at the original rate. |
 | `disableFlashing` | `0` | `1` keeps the radar and the low-health bar permanently visible. |
-| `gangWarTimer` | `1` | Same carry on the gang war countdown in `CGangWars::Update`. |
-| `fireSpread` | `1` | Evaluates the three random fire events in `CFire::ProcessFire` at the original 30 FPS rate. Each is a per-frame probability with no timestep, so nearby cars catch fire, fires propagate and fires merge as many times more often as there are frames; at 2000 FPS that is about 66 times the shipped rate. The fourth gate, object burn damage, is deliberately left alone because its body carries a timestep that cancels the extra frames. |
-| `scriptObjectSlide` | `1` | Scales the per-frame movement rate of the `SLIDE_OBJECT` script opcode to the timestep. Target coordinates are untouched, so a scripted gate or platform takes the same wall-clock time to travel at any frame rate. |
-| `scriptObjectRotate` | `1` | The same for the `ROTATE_OBJECT` opcode's angular rate. |
-| `sampObjectRotation` | `1` | Drives a SA-MP `MoveObject` from elapsed wall-clock time instead of from how far the object has physically travelled. SA-MP moves objects by handing the physics a move speed, so a server that animates with a millimetre-scale move — casino reels, and anything else using a small move as a timer — produces a per-frame displacement that float world coordinates cannot represent at high FPS. The rotation then never advances and the move never ends, which also turns the next `MoveObject` into a zero-length one that snaps. Both the interpolation fraction and the arrival test now come from the schedule the server itself assumes. The two sites are located by scanning `samp.dll` for the arrival test, so the fix follows the function across SA-MP builds and skips itself on any build that does not match. |
-| `fallingGlass` | `1` | Scales all three per-frame vectors in `FallingGlassPane::Update` — translation and both angular components — before the stock position and orientation integration, so shattered glass falls and tumbles at the original speed. |
-| `breakableObjectLifetime` | `1` | Spends each breakable object's integer lifetime from a shared 30 FPS fractional carry instead of decrementing it once per rendered frame, so debris lives for the same wall-clock time at any frame rate. |
-| `mapZoomWheel` | `1` | Lets a mouse wheel notch through the pause menu map's 20 ms input tick. The wheel flag is rebuilt from the DirectInput delta every frame, so one notch is up for one frame only; at a high frame rate almost every notch misses the tick and the map zoom crawls. Held keys and the shoulder buttons keep their 50 Hz repeat, and panning is untouched. |
-| `fpsLimit` | `0` | Frame limit in FPS, `1`–`255`. `0` leaves the game's limiter alone. |
-| `refreshRate` | `0` | Minimum display refresh rate accepted during mode selection. `0` and `60` leave it alone. Prefer SilentPatch. |
+| `[world]` | | |
+| `gangWarTimer` | `1` | Gang war countdown runs in real time. |
+| `fireSpread` | `1` | Fire spreads at the original rate. |
+| `scriptObjectSlide` | `1` | Scripted object movement at the original speed. |
+| `scriptObjectRotate` | `1` | Scripted object rotation at the original speed. |
+| `sampObjectRotation` | `1` | SA-MP moving objects rotate in real time. |
+| `fallingGlass` | `1` | Falling glass moves at the original speed. |
+| `breakableObjectLifetime` | `1` | Broken object pieces last the same time at any FPS. |
+| `[menu]` | | |
+| `mapZoomWheel` | `1` | The mouse wheel zooms the pause menu map at high FPS. |
+| `[framerate]` | | |
+| `fpsLimit` | `0` | Frame limit in FPS, `1` to `255`. `0` leaves the game's limiter alone. |
+| `refreshRate` | `0` | Minimum display refresh rate accepted during mode selection. `0` and `60` leave it alone. |
+| `[autoLimitFps]` | | |
 | `forMissions` | `0` | Limits FPS during missions known to break at high FPS. |
 | `forMinigames` | `0` | Limits FPS to 30 during pool and the intimacy minigame. |
 | `forSchools` | `0` | Limits FPS to 80 during driving, boat and bike school. |
@@ -291,205 +229,17 @@ forPauseMenu=0
 | `forScriptedCutscenes` | `0` | Limits FPS to 80 while letterbox borders are active. |
 | `forPauseMenu` | `0` | Limits FPS to 60 while the pause menu is drawn. |
 
-Automatic FPS limiting never raises the limit above the one already in effect,
-and it restores the previous limit when the case ends. It is a workaround
-rather than a fix, which is why every case defaults to `0`.
-
-Settings are read when the ASI loads; restart the game after changing them.
-
-## Building
-
-Visual Studio 2022 (v143), `Release|Win32`. Open `HighFpsFixes.sln` or run:
-
-```powershell
-msbuild HighFpsFixes.sln /t:Rebuild /p:Configuration=Release /p:Platform=Win32
-```
-
-The plugin is written to `build\HighFpsFixes.asi` next to a copy of the INI.
-`Config\HighFpsFixes.ini` is compiled into the plugin as an `RCDATA`
-resource, so the INI written when the file is missing is byte for byte the
-canonical one. Pushes and pull requests build both configurations with
-warnings as errors and code analysis; `tools\validate-project.ps1` checks
-that the version, the project file list and the file sizes agree.
-
-Before installing into an unfamiliar game directory, the executable can be
-checked without launching it:
-
-```powershell
-.\tools\validate-game.ps1 "C:\Games\GTA San Andreas\gta_sa.exe"
-```
-
-The validator recognizes the Compact and Hoodlum 1.0 US profiles and checks
-representative player, vehicle and world patch signatures. Every enabled
-patch still validates its complete byte sequence again at runtime.
-
-## Repository Layout
-
-```text
-HighFpsFixes.sln
-README.md
-CHANGELOG.md
-ROADMAP.md                      Validation status and open work
-LICENSE
-.github\workflows\
-  build.yml                     Debug and Release build on every push
-  release.yml                   Tagged release build, checksum and attestation
-Config\
-  HighFpsFixes.ini              Canonical configuration, embedded as RCDATA
-docs\
-  bike-physics-reverse.md       Bike physics reverse-engineering notes
-  vehicle-physics-audit.md      Vehicle physics audit
-src\
-  HighFpsFixes.cpp              DllMain, module pinning, initializer thread
-  HighFpsFixes.rc               Version resource and the embedded INI
-  HighFpsFixes.vcxproj
-  resource.h
-  version.h
-  modules\
-    aim_camera.cpp                           Weapon helpers and the aim camera timestep guard
-    bike_hooks.cpp                           Bike process, collision and render hooks for the abandoned bike step
-    bike_lean_filter.cpp / bike_lean_filter.h Standing-still lean wobble filter
-    bike_pitch.cpp                           Experimental bike ramp pitch isolation
-    bike_transform.cpp                       Bike transform copies and the abandoned bike physics step
-    bootstrap.cpp / bootstrap.h              Initialization, fix table, shutdown
-    diagnostics.h                            Bike balance and wheel turn tracing
-    expected_bytes.h                         Original instruction bytes verified before patching
-    game_addresses.h                         Every address, offset and return point in gta_sa.exe
-    game_profiles.cpp / game_profiles.h      Compact and Hoodlum executable profiles
-    hud.cpp / hud.h                          HUD flash rate and timed text
-    ini_settings.cpp / ini_settings.h        INI creation, upgrade and reading
-    modules.h                                Includes every module header in dependency order
-    move_speed_watch.cpp                     Hardware watchpoint tracing of move speed writes
-    particles.cpp                            Particle emission carry and the optional budget
-    patch_conflicts.cpp                      Claiming sites held by other frame-rate plugins
-    patch_infrastructure.cpp                 Patch sets, jump tables, guards
-    patching.cpp / patching.h                Patch records and their rollback
-    player.cpp / player.h                    Player movement, swimming, buoyancy, stats
-    prelude.h                                System and MinHook includes
-    push_telemetry.cpp                       Ped push and player vehicle telemetry threads
-    runtime_features.cpp / runtime_features.h Frame limiter, refresh rate and auto limits
-    stat_carries.cpp                         Fraction carries for truncated stats, ammo and chainsaw timing
-    thunk_helpers.cpp / thunk_helpers.h      C++ calculations called by the naked bridges
-    timestep.cpp                             Shared timestep ratio helpers
-    vehicles.cpp / vehicles.h                Vehicle helpers
-    weapons_and_particles.h                  Weapon and particle state shared by the hooks
-    installers\
-      core_installers.cpp / core_installers.h Camera, player and HUD fix installers
-      core_vehicle_installers.cpp            Vehicle fix installers and the timer groups
-      vehicle_installers.cpp / vehicle_installers.h Vehicle physics fix installers
-      world_optional_installers.cpp / world_optional_installers.h World, script and optional fix installers
-    thunks\
-      base_thunks.cpp / base_thunks.h        Timer, damage, footprint, chainsaw, ammo and wheel friction bridges
-      camera_thunks.cpp                      Camera rate and aim FOV bridges
-      player_thunks.cpp                      Stat, money, climb, buoyancy and player movement bridges
-      runtime_thunks.cpp                     Siren, script and runtime bridges
-      vehicle_thunks.cpp / vehicle_thunks.h  Vehicle physics bridges
-      world_runtime_thunks.cpp / world_runtime_thunks.h Fake physics and object bridges
-tools\
-  validate-game.ps1             Checks an executable's patch signatures without launching it
-  validate-project.ps1          Version, project file list and file size checks
-vendor\
-  minhook\                      MinHook, compiled into the plugin
-```
-
-## How It Works
-
-Most fixes replace one original floating-point instruction with a short thunk
-that reapplies it against `CTimer::ms_fTimeStep / (50 / 30)`. That ratio is
-`1.0` at the original 30 FPS timestep, so the patched instruction produces the
-original result there and the correct per-second result above it. The remaining
-fixes replace a frame counter with a wall-clock comparison, carry a fractional
-remainder across frames, or rescale a global tuning value that the engine
-already reads every frame, which needs no code patch at all.
-
-The implementation is split into thematic `.inl` modules but deliberately built
-as one translation unit. The x86 naked thunks refer directly to internal symbols,
-and keeping one translation unit preserves their ABI and instruction-level
-linkage while separating patch infrastructure, game subsystems, diagnostics and
-installation code for maintenance.
-
-Patch sites for GTA San Andreas 1.0 US:
-
-- `0x49C505` and `0x49C6FB`: the two integer conversions in
-  `CStuntJumpManager::Update` that truncate to zero during slow motion.
-- `0x52B730` and `0x521500`: MinHook detours around `CCamera::Process` and
-  `CCam::Process_AimWeapon` temporarily raise both GTA camera timesteps while
-  an on-foot aim camera is active, then restore their exact prior values.
-- `0x52C729`: the drunk camera sway phase step in `CCamera::Process`, a bare
-  `fadd` of the five degrees at `0x858C80` once per rendered frame.
-- `0x61E0CA`: aiming rifle walk step.
-- `0x68A42B`, `0x68A4CA`, `0x68A50E` and `0x6C27AE`: initial dive, ascent,
-  swimming movement vectors and player buoyancy.
-- `0x549652`: ped push force applied to a vehicle.
-- `0x5E5877`: the per-frame bloody-footprint countdown in
-  `CPed::PlayFootSteps`.
-- `0x5E5E64` and `0x5E54C1`: foot-side selection and the blood-shadow call in
-  `CPed::PlayFootSteps` / `CPed::DoFootLanded`.
-- `0x6D6E69`, `0x6D6EA8`, `0x6D767F`, `0x6D76AB` and `0x6D76CD`: car and bike
-  wheel friction.
-- `0x6B523F`, `0x6B524F`, `0x6B525D` and `0x6B5269`: on-rails wheel rotation.
-- `0x6A4FE6`: burnout wheel speed.
-- `0x6BBB0D`: the rider lean target in `CBike::ProcessControl`, a per-call
-  derivative whose conditioning collapses as the timestep shrinks.
-- `0x6B1C9C`, `0x6B9955` and `0x6F9B92`: the at-rest move distance limit for
-  abandoned and wrecked vehicles.
-- `0x5A241F`, `0x6B1D2A`, `0x6B9972` and `0x6F9BD1`: the `m_nFakePhysics` sleep
-  counter in `CObject`, `CAutomobile`, `CBike` and `CTrailer`.
-- `0x6F42DB`, `0x6F43A1`, `0x6F43D8` and `0x6F4422`: the swinging-chassis
-  angular input, firetruck and ordinary damping, and angle integration in
-  `CDoor::Process`.
-- `0x5890AF`, `0x58919F`, `0x58927E`, `0x58A363`, `0x58DDBC` and `0x58DE69`:
-  the six HUD flash sites, repointed from `CTimer::m_FrameCounter` at a
-  real-time plugin counter.
-- `0x6E0961`: horn tap versus hold in `CVehicle::ProcessSirenAndHorn`.
-- `0x6C4F29` and `0x6C4F37`: helicopter rotor acceleration.
-- `0x6D2771`: skimmer water resistance.
-- `0x4A41E0`: preserves fractional emission intensity across short-lived
-  continuous weapon FX system instances in `FxEmitter::CreateParticles`.
-- `0x7428A8`: skips the per-frame ammo-decrement branch in `CWeapon::Fire`
-  until one original-rate consumption interval has elapsed.
-- `0x53E94C`, `0x619626`, `0x74612A`, `0x46A000` and `0x57C324`: used only by
-  the optional frame limiting settings.
-
-The emission hook is limited to systems marked by GTA as must-create weapon FX.
-Ordinary world, vehicle and weather emitters retain their original behavior.
-The aim fix writes `CTimer::ms_fTimeStep` and
-`CTimer::ms_fTimeStepNonClipped` only inside the guarded aim-camera calls and
-restores their exact prior values before returning, so unrelated game
-processing continues using the real frame duration. The plugin's own follow
-camera and attached entity corrections are patched into `CCam` methods that run
-inside that guarded call, so they read the real frame duration through the
-plugin rather than the raised global, and stay frame-rate independent while the
-player aims.
-The ammo hook is restricted to the flamethrower, spraycan and fire extinguisher;
-other weapons keep the original path.
-
-`sampObjectRotation` is the only fix that patches something other than the game
-executable. Its two sites are inside `CObject::Process` in `samp.dll`, and
-because that module is relocatable and lays the function out at a different
-offset in each SA-MP build, they are not addressed directly. The installer
-scans the module's code section for the arrival test, requires exactly one
-match, then derives the rotation site from it and reads the still-moving
-destination out of the following `jne`. The pattern covers both stack operands
-of the test, so a build whose frame layout differs cannot match it. When
-nothing matches, or more than one thing does, the fix logs and skips, and every
-other fix is unaffected. Verified against two different 0.3.7 builds, whose sites sit 0x4F26 apart.
+Automatic FPS limiting never raises the limit above the one already in effect
+and restores the previous limit when the case ends.
 
 ## Release Integrity
 
-Tagged releases are built by GitHub Actions from the tagged commit. Each
-release carries `HighFpsFixes-vX.Y.Z.zip`, its SHA-256 in
-`HighFpsFixes-vX.Y.Z.zip.sha256` and a signed build-provenance attestation,
-which proves that the archive was produced by this repository's workflow
-from that revision. It does not prove the code is bug-free.
+Releases are built by GitHub Actions from the tagged commit and carry a
+SHA-256 file and a build-provenance attestation:
 
 ```text
 gh attestation verify HighFpsFixes-vX.Y.Z.zip -R sonochiwa/sa-high-fps-fixes
 ```
-
-## Roadmap
-
-Planned and unvalidated work is tracked in [ROADMAP.md](ROADMAP.md).
 
 ## License
 

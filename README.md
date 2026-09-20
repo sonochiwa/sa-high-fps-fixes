@@ -84,6 +84,7 @@ missing:
 | `restThreshold` | `1` | Abandoned and wrecked vehicles come to rest after the same time. |
 | `physicsSleepRate` | `1` | Vehicle physics sleep in real time. |
 | `wheelFriction` | `1` | Cars and bikes brake and coast as at 30 FPS. |
+| `classicHandling` | `0` | `1` restores the handling of versions before 1.3.0, planted as at a high frame rate; the seven keys below are then ignored. |
 | `turnAirResistance` | `1` | Cars and bikes turn as at 30 FPS instead of heavily above it. Aircraft, boats and airborne vehicles are left as they are. |
 | `turnAirResistanceStrength` | `100` | Percent of that correction: `100` is the 30 FPS feel, `0` the stock one. |
 | `steerInputRate` | `1` | Keyboard and pad steering reaches full lock in the same time at any FPS. |

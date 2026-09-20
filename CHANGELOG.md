@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.4.0
+
+- Added `classicHandling`: `1` restores the handling of versions before
+  1.3.0; the seven 1.3.0 handling keys are then ignored.
+
 ## 1.3.1
 
 - Changed the 1.3.0 release notes and configuration descriptions to the

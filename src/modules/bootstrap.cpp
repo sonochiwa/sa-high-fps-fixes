@@ -6,8 +6,43 @@ namespace hff {
 
 InstallSummary g_installSummary{};
 
+namespace {
+
+// The handling switches added in 1.3.0. `classicHandling=1` keeps all of
+// them off, whatever their own keys say, so a car drives as it did before
+// that version: planted at a high frame rate rather than as at 30 FPS.
+constexpr const char* kHandlingKeys[] = {
+    "turnAirResistance", "steerInputRate", "gearChangeInertia",
+    "gearChangeKick", "suspensionDampingLimit", "suspensionLoadLean",
+    "wheelSlipRate",
+};
+bool g_classicHandling = false;
+
+bool IsHandlingKey(const char* section, const char* key) {
+    if (_stricmp(section, "vehicles") != 0) {
+        return false;
+    }
+    for (const char* handlingKey : kHandlingKeys) {
+        if (_stricmp(handlingKey, key) == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+} // namespace
+
 void InstallFix(const char* section, const char* key, const char* name,
                 bool (*installer)(), bool defaultOn) {
+    if (g_classicHandling && IsHandlingKey(section, key)) {
+        // the key stays a recognized one, whatever it says
+        RegisterConfigKey(section, key);
+        ++g_installSummary.disabled;
+        std::string message(name);
+        message += " disabled by classicHandling.";
+        Log(message.c_str());
+        return;
+    }
     if (ReadSetting(section, key, defaultOn)) {
         if (installer()) {
             ++g_installSummary.installed;
@@ -65,6 +100,7 @@ DWORD WINAPI Initialize(void*) {
         ReadSetting("general", "overrideConflictingHooks", true);
 
     Log("Initializing High FPS Fixes v" PLUGIN_VERSION ".");
+    g_classicHandling = ReadSetting("vehicles", "classicHandling", false);
     std::string profileMessage("Detected executable profile: ");
     profileMessage += g_activeGameProfile->name;
     profileMessage += ".";

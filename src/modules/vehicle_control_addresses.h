@@ -121,9 +121,7 @@ constexpr int32_t kStockAcLoopFrameCount = 10;
 // damping level is above 0.15 (the Elegy has 0.20, so 0.333) hits the
 // limit and gets 0.25 per frame, 7.5 per second. Above 30 FPS the product
 // falls under the limit and the full level applies: 0.20 * 50 = 10 per
-// second, a third more damping than the car ever had at 30 FPS. The
-// earlier audit missed this because it only considered the limit binding
-// at long frames.
+// second, a third more damping than the car ever had at 30 FPS.
 //
 // The entry is wrapped and `dampingLevel` rewritten to the level that leaves
 // exactly the 30 FPS fraction after one original frame: the capped per-frame
@@ -185,10 +183,10 @@ constexpr size_t kPhysicalCentreOfMass = 0xA4;
 // are formed, so they are the slip one original frame would have cancelled
 // and compare with the budget in the same units. Everything after that is
 // unchanged: the saturated branch rescales to the budget exactly as
-// before, and the unsaturated branch now applies the per-frame share of
-// the cancel rather than all of it every frame, which is what made the
-// 0.9.x attempt over-rotate. `thrust` is left alone. Both sites are six
-// bytes ending in a conditional jump whose flags the thunk preserves.
+// before, and the unsaturated branch applies the per-frame share of the
+// cancel rather than all of it every frame. `thrust` is left alone. Both
+// sites are six bytes ending in a conditional jump whose flags the thunk
+// preserves.
 constexpr uintptr_t kWheelSlipRight = 0x006D6D2C;         // fst [esp+18h] / jne
 constexpr uintptr_t kWheelSlipRightDriving = 0x006D6D32;
 constexpr uintptr_t kWheelSlipRightCoasting = 0x006D6DAB;

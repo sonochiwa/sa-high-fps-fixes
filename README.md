@@ -84,14 +84,14 @@ missing:
 | `restThreshold` | `1` | Abandoned and wrecked vehicles come to rest after the same time. |
 | `physicsSleepRate` | `1` | Vehicle physics sleep in real time. |
 | `wheelFriction` | `1` | Cars and bikes brake and coast as at 30 FPS. |
-| `turnAirResistance` | `1` | A car or bike with a wheel on the ground keeps its rotation between frames as at 30 FPS instead of turning heavily above it. Aircraft, boats and airborne vehicles are left as they are. |
-| `turnAirResistanceStrength` | `100` | Percent of that correction: `100` is the 30 FPS car, `0` the stock high-FPS one. |
+| `turnAirResistance` | `1` | Cars and bikes turn as at 30 FPS instead of heavily above it. Aircraft, boats and airborne vehicles are left as they are. |
+| `turnAirResistanceStrength` | `100` | Percent of that correction: `100` is the 30 FPS feel, `0` the stock one. |
 | `steerInputRate` | `1` | Keyboard and pad steering reaches full lock in the same time at any FPS. |
 | `gearChangeInertia` | `1` | Engine inertia and gear change smoothing run at the original rate. |
-| `gearChangeKick` | `1` | An upshift kicks the car once, as at 30 FPS, instead of every tenth frame; also keeps the engine note from jumping to top gear early. |
-| `suspensionDampingLimit` | `1` | Suspension damping stays at the strength the 30 FPS per-frame cap allowed, instead of growing by up to a third above it. |
-| `suspensionLoadLean` | `1` | The body leans and dives under cornering and braking loads as far as at 30 FPS, so weight transfer and the grip that follows it match. |
-| `wheelSlipRate` | `1` | A car's tyres judge skidding by the slip of one original frame, so a cornering tyre keeps its grip at high FPS as it does at 30. |
+| `gearChangeKick` | `1` | An upshift kicks the car once, as at 30 FPS, and the engine note no longer jumps to top gear early. |
+| `suspensionDampingLimit` | `1` | Suspension damping keeps its 30 FPS strength instead of stiffening above it. |
+| `suspensionLoadLean` | `1` | The body leans and dives under cornering and braking as far as at 30 FPS. |
+| `wheelSlipRate` | `1` | A cornering car keeps its tyre grip above 30 FPS as it does at 30. |
 | `abandonedBikePhysicsStep` | `1` | Experimental: riderless bikes run their physics at the original rate. |
 | `railWheelSpin` | `1` | Train wheels turn at the original rate. |
 | `burnout` | `1` | Burnout wheel speed at the original rate. |

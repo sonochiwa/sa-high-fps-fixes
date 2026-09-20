@@ -236,9 +236,32 @@ void __cdecl ProcessAutoFpsLimit() {
 // The one call this plugin gets each frame on the game thread, from the
 // `CTheScripts::Process` hook. Everything that has to run per frame from
 // inside the game rather than from a worker thread hangs off it.
+// The audio engine's wait between two acceleration loops is a frame count;
+// this keeps it the same third of a second at any frame rate. Rounded to
+// the nearest frame and never below one, so 30 FPS reads back the stock
+// ten exactly.
+void UpdateAcLoopFrameCount() {
+    const float ratio = TimeStepRatio();
+    if (!(ratio > 0.0f)) {
+        return;
+    }
+    const int32_t frames = std::max(
+        1L, std::lround(static_cast<float>(kStockAcLoopFrameCount) / ratio));
+    __try {
+        auto* value = reinterpret_cast<int32_t*>(kAcLoopFrameCount);
+        if (*value != frames) {
+            *value = frames;
+        }
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+    }
+}
+
 void __cdecl ProcessFrameHooks() {
     if (g_autoLimit.value != 0) {
         ProcessAutoFpsLimit();
+    }
+    if (g_gearChangeKick) {
+        UpdateAcLoopFrameCount();
     }
     GuardInstalledSites();
 }

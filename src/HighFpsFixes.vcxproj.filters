@@ -43,6 +43,9 @@
     <ClCompile Include="modules\installers\vehicle_installers.cpp">
       <Filter>modules\installers</Filter>
     </ClCompile>
+    <ClCompile Include="modules\installers\vehicle_control_installers.cpp">
+      <Filter>modules\installers</Filter>
+    </ClCompile>
     <ClCompile Include="modules\installers\world_optional_installers.cpp">
       <Filter>modules\installers</Filter>
     </ClCompile>
@@ -117,6 +120,9 @@
       <Filter>modules</Filter>
     </ClInclude>
     <ClInclude Include="modules\game_addresses.h">
+      <Filter>modules</Filter>
+    </ClInclude>
+    <ClInclude Include="modulesehicle_control_addresses.h">
       <Filter>modules</Filter>
     </ClInclude>
     <ClInclude Include="modules\game_profiles.h">

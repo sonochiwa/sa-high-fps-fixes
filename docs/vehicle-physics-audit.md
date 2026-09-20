@@ -8,6 +8,12 @@
 > removed from the plugin. The analysis below is kept as the record of why
 > each was tried and what it changed; `bikeLeanTarget` and
 > `bikePitchExperiment` remain.
+>
+> **2026-09-20:** `docs/vehicle-control-reverse.md` extends this audit to the
+> yaw chain, the steering inputs and `CVehicle::FlyingControl`, read from the
+> executable. It explains the "wrong in-air rotation" and the aircraft change
+> as the 30 FPS behaviour reaching every vehicle class, and scopes the
+> `turnAirResistance` reinstatement to cars and bikes on their wheels.
 
 Why cars feel different at a high frame rate, what this plugin changes, and
 which of those changes are corrections rather than preferences. Addresses are

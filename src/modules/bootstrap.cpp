@@ -1,5 +1,7 @@
 #include "modules/modules.h"
 
+#include "version.h"
+
 namespace hff {
 
 InstallSummary g_installSummary{};
@@ -62,7 +64,7 @@ DWORD WINAPI Initialize(void*) {
     g_overrideConflictingHooks =
         ReadSetting("general", "overrideConflictingHooks", true);
 
-    Log("Initializing High FPS Fixes v1.0.0.");
+    Log("Initializing High FPS Fixes v" PLUGIN_VERSION ".");
     std::string profileMessage("Detected executable profile: ");
     profileMessage += g_activeGameProfile->name;
     profileMessage += ".";
@@ -117,6 +119,20 @@ DWORD WINAPI Initialize(void*) {
                InstallPhysicsSleepRateFix},
         {"vehicles", "wheelFriction", "Wheel friction fix",
                InstallWheelFrictionFix},
+        {"vehicles", "turnAirResistance", "Turn air resistance fix",
+               InstallTurnAirResistanceFix},
+        {"vehicles", "steerInputRate", "Steer input rate fix",
+               InstallSteerInputRateFix},
+        {"vehicles", "gearChangeInertia", "Gear change inertia fix",
+               InstallGearChangeInertiaFix},
+        {"vehicles", "gearChangeKick", "Gear change kick fix",
+               InstallGearChangeKickFix},
+        {"vehicles", "suspensionDampingLimit", "Suspension damping limit fix",
+               InstallSuspensionDampingLimitFix},
+        {"vehicles", "suspensionLoadLean", "Suspension load lean fix",
+               InstallSuspensionLoadLeanFix},
+        {"vehicles", "wheelSlipRate", "Wheel slip rate fix",
+               InstallWheelSlipRateFix},
         {"vehicles", "abandonedBikePhysicsStep",
                "Abandoned bike physics step fix",
                InstallAbandonedBikePhysicsStepFix},

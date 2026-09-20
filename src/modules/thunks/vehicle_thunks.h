@@ -16,5 +16,14 @@ void BmxLeanLeftDecayThunk();
 void BmxLeanFwdDecayThunk();
 void WheelSettleThunk();
 void JumpOutDampThunk();
+void TurnAirResistanceThunk();
+void CarSteerInputAThunk();
+void CarSteerInputBThunk();
+void BikeSteerInputAThunk();
+void BikeSteerInputBThunk();
+void TransmissionInertiaThunk();
+void TransmissionSmootherThunk();
+void WheelSlipRightThunk();
+void WheelSlipCoastThunk();
 
 } // namespace hff

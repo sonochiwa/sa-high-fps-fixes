@@ -156,4 +156,197 @@ __declspec(naked) void JumpOutDampThunk() {
     }
 }
 
+// Replaces the three `fld / fmul 0.99 / fstp` triples that damp
+// `m_vecTurnSpeed`. `esi` is the physical and the x87 stack is empty here, so
+// the factor comes back on it and the stores keep the original order and
+// field offsets.
+__declspec(naked) void TurnAirResistanceThunk() {
+    __asm {
+        pushfd
+        push eax
+        push ecx
+        push edx
+        push esi
+        call GetTurnAirResistanceFactor
+        add esp, 4
+        pop edx
+        pop ecx
+        pop eax
+        popfd
+        fld st(0)
+        fmul dword ptr [esi + 0x50]
+        fstp dword ptr [esi + 0x50]
+        fld st(0)
+        fmul dword ptr [esi + 0x54]
+        fstp dword ptr [esi + 0x54]
+        fmul dword ptr [esi + 0x58]
+        fstp dword ptr [esi + 0x58]
+        jmp kTurnAirResistanceReturn
+    }
+}
+
+// Each replaces the `fmul [esp+..] / fmul [0.2]` pair with `(target - raw)`
+// alone on the x87 stack; the gain arrives on top of it and the product is
+// left for the `fadd` / `fstp` at the return address.
+__declspec(naked) void CarSteerInputAThunk() {
+    __asm {
+        pushfd
+        push eax
+        push ecx
+        push edx
+        call GetCarSteerInputGain
+        pop edx
+        pop ecx
+        pop eax
+        popfd
+        fmulp st(1), st
+        jmp kCarSteerInputAReturn
+    }
+}
+
+__declspec(naked) void CarSteerInputBThunk() {
+    __asm {
+        pushfd
+        push eax
+        push ecx
+        push edx
+        call GetCarSteerInputGain
+        pop edx
+        pop ecx
+        pop eax
+        popfd
+        fmulp st(1), st
+        jmp kCarSteerInputBReturn
+    }
+}
+
+__declspec(naked) void BikeSteerInputAThunk() {
+    __asm {
+        pushfd
+        push eax
+        push ecx
+        push edx
+        call GetBikeSteerInputGain
+        pop edx
+        pop ecx
+        pop eax
+        popfd
+        fmulp st(1), st
+        jmp kBikeSteerInputAReturn
+    }
+}
+
+__declspec(naked) void BikeSteerInputBThunk() {
+    __asm {
+        pushfd
+        push eax
+        push ecx
+        push edx
+        call GetBikeSteerInputGain
+        pop edx
+        pop ecx
+        pop eax
+        popfd
+        fmulp st(1), st
+        jmp kBikeSteerInputBReturn
+    }
+}
+
+// Replaces `fld st(0) / fsub [ebp] / jne`. On entry st(0) is the gear band
+// ratio and the flags are those of the `cmp bl,1` just before the site, so
+// they are kept across the call and the original branch is re-created.
+__declspec(naked) void TransmissionInertiaThunk() {
+    __asm {
+        fld st(0)
+        fsub dword ptr [ebp]
+        pushfd
+        push eax
+        push ecx
+        push edx
+        call GetTransmissionInertiaScale
+        pop edx
+        pop ecx
+        pop eax
+        popfd
+        fmulp st(1), st
+        jne cheat
+        jmp kTransmissionInertiaReturn
+    cheat:
+        jmp kTransmissionInertiaCheatSkip
+    }
+}
+
+// Replaces the smoother, `s = a * (1 - 0.85) + 0.85 * s`, with the same
+// blend at the frame-rate-corrected fraction. On entry st(0) is `a` and
+// `[esp+28h]` the pointer to `s`; on exit st(0) is the new `s` and the rest
+// of the stack is untouched, as the original left it for the code after.
+__declspec(naked) void TransmissionSmootherThunk() {
+    __asm {
+        mov eax, dword ptr [esp + 0x28]
+        pushfd
+        push eax
+        push ecx
+        push edx
+        call GetTransmissionSmootherFrac
+        pop edx
+        pop ecx
+        pop eax
+        popfd
+        fld st(0)
+        fmul dword ptr [eax]
+        fxch st(1)
+        fchs
+        fld1
+        faddp st(1), st
+        fmulp st(2), st
+        faddp st(1), st
+        jmp kTransmissionSmootherReturn
+    }
+}
+
+// Replaces `fst [esp+18h] / jne`: st(0) is the lateral slip velocity and the
+// flags are those of the `cmp` that decides driving against coasting. The
+// slip is scaled to one original frame's worth, stored where the original
+// stored it, and the branch re-created.
+__declspec(naked) void WheelSlipRightThunk() {
+    __asm {
+        pushfd
+        push eax
+        push ecx
+        push edx
+        call TimeStepRatio
+        pop edx
+        pop ecx
+        pop eax
+        popfd
+        fmulp st(1), st
+        fst dword ptr [esp + 0x18]
+        jne coasting
+        jmp kWheelSlipRightDriving
+    coasting:
+        jmp kWheelSlipRightCoasting
+    }
+}
+
+// Replaces `fchs / fstp [esp+10h]`: st(0) is the coasting longitudinal slip
+// before its sign flip; the `jne` after the site reads the flags of a
+// `test` before it, so they are preserved across the call.
+__declspec(naked) void WheelSlipCoastThunk() {
+    __asm {
+        fchs
+        pushfd
+        push eax
+        push ecx
+        push edx
+        call TimeStepRatio
+        pop edx
+        pop ecx
+        pop eax
+        popfd
+        fmulp st(1), st
+        fstp dword ptr [esp + 0x10]
+        jmp kWheelSlipCoastReturn
+    }
+}
+
 } // namespace hff

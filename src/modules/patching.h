@@ -102,6 +102,9 @@ extern std::array<SitePatch, 3> g_fallingGlassPatches;
 extern SitePatch g_breakObjectLifetimePatch;
 extern SitePatch g_menuBackgroundPatch;
 extern std::array<SitePatch, 5> g_wheelFrictionPatches;
+extern SitePatch g_turnAirResistancePatch;
+extern std::array<SitePatch, 4> g_steerInputPatches;
+extern std::array<SitePatch, 2> g_transmissionPatches;
 extern SitePatch g_swimmingPatch;
 extern SitePatch g_climbSpeedPatch;
 extern SitePatch g_moneyStepPatch;
@@ -170,6 +173,12 @@ extern std::array<HornTapState, 2> g_hornTapStates;
 extern int g_fpsLimit;
 extern int g_lastFpsLimit;
 extern bool g_isOnPauseMenu;
+extern bool g_gearChangeKick;
+extern bool g_suspensionDampingLimit;
+extern DetourPatch g_suspensionDampingPatch;
+extern bool g_suspensionLoadLean;
+extern DetourPatch g_physicalProcessControlPatch;
+extern std::array<SitePatch, 2> g_wheelSlipPatches;
 extern AutoLimitFlags g_autoLimit;
 
 struct EmissionCarrySlot {

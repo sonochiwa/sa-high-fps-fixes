@@ -102,6 +102,7 @@
     <ClCompile Include="modules\installers\core_installers.cpp" />
     <ClCompile Include="modules\installers\core_vehicle_installers.cpp" />
     <ClCompile Include="modules\installers\vehicle_installers.cpp" />
+    <ClCompile Include="modules\installers\vehicle_control_installers.cpp" />
     <ClCompile Include="modules\installers\world_optional_installers.cpp" />
     <ClCompile Include="modules\move_speed_watch.cpp" />
     <ClCompile Include="modules\particles.cpp" />
@@ -150,6 +151,7 @@
     <ClInclude Include="modules\diagnostics.h" />
     <ClInclude Include="modules\expected_bytes.h" />
     <ClInclude Include="modules\game_addresses.h" />
+    <ClInclude Include="modules\vehicle_control_addresses.h" />
     <ClInclude Include="modules\game_profiles.h" />
     <ClInclude Include="modules\hud.h" />
     <ClInclude Include="modules\ini_settings.h" />

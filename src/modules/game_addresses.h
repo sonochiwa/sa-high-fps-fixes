@@ -1,6 +1,7 @@
 #pragma once
 
 #include "modules/prelude.h"
+#include "modules/vehicle_control_addresses.h"
 
 namespace hff {
 
@@ -468,6 +469,7 @@ constexpr uintptr_t kWheelFrictionBikeBaseReturn = 0x006D7685;
 constexpr uintptr_t kWheelFrictionBikeDriveReturn = 0x006D76B1;
 constexpr uintptr_t kWheelFrictionBikeBrakeReturn = 0x006D76D3;
 constexpr uintptr_t kPhysicalProcessCollision = 0x0054DFB0;
+
 constexpr uintptr_t kPhysicalProcessShift = 0x0054DB10;
 constexpr uintptr_t kEntityUpdateRwMatrix = 0x00446F90;
 constexpr uintptr_t kEntityUpdateRwFrame = 0x00532B00;

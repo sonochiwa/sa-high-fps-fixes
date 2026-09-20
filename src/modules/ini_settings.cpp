@@ -327,6 +327,7 @@ bool IsKnownConfigKey(const char* section, const char* key) {
 void RegisterConditionalConfigKeys() {
     constexpr ConfigKey keys[] = {
         {"vehicles", "bikePitchExperimentStrength"},
+        {"vehicles", "turnAirResistanceStrength"},
         {"vehicles", "disableSwingingCompletely"},
         {"particles", "particlesPerSecond"},
         {"hud", "disableFlashing"},
@@ -349,11 +350,9 @@ void RegisterConditionalConfigKeys() {
 bool IsRetiredConfigKey(const char* section, const char* key) {
     constexpr ConfigKey retired[] = {
         {"vehicles", "groundFriction"},
-        {"vehicles", "turnAirResistance"},
         {"vehicles", "wheelSlipScale"},
         {"vehicles", "moveSpeedSnap"},
         {"vehicles", "rollOntoWheels"},
-        {"vehicles", "suspensionDampingLimit"},
         {"vehicles", "collisionPushOut"},
     };
     for (const auto& item : retired) {

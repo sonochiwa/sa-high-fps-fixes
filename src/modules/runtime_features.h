@@ -18,6 +18,7 @@ bool ScriptNameMatches(const char* name, const char* expected);
 int PreferredScriptFpsLimit();
 void __cdecl ProcessAutoFpsLimit();
 void __cdecl ProcessFrameHooks();
+void UpdateAcLoopFrameCount();
 void __cdecl OnPauseMenuBackground();
 
 } // namespace hff

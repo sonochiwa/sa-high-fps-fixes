@@ -20,5 +20,12 @@ bool InstallWheelSettleFix();
 bool InstallBmxLeanSettleFix();
 bool InstallJumpOutCarSpeedFix();
 bool InstallBoatEngineSpeedFix();
+bool InstallTurnAirResistanceFix();
+bool InstallSteerInputRateFix();
+bool InstallGearChangeInertiaFix();
+bool InstallGearChangeKickFix();
+bool InstallSuspensionDampingLimitFix();
+bool InstallSuspensionLoadLeanFix();
+bool InstallWheelSlipRateFix();
 
 } // namespace hff

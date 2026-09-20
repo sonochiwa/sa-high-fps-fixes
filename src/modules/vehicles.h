@@ -7,6 +7,14 @@ namespace hff {
 float __cdecl GetFrameIndependentWheelFriction();
 float __cdecl GetSkimmerResistance();
 float __cdecl GetBurnoutWheelSpeed();
+extern float g_turnAirResistanceStrength;
+float __cdecl GetTurnAirResistanceFactor(const uint8_t* physical);
+float __cdecl GetCarSteerInputGain();
+float __cdecl GetTransmissionInertiaScale();
+bool __fastcall HookedSpringDampening(void* physical, void*, float dampingLevel, float springForceLimit, float* direction, float* collisionPoint, float* collisionSpeed);
+void __fastcall HookedPhysicalProcessControl(void* physical, void*);
+float __cdecl GetTransmissionSmootherFrac();
+float __cdecl GetBikeSteerInputGain();
 float __cdecl GetWheelSettleWeight();
 float ReadHeliRotorFinalSpeed();
 float __cdecl GetHeliRotorSlowStep();

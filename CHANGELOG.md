@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.3
+
+- Fixed `forPauseMenu` having no effect in menus, SA-MP included.
+
 ## 1.4.2
 
 - Changed the six automatic limit keys in `[framerate]` to hold the FPS

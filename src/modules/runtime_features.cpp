@@ -227,10 +227,12 @@ void BeginAutoLimit(int limit) {
     WriteFrameLimit(static_cast<uint8_t>(limit));
 }
 
-// Holds a front-end frame until 1/limit of a second has passed since the
-// previous one. Waits the way the game's own limiter does, by spinning, so
-// the pace is exact at any limit.
-void PaceFrontEndFrame(int limit) {
+// Holds a menu frame until 1/limit of a second has passed since the
+// previous one. The game's own limiter does not hold menu frames: with its
+// gate open and `RsGlobal.frameLimit` at 200 the pause menu still drew about
+// 2700 frames a second, and the front end has no limiter at all. Waits the
+// way that limiter does, by spinning, so the pace is exact at any limit.
+void PaceMenuFrame(int limit) {
     static LARGE_INTEGER frequency{};
     static LONGLONG next = 0;
     if (frequency.QuadPart == 0 && !QueryPerformanceFrequency(&frequency)) {
@@ -316,21 +318,11 @@ void __cdecl ProcessFrameHooks() {
     GuardInstalledSites();
 }
 
-// Runs on every menu frame, the front end before a save is loaded included.
-// Scripts do not run while a menu is up, so the case ends on the first game
-// frame after it, in ProcessAutoFpsLimit.
+// Runs on every frame a menu is drawn: the front end, the pause menu, and
+// the SA-MP menu, during which the game keeps running.
 void __cdecl OnPauseMenuBackground() {
-    if (g_autoLimit.pauseMenu == 0) {
-        return;
-    }
-    __try {
-        if (*reinterpret_cast<const int32_t*>(kGameState) == kGameStateFrontEndIdle) {
-            PaceFrontEndFrame(g_autoLimit.pauseMenu);
-        } else {
-            BeginAutoLimit(g_autoLimit.pauseMenu);
-        }
-    } __except (EXCEPTION_EXECUTE_HANDLER) {
-        return;
+    if (g_autoLimit.pauseMenu != 0) {
+        PaceMenuFrame(g_autoLimit.pauseMenu);
     }
 }
 

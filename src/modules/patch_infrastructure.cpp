@@ -99,10 +99,6 @@ void ReportPatchMismatch(uintptr_t address, const uint8_t* expected,
     }
     message += ".";
 
-    // A failed patch is actionable even when routine logging is disabled.
-    // Enable the log from this point onward so the cause and final summary are
-    // available without asking the player to reproduce the failure first.
-    g_loggingEnabled = true;
     Log(message.c_str());
 }
 

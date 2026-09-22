@@ -60,6 +60,9 @@ void InstallFix(const char* section, const char* key, const char* name,
 DWORD WINAPI Initialize(void*) {
     g_iniPath = ModulePathWithExtension(".ini");
     g_logPath = ModulePathWithExtension(".log");
+    // Read before anything can log: `log=0` writes no file at all, whatever
+    // goes wrong afterwards.
+    g_loggingEnabled = ReadSetting("general", "log", false);
     const bool iniCreatedOrPresent = CreateDefaultIniIfMissing();
     MigrateIniLayout();
     const IniCompletionResult iniCompletion =
@@ -67,12 +70,7 @@ DWORD WINAPI Initialize(void*) {
     const bool iniHeaderRefreshed = RefreshIniVersionHeader();
     RegisterConditionalConfigKeys();
 
-    // Keep logging explicit in the generated INI. It is enabled by default so
-    // a failed or unexpectedly behaving fix always leaves enough information
-    // to diagnose which executable profile and patches were active.
-    g_loggingEnabled = ReadSetting("general", "log", false);
     if (!iniCreatedOrPresent || !iniCompletion.complete) {
-        g_loggingEnabled = true;
         Log("Configuration warning: could not add every missing default INI "
             "setting; in-memory defaults will be used.");
     } else if (iniCompletion.added != 0) {
@@ -89,7 +87,6 @@ DWORD WINAPI Initialize(void*) {
 
     g_activeGameProfile = DetectGameProfile();
     if (!g_activeGameProfile) {
-        g_loggingEnabled = true;
         Log("Initialization skipped: unsupported GTA executable profile. Run tools\\validate-game.ps1 against gta_sa.exe for details.");
         return 0;
     }

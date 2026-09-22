@@ -101,7 +101,7 @@ float g_endTimerFraction{};
 float g_flightTimerFraction{};
 bool g_endTimerActive{};
 bool g_flightTimerActive{};
-bool g_loggingEnabled{true};
+bool g_loggingEnabled{};
 float g_originalTimeStepValue{kOriginalTimeStep};
 bool g_swingingDisabled{};
 
@@ -207,7 +207,6 @@ bool StopAllWorkerThreads() {
     if (count != 0) {
         const DWORD wait = WaitForMultipleObjects(count, waiting, TRUE, 5000);
         if (wait != WAIT_OBJECT_0) {
-            g_loggingEnabled = true;
             Log("Shutdown deferred: a worker thread did not stop safely.");
             return false;
         }
@@ -233,7 +232,6 @@ bool RegisterInstalledPatch(void* patch, RegisteredPatchKind kind) {
         }
     }
     if (g_installedPatchCount == g_installedPatches.size()) {
-        g_loggingEnabled = true;
         Log("Patch installation refused: restoration registry is full.");
         return false;
     }

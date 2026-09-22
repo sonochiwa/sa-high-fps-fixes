@@ -401,11 +401,6 @@ void ReportConfigWarnings() {
     if (g_configWarningCount == 0) {
         return;
     }
-    const bool loggingWasEnabled = g_loggingEnabled;
-    g_loggingEnabled = true;
-    if (!loggingWasEnabled) {
-        Log("Logging enabled because the INI contains configuration warnings.");
-    }
     for (size_t i = 0; i < g_configWarningCount; ++i) {
         Log(g_configWarnings[i].c_str());
     }

@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.4.1
+
+- Fixed `log=0` still writing `HighFpsFixes.log` when a setting or a patch
+  failed.
+
 ## 1.4.0
 
 - Added `classicHandling`: `1` restores the handling of versions before

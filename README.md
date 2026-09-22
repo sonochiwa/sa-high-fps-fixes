@@ -54,7 +54,7 @@ missing:
 | Setting | Default | Meaning |
 | --- | ---: | --- |
 | `[general]` | | |
-| `log` | `0` | Writes `HighFpsFixes.log` beside the plugin. Forced on when a setting or a patch fails. |
+| `log` | `0` | Writes `HighFpsFixes.log` beside the plugin. `0` writes nothing, whatever goes wrong. |
 | `overrideConflictingHooks` | `1` | Wins over another frame-rate plugin, such as FramerateVigilante, at the sites both patch. `0` leaves the first one in place. |
 | `[camera]` | | |
 | `stuntJumpCamera` | `1` | Stunt jump camera timers no longer stall at very high FPS. |

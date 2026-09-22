@@ -390,20 +390,28 @@ DWORD WINAPI Initialize(void*) {
         }
     }
 
-    g_autoLimit.value = 0;
-    g_autoLimit.flags.forMissions =
-        ReadSetting("framerate", "forMissions", false);
-    g_autoLimit.flags.forMinigames =
-        ReadSetting("framerate", "forMinigames", false);
-    g_autoLimit.flags.forSchools =
-        ReadSetting("framerate", "forSchools", false);
-    g_autoLimit.flags.forCutscenes =
-        ReadSetting("framerate", "forCutscenes", false);
-    g_autoLimit.flags.forScriptedCutscenes =
-        ReadSetting("framerate", "forScriptedCutscenes", false);
-    g_autoLimit.flags.forPauseMenu =
-        ReadSetting("framerate", "forPauseMenu", false);
-    if (g_autoLimit.value != 0) {
+    g_autoLimit = {};
+    // Each key holds the limit its case applies; the frame limiter is a
+    // single byte, and anything at or below zero leaves the case off. A limit
+    // under 20 would make the case unplayable, so it is raised to 20.
+    const auto readCap = [](const char* key, int defaultLimit) {
+        const int limit = ReadNumber("framerate", key, defaultLimit);
+        if (limit <= 0) {
+            return 0;
+        }
+        if (limit < kMinimumAutoLimit) {
+            AddConfigWarning("framerate", key, "is below 20; using 20.");
+            return kMinimumAutoLimit;
+        }
+        return std::min(limit, 255);
+    };
+    g_autoLimit.schools = readCap("forSchools", 0);
+    g_autoLimit.missions = readCap("forMissions", 200);
+    g_autoLimit.minigames = readCap("forMinigames", 200);
+    g_autoLimit.cutscenes = readCap("forCutscenes", 200);
+    g_autoLimit.scriptedCutscenes = readCap("forScriptedCutscenes", 200);
+    g_autoLimit.pauseMenu = readCap("forPauseMenu", 200);
+    if (g_autoLimit.Any()) {
         InstallAutoFpsLimit();
     }
     if (g_overrideConflictingHooks) {

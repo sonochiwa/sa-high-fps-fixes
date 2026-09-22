@@ -172,61 +172,111 @@ int PreferredScriptFpsLimit() {
          script = *reinterpret_cast<uintptr_t*>(script)) {
         const char* name = reinterpret_cast<const char*>(
             script + kRunningScriptNameOffset);
-        if (g_autoLimit.flags.forMinigames
+        if (g_autoLimit.minigames != 0
             && (ScriptNameMatches(name, "POOL2")
                 || ScriptNameMatches(name, "GFSEX"))) {
-            preferred = 30;
-        } else if (g_autoLimit.flags.forMissions
+            preferred = g_autoLimit.minigames;
+        } else if (g_autoLimit.missions != 0
                    && ScriptNameMatches(name, "DRUGS1")) {
             // Big Smoke sometimes stops walking indoors, which locks the mission.
             if (*reinterpret_cast<const int32_t*>(kGameCurrentArea) != 0) {
-                preferred = 50;
+                preferred = g_autoLimit.missions;
             }
-        } else if (g_autoLimit.flags.forSchools
+        } else if (g_autoLimit.schools != 0
                    && (ScriptNameMatches(name, "DSKOOL")
                        || ScriptNameMatches(name, "BOAT")
                        || ScriptNameMatches(name, "BSKOOL"))) {
-            preferred = 80;
+            preferred = g_autoLimit.schools;
         }
     }
     return preferred;
 }
 
+namespace {
+
+bool g_autoLimitActive{};
+uint8_t g_savedFrameLimit{};
+
+void SetFrameLimiterGate(bool open) {
+    if (g_autoLimitTogglesGate) {
+        const uint8_t jump = open ? 0xEB : kExpectedFrameLimiterGate[0];
+        WriteBytes(kFrameLimiterGate, &jump, 1);
+    }
+}
+
+// The limit outside every case, or 0 when frames are not limited then: the
+// game's own limiter is off and no `fpsLimit` holds the gate open.
+int LimitOutsideCases() {
+    if (g_autoLimitTogglesGate
+        && *reinterpret_cast<const uint8_t*>(kFrameLimiterPreference) == 0) {
+        return 0;
+    }
+    return g_savedFrameLimit;
+}
+
+void BeginAutoLimit(int limit) {
+    if (!g_autoLimitActive) {
+        g_savedFrameLimit = ReadFrameLimit();
+        g_autoLimitActive = true;
+        SetFrameLimiterGate(true);
+    }
+    const int outside = LimitOutsideCases();
+    if (outside != 0 && outside < limit) {
+        limit = outside;
+    }
+    WriteFrameLimit(static_cast<uint8_t>(limit));
+}
+
+// Holds a front-end frame until 1/limit of a second has passed since the
+// previous one. Waits the way the game's own limiter does, by spinning, so
+// the pace is exact at any limit.
+void PaceFrontEndFrame(int limit) {
+    static LARGE_INTEGER frequency{};
+    static LONGLONG next = 0;
+    if (frequency.QuadPart == 0 && !QueryPerformanceFrequency(&frequency)) {
+        return;
+    }
+    const LONGLONG period = frequency.QuadPart / limit;
+    LARGE_INTEGER now{};
+    QueryPerformanceCounter(&now);
+    if (next != 0 && now.QuadPart < next && next - now.QuadPart <= period) {
+        while (now.QuadPart < next) {
+            SwitchToThread();
+            QueryPerformanceCounter(&now);
+        }
+        next += period;
+    } else {
+        next = now.QuadPart + period;
+    }
+}
+
+void EndAutoLimit() {
+    if (!g_autoLimitActive) {
+        return;
+    }
+    WriteFrameLimit(g_savedFrameLimit);
+    SetFrameLimiterGate(false);
+    g_autoLimitActive = false;
+}
+
+} // namespace
+
 void __cdecl ProcessAutoFpsLimit() {
     __try {
-        if (g_isOnPauseMenu) {
-            if (g_lastFpsLimit != 0) {
-                WriteFrameLimit(static_cast<uint8_t>(g_lastFpsLimit));
-                g_lastFpsLimit = 0;
-            }
-            g_isOnPauseMenu = false;
-        }
-
         int preferred = 0;
         if (*reinterpret_cast<const int8_t*>(kCutsceneRunning) != 0) {
-            if (g_autoLimit.flags.forCutscenes) {
-                preferred = 60;
-            }
+            preferred = g_autoLimit.cutscenes;
         } else if (*reinterpret_cast<const uint8_t*>(kCameraWideScreenOn) != 0) {
             // Letterbox borders mark scripted scenes.
-            if (g_autoLimit.flags.forScriptedCutscenes) {
-                preferred = 80;
-            }
+            preferred = g_autoLimit.scriptedCutscenes;
         } else {
             preferred = PreferredScriptFpsLimit();
         }
 
         if (preferred != 0) {
-            if (g_lastFpsLimit == 0) {
-                g_lastFpsLimit = ReadFrameLimit();
-            }
-            if (g_lastFpsLimit != 0 && g_lastFpsLimit < preferred) {
-                preferred = g_lastFpsLimit;
-            }
-            WriteFrameLimit(static_cast<uint8_t>(preferred));
-        } else if (g_lastFpsLimit != 0) {
-            WriteFrameLimit(static_cast<uint8_t>(g_lastFpsLimit));
-            g_lastFpsLimit = 0;
+            BeginAutoLimit(preferred);
+        } else {
+            EndAutoLimit();
         }
     } __except (EXCEPTION_EXECUTE_HANDLER) {
         return;
@@ -257,7 +307,7 @@ void UpdateAcLoopFrameCount() {
 }
 
 void __cdecl ProcessFrameHooks() {
-    if (g_autoLimit.value != 0) {
+    if (g_autoLimit.Any()) {
         ProcessAutoFpsLimit();
     }
     if (g_gearChangeKick) {
@@ -266,12 +316,22 @@ void __cdecl ProcessFrameHooks() {
     GuardInstalledSites();
 }
 
+// Runs on every menu frame, the front end before a save is loaded included.
+// Scripts do not run while a menu is up, so the case ends on the first game
+// frame after it, in ProcessAutoFpsLimit.
 void __cdecl OnPauseMenuBackground() {
-    g_isOnPauseMenu = true;
-    if (g_lastFpsLimit == 0) {
-        g_lastFpsLimit = ReadFrameLimit();
+    if (g_autoLimit.pauseMenu == 0) {
+        return;
     }
-    WriteFrameLimit(60);
+    __try {
+        if (*reinterpret_cast<const int32_t*>(kGameState) == kGameStateFrontEndIdle) {
+            PaceFrontEndFrame(g_autoLimit.pauseMenu);
+        } else {
+            BeginAutoLimit(g_autoLimit.pauseMenu);
+        }
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+        return;
+    }
 }
 
 } // namespace hff

@@ -134,9 +134,8 @@ int32_t g_fakePhysicsTick{1};
 std::array<HornTapState, 2> g_hornTapStates{};
 
 int g_fpsLimit{};
-int g_lastFpsLimit{};
-bool g_isOnPauseMenu{};
-AutoLimitFlags g_autoLimit{};
+bool g_autoLimitTogglesGate{};
+AutoLimitCaps g_autoLimit{};
 
 std::array<EmissionCarrySlot, 16> g_weaponFxEmissionCarry{};
 std::array<AmmoConsumptionSlot, 16> g_ammoConsumptionSlots{};

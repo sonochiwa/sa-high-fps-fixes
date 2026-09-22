@@ -135,15 +135,16 @@ missing:
 | `mapZoomWheel` | `1` | The mouse wheel zooms the pause menu map at high FPS. |
 | `[framerate]` | | |
 | `fpsLimit` | `0` | Frame limit in FPS, `1` to `255`. `0` leaves the game's limiter alone. |
-| `forMissions` | `0` | Limits FPS during missions known to break at high FPS. |
-| `forMinigames` | `0` | Limits FPS to 30 during pool and the intimacy minigame. |
-| `forSchools` | `0` | Limits FPS to 80 during driving, boat and bike school. |
-| `forCutscenes` | `0` | Limits FPS to 60 during engine cutscenes. |
-| `forScriptedCutscenes` | `0` | Limits FPS to 80 while letterbox borders are active. |
-| `forPauseMenu` | `0` | Limits FPS to 60 while the pause menu is drawn. |
+| `forSchools` | `0` | FPS limit during driving, boat and bike school. |
+| `forMissions` | `200` | FPS limit during missions known to break at high FPS. |
+| `forMinigames` | `200` | FPS limit during pool and the intimacy minigame. |
+| `forCutscenes` | `200` | FPS limit during engine cutscenes. |
+| `forScriptedCutscenes` | `200` | FPS limit while letterbox borders are active. |
+| `forPauseMenu` | `200` | FPS limit while a menu is drawn, the main menu included. |
 
-Automatic FPS limiting never raises the limit above the one already in effect
-and restores the previous limit when the case ends.
+Each automatic case takes the FPS limit to apply, `20` to `255`, and `0`
+or less leaves that case off; a value from `1` to `19` is raised to `20`. The limit is never raised above the one already in
+effect, and the previous limit returns when the case ends.
 
 ## Release Integrity
 

@@ -227,6 +227,29 @@ void MigrateIniLayout() {
         }
         changed = true;
     }
+    // Up to 1.4.1 these keys were on/off switches with a built-in limit per
+    // case. `1` now reads as one frame a second, so it becomes the limit that
+    // case applied before.
+    constexpr struct {
+        const char* key;
+        const char* limit;
+    } legacyCaps[] = {
+        {"forMissions", "50"},   {"forMinigames", "30"},
+        {"forSchools", "80"},    {"forCutscenes", "60"},
+        {"forScriptedCutscenes", "80"}, {"forPauseMenu", "60"},
+    };
+    for (const auto& item : legacyCaps) {
+        std::array<char, 128> value{};
+        GetPrivateProfileStringA("framerate", item.key, missingValue,
+                                 value.data(),
+                                 static_cast<DWORD>(value.size()),
+                                 g_iniPath.c_str());
+        if (std::strcmp(value.data(), "1") == 0) {
+            WritePrivateProfileStringA("framerate", item.key, item.limit,
+                                       g_iniPath.c_str());
+            changed = true;
+        }
+    }
     std::array<char, 128> refreshRate{};
     GetPrivateProfileStringA("framerate", "refreshRate", missingValue,
                              refreshRate.data(),

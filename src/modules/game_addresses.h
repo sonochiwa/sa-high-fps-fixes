@@ -1116,6 +1116,13 @@ constexpr uintptr_t kHudWantedEmptyOperand = 0x0058DE69;  // CHud::DrawWanted
 // does nothing. Turning the branch into an unconditional jump runs the limiter
 // without touching the saved preference.
 constexpr uintptr_t kFrameLimiterGate = 0x00748D68;
+// `FrontEndMenuManager.m_bPrefsFrameLimiter`, the byte the gate tests.
+constexpr uintptr_t kFrameLimiterPreference = 0x00BA6794;
+// `gGameState`. In the front end (7), before a save is loaded, `WinMain`
+// runs `RsEventHandler(rsFRONTENDIDLE)` on every pass with no limiter at
+// all, so `RsGlobal.frameLimit` has no effect there.
+constexpr uintptr_t kGameState = 0x00C8D4C0;
+constexpr int32_t kGameStateFrontEndIdle = 7;
 constexpr uintptr_t kFrameLimitStore = 0x00619620;
 constexpr uintptr_t kFrameLimitStoreOperand = 0x00619626;
 constexpr uintptr_t kScriptsProcess = 0x0046A000;

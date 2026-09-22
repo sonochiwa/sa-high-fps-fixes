@@ -366,28 +366,31 @@ bool InstallFrameLimit(int limit) {
 
 bool InstallAutoFpsLimit() {
     PatchSet patches("Automatic FPS limit");
-    if (!patches.Track(
+    // The per-frame hook is shared with other fixes; whichever installs first
+    // puts it in place, and a failure here must not remove theirs.
+    if (!g_scriptsProcessPatch.installed
+        && !patches.Track(
             InstallJump(g_scriptsProcessPatch, kScriptsProcess,
                         &ScriptsProcessThunk, kExpectedScriptsProcess),
             g_scriptsProcessPatch)) {
         Log("Automatic FPS limit skipped: CTheScripts::Process bytes do not match GTA SA 1.0 US.");
         return false;
     }
-    // The cases below write `RsGlobal.frameLimit`, which the engine only reads
-    // once the limiter gate is open, so this needs it too.
+    // The cases write `RsGlobal.frameLimit`, which the engine reads only while
+    // the limiter gate is open. With `fpsLimit` set the gate is open for good;
+    // otherwise it is opened for the length of a case and closed after it, so
+    // frames outside the cases stay as the game's own setting has them.
     constexpr std::array<uint8_t, 2> openGate{0xEB, 0x17};
-    if (!g_frameLimiterGatePatch.installed
-        && !MemoryMatches(kFrameLimiterGate, openGate)) {
-        if (!MemoryMatches(kFrameLimiterGate, kExpectedFrameLimiterGate)
-            || !patches.Track(
-                InstallByte(g_frameLimiterGatePatch, kFrameLimiterGate, 0xEB),
-                g_frameLimiterGatePatch)) {
-            Log("Automatic FPS limit skipped: the frame limiter gate could not "
-                "be opened.");
-            return false;
-        }
+    g_autoLimitTogglesGate = !g_frameLimiterGatePatch.installed
+                          && !MemoryMatches(kFrameLimiterGate, openGate);
+    if (g_autoLimitTogglesGate
+        && !MemoryMatches(kFrameLimiterGate, kExpectedFrameLimiterGate)) {
+        g_autoLimitTogglesGate = false;
+        Log("Automatic FPS limit skipped: the frame limiter gate does not "
+            "match GTA SA 1.0 US.");
+        return false;
     }
-    if (g_autoLimit.flags.forPauseMenu
+    if (g_autoLimit.pauseMenu != 0
         && !patches.Track(
             InstallJump(g_menuBackgroundPatch, kMenuBackground,
                         &MenuBackgroundThunk, kExpectedMenuBackground),
@@ -401,8 +404,8 @@ bool InstallAutoFpsLimit() {
     return true;
 }
 
-// Gets the guard its once-a-frame call. The automatic FPS limit uses the same
-// hook, so when that installed first the guard simply rides along.
+// Gets the guard its once-a-frame call. Other fixes use the same hook, so
+// when one of them installed first the guard simply rides along.
 bool InstallConflictingHookGuard() {
     if (g_scriptsProcessPatch.installed) {
         Log("Conflicting hook guard is sharing the CTheScripts::Process hook.");

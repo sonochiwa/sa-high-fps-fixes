@@ -40,16 +40,22 @@ struct DetourPatch {
     bool installed{};
 };
 
-union AutoLimitFlags {
-    uint32_t value;
-    struct {
-        uint32_t forMissions : 1;
-        uint32_t forMinigames : 1;
-        uint32_t forSchools : 1;
-        uint32_t forCutscenes : 1;
-        uint32_t forScriptedCutscenes : 1;
-        uint32_t forPauseMenu : 1;
-    } flags;
+// The lowest limit an automatic case applies.
+constexpr int kMinimumAutoLimit = 20;
+
+// The FPS limit each automatic case applies, or 0 when the case is off.
+struct AutoLimitCaps {
+    int missions;
+    int minigames;
+    int schools;
+    int cutscenes;
+    int scriptedCutscenes;
+    int pauseMenu;
+
+    bool Any() const {
+        return missions != 0 || minigames != 0 || schools != 0
+            || cutscenes != 0 || scriptedCutscenes != 0 || pauseMenu != 0;
+    }
 };
 extern HMODULE g_module;
 extern SitePatch g_endTimerPatch;
@@ -171,15 +177,14 @@ struct HornTapState {
 };
 extern std::array<HornTapState, 2> g_hornTapStates;
 extern int g_fpsLimit;
-extern int g_lastFpsLimit;
-extern bool g_isOnPauseMenu;
+extern bool g_autoLimitTogglesGate;
 extern bool g_gearChangeKick;
 extern bool g_suspensionDampingLimit;
 extern DetourPatch g_suspensionDampingPatch;
 extern bool g_suspensionLoadLean;
 extern DetourPatch g_physicalProcessControlPatch;
 extern std::array<SitePatch, 2> g_wheelSlipPatches;
-extern AutoLimitFlags g_autoLimit;
+extern AutoLimitCaps g_autoLimit;
 
 struct EmissionCarrySlot {
     void* blueprint{};

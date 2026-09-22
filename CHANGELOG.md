@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.4.2
+
+- Changed the six automatic limit keys in `[framerate]` to hold the FPS
+  limit to apply instead of `0` or `1`; an existing `1` is migrated to the
+  limit that case used before. A limit under `20` is raised to `20`.
+- Changed the defaults of `forMissions`, `forMinigames`, `forCutscenes`,
+  `forScriptedCutscenes` and `forPauseMenu` to `200`; an existing INI keeps
+  its values.
+- Fixed the automatic limits not installing at all since 1.3.0.
+- Fixed `forPauseMenu` having no effect in the main menu.
+
 ## 1.4.1
 
 - Fixed `log=0` still writing `HighFpsFixes.log` when a setting or a patch

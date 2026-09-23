@@ -315,6 +315,9 @@ void __cdecl ProcessFrameHooks() {
     if (g_gearChangeKick) {
         UpdateAcLoopFrameCount();
     }
+    if (g_parachuteFlight) {
+        UpdateParachuteScript();
+    }
     GuardInstalledSites();
 }
 

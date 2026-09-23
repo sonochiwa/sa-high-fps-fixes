@@ -7,6 +7,7 @@ HMODULE g_module{};
 SitePatch g_endTimerPatch{};
 SitePatch g_flightTimerPatch{};
 SitePatch g_continuousAmmoPatch{};
+std::array<SitePatch, 2> g_continuousShotPatches{};
 SitePatch g_chainsawStrikePatch{};
 SitePatch g_fightStrikeTracePatch{};
 float g_chainsawRewindOffset{kChainsawStockRewind};

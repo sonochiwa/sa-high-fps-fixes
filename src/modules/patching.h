@@ -61,6 +61,7 @@ extern HMODULE g_module;
 extern SitePatch g_endTimerPatch;
 extern SitePatch g_flightTimerPatch;
 extern SitePatch g_continuousAmmoPatch;
+extern std::array<SitePatch, 2> g_continuousShotPatches;
 extern SitePatch g_chainsawStrikePatch;
 extern SitePatch g_fightStrikeTracePatch;
 extern float g_chainsawRewindOffset;

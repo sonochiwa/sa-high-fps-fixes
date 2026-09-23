@@ -1,6 +1,7 @@
 #pragma once
 
 #include "modules/prelude.h"
+#include "modules/parachute_addresses.h"
 #include "modules/vehicle_control_addresses.h"
 
 namespace hff {
@@ -93,6 +94,13 @@ constexpr uintptr_t kFxCreateParticles = 0x004A41E0;
 constexpr uintptr_t kContinuousAmmoPatch = 0x007428A8;
 constexpr uintptr_t kContinuousAmmoConsume = 0x007428AD;
 constexpr uintptr_t kContinuousAmmoSkip = 0x007428E9;
+// Continuous weapon shots. `CWeapon::FireAreaEffect` (0x73E800) calls
+// `CShotInfo::AddShot` for the shot and, for the flamethrower,
+// `CCreepingFire::TryToStartFireAtCoors`; both call sites are redirected.
+constexpr uintptr_t kAreaEffectAddShotCall = 0x0073EB20;
+constexpr uintptr_t kShotInfoAddShot = 0x00739C30;
+constexpr uintptr_t kAreaEffectCreepingFireCall = 0x0073EBFE;
+constexpr uintptr_t kCreepingFireTryToStart = 0x0053A450;
 // Chainsaw strike rate. `CTaskSimpleFight::ProcessPed` keeps the player's held
 // chainsaw cutting by rewinding the moving-attack animation to `hit - 0.01`
 // every time it passes `chain`, and the strike itself fires on the frame the

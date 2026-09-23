@@ -96,6 +96,7 @@
     <ClCompile Include="modules\bike_pitch.cpp" />
     <ClCompile Include="modules\bike_transform.cpp" />
     <ClCompile Include="modules\bootstrap.cpp" />
+    <ClCompile Include="modules\continuous_weapons.cpp" />
     <ClCompile Include="modules\game_profiles.cpp" />
     <ClCompile Include="modules\hud.cpp" />
     <ClCompile Include="modules\ini_settings.cpp" />
@@ -111,6 +112,7 @@
     <ClCompile Include="modules\patching.cpp" />
     <ClCompile Include="modules\player.cpp" />
     <ClCompile Include="modules\push_telemetry.cpp" />
+    <ClCompile Include="modules\parachute.cpp" />
     <ClCompile Include="modules\runtime_features.cpp" />
     <ClCompile Include="modules\stat_carries.cpp" />
     <ClCompile Include="modules\thunk_helpers.cpp" />
@@ -159,6 +161,8 @@
     <ClInclude Include="modules\patching.h" />
     <ClInclude Include="modules\player.h" />
     <ClInclude Include="modules\prelude.h" />
+    <ClInclude Include="modules\parachute.h" />
+    <ClInclude Include="modules\parachute_addresses.h" />
     <ClInclude Include="modules\runtime_features.h" />
     <ClInclude Include="modules\thunk_helpers.h" />
     <ClInclude Include="modules\vehicles.h" />

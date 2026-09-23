@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.5.0
+
+- Added `parachuteFlight`: freefall and parachute steering turn and settle
+  as at 30 FPS instead of spinning above it.
+- Added `continuousWeaponShots`: the spraycan, extinguisher and
+  flamethrower hurt, paint, put out and start fires at the original rate.
+
 ## 1.4.3
 
 - Fixed `forPauseMenu` having no effect in menus, SA-MP included.

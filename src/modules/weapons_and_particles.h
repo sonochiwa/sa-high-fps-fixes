@@ -101,6 +101,15 @@ extern int64_t g_cycleTraceAdded;
 void TraceCycleSkill(int32_t site, double raw, int32_t added);
 int32_t __cdecl TruncateStatWithCarry(double value, uintptr_t site);
 int32_t __cdecl ShouldConsumeContinuousWeaponAmmo(uintptr_t weapon);
+
+// A CVector passed by value to the game's cdecl functions.
+struct ShotVector {
+    float x;
+    float y;
+    float z;
+};
+bool __cdecl GatedAreaEffectAddShot(void* creator, int32_t weaponType, ShotVector origin, ShotVector target);
+bool __cdecl GatedAreaEffectCreepingFire(ShotVector position, int32_t generations, int32_t allowSpread, int32_t scriptFire, float zDistance);
 void __cdecl UpdateChainsawRewindOffset(void* anim, void* task);
 void __cdecl RecordFightStrike(void* task);
 void TraceChainsaw();

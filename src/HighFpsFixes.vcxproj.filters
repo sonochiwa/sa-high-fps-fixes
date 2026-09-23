@@ -25,6 +25,9 @@
     <ClCompile Include="modules\bootstrap.cpp">
       <Filter>modules</Filter>
     </ClCompile>
+    <ClCompile Include="modules\continuous_weapons.cpp">
+      <Filter>modules</Filter>
+    </ClCompile>
     <ClCompile Include="modules\game_profiles.cpp">
       <Filter>modules</Filter>
     </ClCompile>
@@ -68,6 +71,9 @@
       <Filter>modules</Filter>
     </ClCompile>
     <ClCompile Include="modules\push_telemetry.cpp">
+      <Filter>modules</Filter>
+    </ClCompile>
+    <ClCompile Include="modules\parachute.cpp">
       <Filter>modules</Filter>
     </ClCompile>
     <ClCompile Include="modules\runtime_features.cpp">
@@ -144,6 +150,12 @@
       <Filter>modules</Filter>
     </ClInclude>
     <ClInclude Include="modules\prelude.h">
+      <Filter>modules</Filter>
+    </ClInclude>
+    <ClInclude Include="modules\parachute.h">
+      <Filter>modules</Filter>
+    </ClInclude>
+    <ClInclude Include="modules\parachute_addresses.h">
       <Filter>modules</Filter>
     </ClInclude>
     <ClInclude Include="modules\runtime_features.h">

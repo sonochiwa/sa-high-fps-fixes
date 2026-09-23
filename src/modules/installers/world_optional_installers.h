@@ -19,6 +19,7 @@ bool InstallParticleEmissionRateFix();
 bool InstallContinuousWeaponParticlesFix();
 bool InstallDrowningDamageFix();
 bool InstallContinuousWeaponAmmoFix();
+bool InstallContinuousWeaponShotsFix();
 bool InstallChainsawStrikeRateFix();
 bool InstallFrameLimit(int limit);
 bool InstallAutoFpsLimit();

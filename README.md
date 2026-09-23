@@ -70,6 +70,7 @@ missing:
 | `bloodyFootprints` | `1` | Bloody footprints fade in real time. |
 | `drowningDamage` | `1` | Drowning damage at the original rate. |
 | `drunkSteerDelay` | `1` | Drunk steering delay at the original rate. |
+| `parachuteFlight` | `1` | Freefall and parachute steering turn and settle as at 30 FPS. |
 | `jetPackFlame` | `1` | Jetpack flame ramps in real time. |
 | `fatCounter` | `1` | Fat and muscle change at the original rate. |
 | `waterBuoyancy` | `1` | Buoyancy no longer fails at high FPS. |
@@ -117,6 +118,7 @@ missing:
 | `[weapons]` | | |
 | `continuousWeaponParticles` | `1` | Extinguisher, spraycan and flamethrower particles stay visible without the frame limiter. |
 | `continuousWeaponAmmo` | `1` | Those weapons use ammunition at the original rate. |
+| `continuousWeaponShots` | `1` | Those weapons hurt, paint, put out and start fires at the original rate. |
 | `chainsawStrikeRate` | `1` | Chainsaw hits fifteen times a second at any FPS. |
 | `[particles]` | | |
 | `emissionRate` | `1` | Particle effects emit at the original rate. |

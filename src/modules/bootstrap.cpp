@@ -128,6 +128,8 @@ DWORD WINAPI Initialize(void*) {
                InstallDrowningDamageFix},
         {"player", "drunkSteerDelay", "Drunk steering delay fix",
                InstallDrunkSteerDelayFix},
+        {"player", "parachuteFlight", "Parachute flight fix",
+               InstallParachuteFlightFix},
         {"player", "jetPackFlame", "Jetpack flame ramp fix",
                InstallJetPackFxRampFix},
         {"player", "fatCounter", "Fat counter fix",
@@ -222,6 +224,8 @@ DWORD WINAPI Initialize(void*) {
     const FixSpec weaponFixes[] = {
         {"weapons", "continuousWeaponAmmo", "Continuous weapon ammo fix",
          InstallContinuousWeaponAmmoFix},
+        {"weapons", "continuousWeaponShots", "Continuous weapon shot rate fix",
+         InstallContinuousWeaponShotsFix},
         {"weapons", "chainsawStrikeRate", "Chainsaw strike rate fix",
          InstallChainsawStrikeRateFix},
     };

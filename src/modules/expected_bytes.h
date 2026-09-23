@@ -48,6 +48,14 @@ constexpr uintptr_t kFxAddParticle = 0x004AA440;
 constexpr std::array<uint8_t, 5> kExpectedFxAddParticle{
     0x83, 0xEC, 0x08, 0x56, 0x57
 };
+// call CShotInfo::AddShot, from CWeapon::FireAreaEffect
+constexpr std::array<uint8_t, 5> kExpectedAreaEffectAddShotCall{
+    0xE8, 0x0B, 0xB1, 0xFF, 0xFF
+};
+// call CCreepingFire::TryToStartFireAtCoors, from CWeapon::FireAreaEffect
+constexpr std::array<uint8_t, 5> kExpectedAreaEffectCreepingFireCall{
+    0xE8, 0x4D, 0xB8, 0xDF, 0xFF
+};
 constexpr std::array<uint8_t, 5> kExpectedContinuousAmmo{
     0x8B, 0x46, 0x08, 0x85, 0xC0
 };

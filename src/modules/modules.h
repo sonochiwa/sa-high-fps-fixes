@@ -6,6 +6,7 @@
 #include "modules/patching.h"
 #include "modules/ini_settings.h"
 #include "modules/weapons_and_particles.h"
+#include "modules/parachute.h"
 #include "modules/player.h"
 #include "modules/vehicles.h"
 #include "modules/hud.h"

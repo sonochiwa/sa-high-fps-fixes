@@ -317,6 +317,27 @@ bool InstallDrowningDamageFix() {
     return true;
 }
 
+bool InstallContinuousWeaponShotsFix() {
+    PatchSet patches("Continuous weapon shot rate fix");
+    if (!patches.Track(InstallCall(g_continuousShotPatches[0], kAreaEffectAddShotCall,
+                                   &GatedAreaEffectAddShot,
+                                   kExpectedAreaEffectAddShotCall),
+                       g_continuousShotPatches[0])
+        || !patches.Track(InstallCall(g_continuousShotPatches[1],
+                                      kAreaEffectCreepingFireCall,
+                                      &GatedAreaEffectCreepingFire,
+                                      kExpectedAreaEffectCreepingFireCall),
+                          g_continuousShotPatches[1])) {
+        Log("Continuous weapon shot rate fix skipped: CWeapon::FireAreaEffect "
+            "bytes do not match GTA SA 1.0 US.");
+        return false;
+    }
+    patches.Commit();
+    Log("Installed spraycan, extinguisher and flamethrower shots at the "
+        "original rate.");
+    return true;
+}
+
 bool InstallContinuousWeaponAmmoFix() {
     if (!InstallJump(g_continuousAmmoPatch, kContinuousAmmoPatch,
                      &ContinuousWeaponAmmoThunk, kExpectedContinuousAmmo)) {

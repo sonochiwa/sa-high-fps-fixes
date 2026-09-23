@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.6.0
+
+- Added `objectPickUp`: the player steps up to an object being picked up
+  at the original speed instead of being thrown at it.
+- Added `movingParts`: forklift forks, the dozer blade, the dumper bed and
+  cargo ramps move at the original speed.
+- Added `burglaryNoise`: the burglary noise meter fills as at 30 FPS.
+- Changed the default of `forMinigames` to `30`, the rate pool was made for;
+  an existing INI keeps its value, so set `forMinigames=30` by hand.
+- Fixed the car radio holding the game at 30 FPS.
+- Fixed the extinguisher barely putting fires out since 1.5.0.
+
 ## 1.5.0
 
 - Added `parachuteFlight`: freefall and parachute steering turn and settle

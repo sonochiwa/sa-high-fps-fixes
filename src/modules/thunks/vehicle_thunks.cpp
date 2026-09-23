@@ -349,4 +349,19 @@ __declspec(naked) void WheelSlipCoastThunk() {
     }
 }
 
+// Replaces the step of a moving part from the timestep load to the clamp.
+// `edi` is the vehicle, `ebx` its driver's pad and `[esp+0x1C]` the rate; the
+// x87 stack is empty, and eax, ecx, edx and ebx are dead at the resume point,
+// which clears ebx itself.
+__declspec(naked) void MovingPartStepThunk() {
+    __asm {
+        push dword ptr [esp + 0x1C]
+        push ebx
+        push edi
+        call StepMovingPartAngle
+        add esp, 12
+        jmp kMovingPartStepResume
+    }
+}
+
 } // namespace hff

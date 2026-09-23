@@ -109,6 +109,7 @@ struct ShotVector {
     float z;
 };
 bool __cdecl GatedAreaEffectAddShot(void* creator, int32_t weaponType, ShotVector origin, ShotVector target);
+bool __fastcall ExtinguishShotWithWater(void* fireManager, void*, ShotVector point, float radius, float strength);
 bool __cdecl GatedAreaEffectCreepingFire(ShotVector position, int32_t generations, int32_t allowSpread, int32_t scriptFire, float zDistance);
 void __cdecl UpdateChainsawRewindOffset(void* anim, void* task);
 void __cdecl RecordFightStrike(void* task);

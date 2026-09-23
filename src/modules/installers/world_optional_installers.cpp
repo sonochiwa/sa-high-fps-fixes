@@ -332,6 +332,14 @@ bool InstallContinuousWeaponShotsFix() {
             "bytes do not match GTA SA 1.0 US.");
         return false;
     }
+    if (!patches.Track(InstallCall(g_continuousShotPatches[2], kShotExtinguishCall,
+                                   &ExtinguishShotWithWater,
+                                   kExpectedShotExtinguishCall),
+                       g_continuousShotPatches[2])) {
+        Log("Continuous weapon shot rate fix skipped: CShotInfo::Update bytes "
+            "do not match GTA SA 1.0 US.");
+        return false;
+    }
     patches.Commit();
     Log("Installed spraycan, extinguisher and flamethrower shots at the "
         "original rate.");
@@ -382,6 +390,18 @@ bool InstallFrameLimit(int limit) {
     WriteFrameLimit(static_cast<uint8_t>(limit));
     patches.Commit();
     Log("Installed the configured frame limit.");
+    return true;
+}
+
+bool InstallRadioFrameLockFix() {
+    if (!InstallCall(g_radioFrameLockPatch, kFrameLimiterBeatCheck,
+                     &BeatTrackHoldsFrameLimit, kExpectedFrameLimiterBeatCheck)) {
+        Log("Radio frame lock fix skipped: the main loop bytes do not match "
+            "GTA SA 1.0 US.");
+        return false;
+    }
+    Log("Installed a frame limiter that music holds only in the dance and "
+        "lowrider minigames.");
     return true;
 }
 

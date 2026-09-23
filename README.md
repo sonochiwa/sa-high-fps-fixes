@@ -12,19 +12,20 @@ is reached at any higher frame rate. Each fix has its own switch.
 ## Features
 
 - Camera: stunt jump, aim shake, follow, idle and drunk camera timing.
-- Player: swimming, diving, buoyancy, climbing, aiming walk, skill and
-  stunt counters, drowning, drunk steering, jetpack flame.
+- Player: swimming, diving, buoyancy, climbing, picking up objects, aiming
+  walk, skill and stunt counters, drowning, drunk steering, jetpack flame.
 - Vehicles: wheel friction, burnout, bike lean and pitch, rotor and
-  propeller speed, door swing, head bop, siren tap and the timers that
-  park, burn or flip a vehicle.
+  propeller speed, door swing, forklift forks, head bop, siren tap and the
+  timers that park, burn or flip a vehicle.
 - Weapons: extinguisher, spraycan and flamethrower particles and ammunition,
   chainsaw strike rate.
 - HUD: health, armor, breath, wanted-star and radar flashes at their
   original rate.
 - World: gang war countdown, fire spread, scripted and SA-MP object movement,
-  falling glass, breakable objects, pause menu map zoom.
-- Optional frame limiting and automatic FPS limits for specific game cases,
-  all off by default.
+  falling glass, breakable objects, burglary noise meter, pause menu map
+  zoom.
+- Frame rate: no 30 FPS lock while the car radio plays, an optional frame
+  limit and automatic limits for game cases known to break.
 - Verifies the bytes it replaces before writing and refuses to patch any
   other executable.
 
@@ -75,6 +76,7 @@ missing:
 | `fatCounter` | `1` | Fat and muscle change at the original rate. |
 | `waterBuoyancy` | `1` | Buoyancy no longer fails at high FPS. |
 | `climbSpeed` | `1` | Climb speed at the original rate. |
+| `objectPickUp` | `1` | The player steps up to an object being picked up, such as a box, at the original speed instead of being thrown at it. |
 | `skillProgress` | `1` | Skill stats progress at the original rate. |
 | `stuntCounters` | `1` | Wheelie, stoppie and two-wheel counters run in real time. |
 | `taskTimers` | `1` | Ped task timers run in real time. |
@@ -115,6 +117,7 @@ missing:
 | `headBopping` | `1` | Driver head bop in real time. |
 | `jumpOutCarSpeed` | `1` | Jumping out of a car is allowed at the same speeds at any FPS. |
 | `doorSwing` | `1` | Vehicle doors swing at the original rate. |
+| `movingParts` | `1` | Forklift forks, the dozer blade, the dumper bed and cargo ramps move at the original speed instead of slowing down or sticking. |
 | `[weapons]` | | |
 | `continuousWeaponParticles` | `1` | Extinguisher, spraycan and flamethrower particles stay visible without the frame limiter. |
 | `continuousWeaponAmmo` | `1` | Those weapons use ammunition at the original rate. |
@@ -133,13 +136,14 @@ missing:
 | `sampObjectRotation` | `1` | SA-MP moving objects rotate in real time. |
 | `fallingGlass` | `1` | Falling glass moves at the original speed. |
 | `breakableObjectLifetime` | `1` | Broken object pieces last the same time at any FPS. |
+| `burglaryNoise` | `1` | The burglary noise meter fills as at 30 FPS instead of staying near empty. |
 | `[menu]` | | |
 | `mapZoomWheel` | `1` | The mouse wheel zooms the pause menu map at high FPS. |
 | `[framerate]` | | |
 | `fpsLimit` | `0` | Frame limit in FPS, `1` to `255`. `0` leaves the game's limiter alone. |
 | `forSchools` | `0` | FPS limit during driving, boat and bike school. |
 | `forMissions` | `200` | FPS limit during missions known to break at high FPS. |
-| `forMinigames` | `200` | FPS limit during pool and the intimacy minigame. |
+| `forMinigames` | `30` | FPS limit during pool and the intimacy minigame. |
 | `forCutscenes` | `200` | FPS limit during engine cutscenes. |
 | `forScriptedCutscenes` | `200` | FPS limit while letterbox borders are active. |
 | `forPauseMenu` | `200` | FPS limit while a menu is drawn, the main menu included. |

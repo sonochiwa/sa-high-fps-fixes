@@ -35,6 +35,7 @@ float __cdecl GetAimingRifleWalkStep();
 extern float g_moneyStepCarry;
 void __cdecl ApplyMoneyStep(int32_t* field, int32_t proposed);
 void __cdecl ClampClimbMoveSpeed(float* speed);
+float __cdecl PickUpAlignStep(float offset);
 extern float g_swimShiftSaved[2];
 extern bool g_swimShiftScaled;
 void __cdecl ScaleSwimAnimShift(uintptr_t ped);

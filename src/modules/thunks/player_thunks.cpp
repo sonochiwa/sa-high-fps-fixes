@@ -65,6 +65,29 @@ __declspec(naked) void ClimbSpeedClampThunk() {
     }
 }
 
+// Stands in for `fdiv dword ptr [CTimer::ms_fTimeStep]` in the pickup
+// approach, with the offset in st(0) and nothing else on the x87 stack; the
+// quotient goes back there for the `fmul 0.1` that follows. `eax` and `ecx`
+// point into the ped's matrix and the flags feed a later branch, so all three
+// are kept.
+__declspec(naked) void PickUpAlignThunk() {
+    __asm {
+        pushfd
+        push eax
+        push ecx
+        push edx
+        sub esp, 4
+        fstp dword ptr [esp]
+        call PickUpAlignStep
+        add esp, 4
+        pop edx
+        pop ecx
+        pop eax
+        popfd
+        ret
+    }
+}
+
 // The impulse is built with the original timestep so the comparison against
 // `mass * moveSpeed.z` keeps its 30 FPS meaning, and the copy written into the
 // output vector is scaled back to the current frame. `esi` addresses the

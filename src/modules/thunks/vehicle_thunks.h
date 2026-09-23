@@ -25,5 +25,6 @@ void TransmissionInertiaThunk();
 void TransmissionSmootherThunk();
 void WheelSlipRightThunk();
 void WheelSlipCoastThunk();
+void MovingPartStepThunk();
 
 } // namespace hff

@@ -309,4 +309,70 @@ bool WriteProtectedGameFloat(uintptr_t address, float value) {
     return true;
 }
 
+namespace {
+
+// Only a vehicle driven by a local player reaches the step, so two slots
+// cover split screen.
+struct MovingPartCarry {
+    uintptr_t vehicle;
+    float carry;
+};
+std::array<MovingPartCarry, 2> g_movingPartCarries{};
+size_t g_movingPartNextSlot{};
+
+float& MovingPartCarryFor(uintptr_t vehicle) {
+    for (auto& slot : g_movingPartCarries) {
+        if (slot.vehicle == vehicle) {
+            return slot.carry;
+        }
+    }
+    auto& slot = g_movingPartCarries[g_movingPartNextSlot];
+    g_movingPartNextSlot = (g_movingPartNextSlot + 1) % g_movingPartCarries.size();
+    slot = {vehicle, 0.0f};
+    return slot.carry;
+}
+
+} // namespace
+
+// Moves the part by the whole units one original frame moves it, spread over
+// the frames that make up that time with the fraction carried per vehicle,
+// then clamps as the game does: below zero to zero, above the limit to the
+// limit. At 30 FPS and below the step is the game's own.
+void __cdecl StepMovingPartAngle(uintptr_t vehicle, void* pad, float rate) {
+    using GetCarGunUpDownFn = int16_t(__thiscall*)(void*);
+    const int16_t upDown = reinterpret_cast<GetCarGunUpDownFn>(kPadGetCarGunUpDown)(pad);
+    const float timeStep = ReadGameFloat(kTimerTimeStep, kOriginalTimeStep);
+    const float ratio = timeStep / kOriginalTimeStep;
+    float& carry = MovingPartCarryFor(vehicle);
+    int32_t step = 0;
+    if (ratio >= 1.0f) {
+        step = static_cast<int16_t>(
+            static_cast<float>(upDown) * timeStep * rate * kPadAxisScale);
+        carry = 0.0f;
+    } else {
+        const auto originalStep = static_cast<int16_t>(
+            static_cast<float>(upDown) * kOriginalTimeStep * rate * kPadAxisScale);
+        // A reversed or released control starts from a clean fraction.
+        if (originalStep == 0 || (originalStep > 0) != (carry > 0.0f)) {
+            carry = 0.0f;
+        }
+        const float total = static_cast<float>(originalStep) * ratio + carry;
+        step = static_cast<int32_t>(total);
+        carry = total - static_cast<float>(step);
+    }
+
+    auto& angle = *reinterpret_cast<uint16_t*>(vehicle + kAutomobileMiscComponentAngle);
+    int32_t next = static_cast<int32_t>(angle) + step;
+    if (next < 0) {
+        next = 0;
+        carry = 0.0f;
+    }
+    angle = static_cast<uint16_t>(next);
+    const int32_t limit = *reinterpret_cast<const int16_t*>(kMovingPartAngleLimit);
+    if (static_cast<int32_t>(angle) > limit) {
+        angle = static_cast<uint16_t>(limit);
+        carry = 0.0f;
+    }
+}
+
 } // namespace hff

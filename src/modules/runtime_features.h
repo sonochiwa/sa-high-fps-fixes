@@ -15,6 +15,8 @@ uintptr_t __cdecl SelectSirenReturnAddress(uintptr_t vehicle);
 void WriteFrameLimit(uint8_t value);
 uint8_t ReadFrameLimit();
 bool ScriptNameMatches(const char* name, const char* expected);
+uintptr_t FindRunningScript(const char* name);
+bool __fastcall BeatTrackHoldsFrameLimit(void* audioEngine, void*);
 int PreferredScriptFpsLimit();
 void __cdecl ProcessAutoFpsLimit();
 void __cdecl ProcessFrameHooks();

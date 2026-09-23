@@ -73,10 +73,10 @@
     <ClCompile Include="modules\push_telemetry.cpp">
       <Filter>modules</Filter>
     </ClCompile>
-    <ClCompile Include="modules\parachute.cpp">
+    <ClCompile Include="modules\runtime_features.cpp">
       <Filter>modules</Filter>
     </ClCompile>
-    <ClCompile Include="modules\runtime_features.cpp">
+    <ClCompile Include="modules\script_literals.cpp">
       <Filter>modules</Filter>
     </ClCompile>
     <ClCompile Include="modules\stat_carries.cpp">
@@ -152,16 +152,19 @@
     <ClInclude Include="modules\prelude.h">
       <Filter>modules</Filter>
     </ClInclude>
-    <ClInclude Include="modules\parachute.h">
-      <Filter>modules</Filter>
-    </ClInclude>
-    <ClInclude Include="modules\parachute_addresses.h">
-      <Filter>modules</Filter>
-    </ClInclude>
     <ClInclude Include="modules\runtime_features.h">
       <Filter>modules</Filter>
     </ClInclude>
+    <ClInclude Include="modules\script_addresses.h">
+      <Filter>modules</Filter>
+    </ClInclude>
+    <ClInclude Include="modules\script_literals.h">
+      <Filter>modules</Filter>
+    </ClInclude>
     <ClInclude Include="modules\thunk_helpers.h">
+      <Filter>modules</Filter>
+    </ClInclude>
+    <ClInclude Include="modules\trunc_carry_addresses.h">
       <Filter>modules</Filter>
     </ClInclude>
     <ClInclude Include="modules\vehicles.h">

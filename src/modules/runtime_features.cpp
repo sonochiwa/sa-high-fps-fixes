@@ -162,6 +162,40 @@ bool ScriptNameMatches(const char* name, const char* expected) {
     return _stricmp(buffer.data(), expected) == 0;
 }
 
+uintptr_t FindRunningScript(const char* name) {
+    const auto queueHead = *reinterpret_cast<const uintptr_t*>(kScriptQueueOperand);
+    if (!queueHead) {
+        return 0;
+    }
+    for (auto script = *reinterpret_cast<const uintptr_t*>(queueHead); script;
+         script = *reinterpret_cast<const uintptr_t*>(script)) {
+        if (ScriptNameMatches(reinterpret_cast<const char*>(
+                                  script + kRunningScriptNameOffset),
+                              name)) {
+            return script;
+        }
+    }
+    return 0;
+}
+
+// Stands in for the `CAudioEngine::IsBeatInfoPresent` call that makes the
+// main loop run the frame limiter whatever the menu says. Music with a beat
+// track keeps the limiter only while the dance minigame, the lowrider
+// minigame or its beat display runs, the scripts that play along to it.
+bool __fastcall BeatTrackHoldsFrameLimit(void* audioEngine, void*) {
+    using IsBeatInfoPresentFn = bool(__thiscall*)(void*);
+    if (!reinterpret_cast<IsBeatInfoPresentFn>(kAudioEngineIsBeatInfoPresent)(
+            audioEngine)) {
+        return false;
+    }
+    __try {
+        return FindRunningScript("DANCE") || FindRunningScript("LOWGAME")
+            || FindRunningScript("BDISPLY");
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+        return true;
+    }
+}
+
 int PreferredScriptFpsLimit() {
     int preferred = 0;
     const auto queueHead = *reinterpret_cast<uintptr_t*>(kScriptQueueOperand);
@@ -315,8 +349,8 @@ void __cdecl ProcessFrameHooks() {
     if (g_gearChangeKick) {
         UpdateAcLoopFrameCount();
     }
-    if (g_parachuteFlight) {
-        UpdateParachuteScript();
+    if (g_parachuteFlight || g_burglaryNoise) {
+        UpdateScriptLiterals();
     }
     GuardInstalledSites();
 }

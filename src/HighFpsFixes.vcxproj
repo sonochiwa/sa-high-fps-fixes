@@ -112,8 +112,8 @@
     <ClCompile Include="modules\patching.cpp" />
     <ClCompile Include="modules\player.cpp" />
     <ClCompile Include="modules\push_telemetry.cpp" />
-    <ClCompile Include="modules\parachute.cpp" />
     <ClCompile Include="modules\runtime_features.cpp" />
+    <ClCompile Include="modules\script_literals.cpp" />
     <ClCompile Include="modules\stat_carries.cpp" />
     <ClCompile Include="modules\thunk_helpers.cpp" />
     <ClCompile Include="modules\thunks\base_thunks.cpp" />
@@ -161,10 +161,11 @@
     <ClInclude Include="modules\patching.h" />
     <ClInclude Include="modules\player.h" />
     <ClInclude Include="modules\prelude.h" />
-    <ClInclude Include="modules\parachute.h" />
-    <ClInclude Include="modules\parachute_addresses.h" />
     <ClInclude Include="modules\runtime_features.h" />
+    <ClInclude Include="modules\script_addresses.h" />
+    <ClInclude Include="modules\script_literals.h" />
     <ClInclude Include="modules\thunk_helpers.h" />
+    <ClInclude Include="modules\trunc_carry_addresses.h" />
     <ClInclude Include="modules\vehicles.h" />
     <ClInclude Include="modules\weapons_and_particles.h" />
     <ClInclude Include="modules\installers\core_installers.h" />

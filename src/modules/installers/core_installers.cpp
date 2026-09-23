@@ -170,6 +170,23 @@ bool InstallClimbSpeedFix() {
     return true;
 }
 
+bool InstallObjectPickUpFix() {
+    PatchSet patches("Object pickup fix");
+    const std::array<uintptr_t, 2> sites{kPickUpAlignAcross, kPickUpAlignAlong};
+    for (size_t i = 0; i < sites.size(); ++i) {
+        if (!patches.Track(InstallCall(g_pickUpAlignPatches[i], sites[i],
+                                       &PickUpAlignThunk, kExpectedPickUpAlign),
+                           g_pickUpAlignPatches[i])) {
+            Log("Object pickup fix skipped: CTaskSimpleHoldEntity::ProcessPed "
+                "bytes do not match GTA SA 1.0 US.");
+            return false;
+        }
+    }
+    patches.Commit();
+    Log("Installed a pickup approach at the original speed.");
+    return true;
+}
+
 bool InstallWaterBuoyancyFix() {
     PatchSet patches("Water buoyancy fix");
     if (!MemoryMatches(kBuoyancyThreshold, kExpectedBuoyancyThreshold)

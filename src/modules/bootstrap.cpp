@@ -138,6 +138,8 @@ DWORD WINAPI Initialize(void*) {
                InstallWaterBuoyancyFix},
         {"player", "climbSpeed", "Climb speed fix",
                InstallClimbSpeedFix},
+        {"player", "objectPickUp", "Object pickup fix",
+               InstallObjectPickUpFix},
         {"player", "skillProgress", "Skill progress fix",
                InstallSkillProgressFix},
         {"player", "stuntCounters", "Stunt counter fix",
@@ -176,6 +178,8 @@ DWORD WINAPI Initialize(void*) {
         {"vehicles", "burnout", "Burnout fix", InstallBurnoutFix},
         {"vehicles", "doorSwing", "Door swing fix",
                InstallDoorSwingFix},
+        {"vehicles", "movingParts", "Moving parts fix",
+               InstallMovingPartsFix},
         {"vehicles", "sirenTap", "Siren tap fix", InstallSirenTapFix},
         {"vehicles", "heliRotorSpeed", "Helicopter rotor fix",
                InstallHeliRotorSpeedFix},
@@ -278,6 +282,8 @@ DWORD WINAPI Initialize(void*) {
          InstallFallingGlassFix},
         {"world", "breakableObjectLifetime",
          "Breakable object lifetime fix", InstallBreakableObjectLifetimeFix},
+        {"world", "burglaryNoise", "Burglary noise fix",
+         InstallBurglaryNoiseFix},
         {"menu", "mapZoomWheel", "Map zoom wheel fix",
          InstallMapZoomWheelFix},
     };
@@ -287,6 +293,9 @@ DWORD WINAPI Initialize(void*) {
     if (g_fpsLimit > 0) {
         InstallFrameLimit(g_fpsLimit);
     }
+    // Nobody wants a car ride held at 30 FPS, so this fix has no switch.
+    InstallRadioFrameLockFix() ? ++g_installSummary.installed
+                               : ++g_installSummary.failed;
     g_traceCycleSkill = ReadSetting("general", "traceCycleSkill", false);
     g_traceChainsaw = ReadSetting("general", "traceChainsaw", false);
     if (g_traceChainsaw) {
@@ -411,7 +420,7 @@ DWORD WINAPI Initialize(void*) {
     };
     g_autoLimit.schools = readCap("forSchools", 0);
     g_autoLimit.missions = readCap("forMissions", 200);
-    g_autoLimit.minigames = readCap("forMinigames", 200);
+    g_autoLimit.minigames = readCap("forMinigames", 30);
     g_autoLimit.cutscenes = readCap("forCutscenes", 200);
     g_autoLimit.scriptedCutscenes = readCap("forScriptedCutscenes", 200);
     g_autoLimit.pauseMenu = readCap("forPauseMenu", 200);

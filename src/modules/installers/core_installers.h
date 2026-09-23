@@ -14,6 +14,7 @@ bool InstallAttachedEntitySpeedFix();
 bool InstallAiAircraftSteerFix();
 bool InstallMoneyCounterFix();
 bool InstallClimbSpeedFix();
+bool InstallObjectPickUpFix();
 bool InstallWaterBuoyancyFix();
 bool InstallPedPushVehicleFix();
 bool InstallBloodyFootprintsFix();

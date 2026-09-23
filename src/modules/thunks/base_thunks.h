@@ -26,6 +26,7 @@ void AiAircraftSteerRateThunk();
 void StatTruncCarryThunk();
 void MoneyStepThunk();
 void ClimbSpeedClampThunk();
+void PickUpAlignThunk();
 void BuoyancyThresholdThunk();
 void BuoyancyClampedStoreThunk();
 void SwimResistanceThunk();

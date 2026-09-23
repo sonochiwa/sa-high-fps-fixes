@@ -189,6 +189,20 @@ void __cdecl ClampClimbMoveSpeed(float* speed) {
     }
 }
 
+// Returns the offset over the divisor that makes the `* 0.1` after it cover
+// the share of the offset one original frame covers, compounded over the
+// part of an original frame this one lasts. At 30 FPS and below the divisor
+// is the timestep, as in the game.
+float __cdecl PickUpAlignStep(float offset) {
+    const float ratio = TimeStepRatio();
+    if (ratio >= 1.0f) {
+        return offset / (ratio * kOriginalTimeStep);
+    }
+    constexpr float kStockShare = kPickUpAlignFactor / kOriginalTimeStep;
+    const float share = 1.0f - std::pow(1.0f - kStockShare, ratio);
+    return offset * share / kPickUpAlignFactor;
+}
+
 // The animation shift is a displacement for one frame, so turning it into a
 // speed in original timestep units means dividing by the ratio. The original
 // values are put back the moment the swim task is done with them: the same

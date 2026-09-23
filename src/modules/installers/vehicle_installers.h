@@ -6,6 +6,7 @@ namespace hff {
 
 void TryDisableSwingingCompletely();
 bool InstallDoorSwingFix();
+bool InstallMovingPartsFix();
 bool InstallWheelSpinFix();
 bool InstallSwimPitchRateFix();
 bool InstallDrunkSteerDelayFix();

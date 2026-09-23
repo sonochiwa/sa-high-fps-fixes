@@ -6,7 +6,9 @@
 // puts out a fire, while the flamethrower also tries to start a fire nearby
 // a third of the time. Above 30 FPS all of that happens many times as often.
 // The two calls are gated per shooter so they run once per original frame;
-// the spray itself is still drawn every frame.
+// the spray itself is still drawn every frame. Putting a fire out is the one
+// effect the game already scales by the frame's time, so a gated shot does it
+// with the strength of a whole original frame.
 
 namespace hff {
 
@@ -75,6 +77,21 @@ bool __cdecl GatedAreaEffectAddShot(void* creator, int32_t weaponType,
     using AddShotFn = bool(__cdecl*)(void*, int32_t, ShotVector, ShotVector);
     return reinterpret_cast<AddShotFn>(kShotInfoAddShot)(creator, weaponType,
                                                          origin, target);
+}
+
+// The fire loses the strength times the frame's time for each shot that
+// reaches it. A gated shot stands for a whole original frame, so it is given
+// the strength of the frames it covers; left alone, the extinguisher would
+// put fires out that many times more slowly.
+bool __fastcall ExtinguishShotWithWater(void* fireManager, void*, ShotVector point,
+                                        float radius, float strength) {
+    const float ratio = TimeStepRatio();
+    if (ratio > 0.0f && ratio < 1.0f) {
+        strength /= ratio;
+    }
+    using ExtinguishFn = bool(__thiscall*)(void*, ShotVector, float, float);
+    return reinterpret_cast<ExtinguishFn>(kFireManagerExtinguishPointWithWater)(
+        fireManager, point, radius, strength);
 }
 
 // Runs after the gated shot in the same `FireAreaEffect` call, so it follows

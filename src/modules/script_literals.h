@@ -5,8 +5,10 @@
 namespace hff {
 
 extern bool g_parachuteFlight;
+extern bool g_burglaryNoise;
 
 bool InstallParachuteFlightFix();
-void UpdateParachuteScript();
+bool InstallBurglaryNoiseFix();
+void UpdateScriptLiterals();
 
 } // namespace hff

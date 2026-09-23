@@ -58,6 +58,18 @@ bool InstallDoorSwingFix() {
     return true;
 }
 
+bool InstallMovingPartsFix() {
+    if (!InstallJump(g_movingPartStepPatch, kMovingPartStep,
+                     &MovingPartStepThunk, kExpectedMovingPartStep)) {
+        Log("Moving parts fix skipped: CAutomobile::UpdateMovingCollision "
+            "bytes do not match GTA SA 1.0 US.");
+        return false;
+    }
+    Log("Installed forklift, dozer, dumper and ramp movement at the original "
+        "rate.");
+    return true;
+}
+
 bool InstallWheelSpinFix() {
     PatchSet patches("Free wheel spin fix");
     struct Site {

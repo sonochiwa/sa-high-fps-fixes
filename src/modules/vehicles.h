@@ -19,6 +19,7 @@ float __cdecl GetWheelSettleWeight();
 float ReadHeliRotorFinalSpeed();
 float __cdecl GetHeliRotorSlowStep();
 float __cdecl GetHeliRotorFastStep();
+void __cdecl StepMovingPartAngle(uintptr_t vehicle, void* pad, float rate);
 bool NearlyEqual(float a, float b);
 void WriteGameFloat(uintptr_t address, float value);
 bool WriteProtectedGameFloat(uintptr_t address, float value);

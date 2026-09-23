@@ -56,6 +56,10 @@ constexpr std::array<uint8_t, 5> kExpectedAreaEffectAddShotCall{
 constexpr std::array<uint8_t, 5> kExpectedAreaEffectCreepingFireCall{
     0xE8, 0x4D, 0xB8, 0xDF, 0xFF
 };
+// call CFireManager::ExtinguishPointWithWater, from CShotInfo::Update
+constexpr std::array<uint8_t, 5> kExpectedShotExtinguishCall{
+    0xE8, 0xDA, 0xF2, 0xDF, 0xFF
+};
 constexpr std::array<uint8_t, 5> kExpectedContinuousAmmo{
     0x8B, 0x46, 0x08, 0x85, 0xC0
 };
@@ -219,6 +223,14 @@ constexpr std::array<uint8_t, 13> kExpectedClimbSpeedClamp{
     0x52,
     0xE8, 0xE1, 0x07, 0xD9, 0xFF
 };
+// fdiv dword ptr [CTimer::ms_fTimeStep]
+constexpr std::array<uint8_t, 6> kExpectedPickUpAlign{
+    0xD8, 0x35, 0x5C, 0xCB, 0xB7, 0x00
+};
+// mov ecx,dword ptr [CTimer::ms_fTimeStep]
+constexpr std::array<uint8_t, 6> kExpectedMovingPartStep{
+    0x8B, 0x0D, 0x5C, 0xCB, 0xB7, 0x00
+};
 // The impulse, its store, the mass times move speed product and the compare
 // against the 4.0 at 0x858B90.
 constexpr std::array<uint8_t, 38> kExpectedBuoyancyThreshold{
@@ -327,6 +339,10 @@ constexpr std::array<uint8_t, 5> kExpectedMenuBackground{
     0xE9, 0x27, 0xF4, 0xFF, 0xFF
 };
 constexpr std::array<uint8_t, 2> kExpectedFrameLimiterGate{0x75, 0x17};
+// call CAudioEngine::IsBeatInfoPresent, from the main loop
+constexpr std::array<uint8_t, 5> kExpectedFrameLimiterBeatCheck{
+    0xE8, 0x53, 0xE4, 0xDB, 0xFF
+};
 constexpr std::array<uint8_t, 10> kExpectedFrameLimitStore{
     0xC7, 0x05, 0x4C, 0x70, 0xC1, 0x00, 0x1E, 0x00, 0x00, 0x00
 };
@@ -338,7 +354,7 @@ constexpr std::array<std::array<uint8_t, 6>, 4> kExpectedRailWheelSpin{{
 }};
 
 // samp.dll, at the rotation fraction inside CObject::Process. Located relative
-// to the arrival test rather than by address; see game_addresses.inl.
+// to the arrival test rather than by address; see game_addresses.h.
 constexpr std::array<uint8_t, 10> kExpectedSampObjectRotation{
     0xD9, 0x44, 0x24, 0x28,            // fld [esp+28h]: remaining distance
     0xD8, 0xB3, 0x5B, 0x01, 0x00, 0x00 // fdiv [ebx+15Bh]: total distance

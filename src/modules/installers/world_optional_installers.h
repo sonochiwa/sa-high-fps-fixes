@@ -22,6 +22,7 @@ bool InstallContinuousWeaponAmmoFix();
 bool InstallContinuousWeaponShotsFix();
 bool InstallChainsawStrikeRateFix();
 bool InstallFrameLimit(int limit);
+bool InstallRadioFrameLockFix();
 bool InstallAutoFpsLimit();
 bool InstallConflictingHookGuard();
 

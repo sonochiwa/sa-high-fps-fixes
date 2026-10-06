@@ -1,8 +1,11 @@
 #include "timers/frame_time_carry.h"
 
+#include "core/conflicts.h"
+#include "core/fixes.h"
 #include "core/log.h"
 #include "core/patch.h"
 #include "game/addresses.h"
+#include "game/frame_hook.h"
 #include "game/sites/timers.h"
 
 #include <windows.h>
@@ -120,6 +123,35 @@ bool InstallTruncCarryGroup(uint8_t group, const char* what) {
     return true;
 }
 
+bool CallsFtol(uintptr_t address) {
+    __try {
+        return *reinterpret_cast<const uint8_t*>(address) == 0xE8
+            && address + 5 + static_cast<uintptr_t>(
+                   *reinterpret_cast<const int32_t*>(address + 1)) == kFtol;
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+        return false;
+    }
+}
+
+bool g_scriptTimerPending{};
+
+// SilentPatch and other plugins can load after this one has started, so the
+// script timer call is examined on the first frame after this plugin has
+// installed everything, once every plugin has patched the executable, and
+// taken only while it is still the game's own.
+void InstallScriptTimerCarry() {
+    if (!g_scriptTimerPending || !FixesInstalled()) {
+        return;
+    }
+    g_scriptTimerPending = false;
+    if (!CallsFtol(kScriptTimerTruncCall)) {
+        Log("Script timers left as they are: another plugin, such as "
+            "SilentPatch, already handles their frame time.");
+        return;
+    }
+    InstallTruncCarryGroup(kTruncGroupScript, "script timer");
+}
+
 } // namespace
 
 bool InstallSkillProgressFix() {
@@ -156,6 +188,27 @@ bool InstallBurnTimersFix() {
 
 bool InstallGangWarTimerFix() {
     return InstallTruncCarryGroup(kTruncGroupWorld, "gang war timer");
+}
+
+bool InstallExplosionFuelTimerCarry() {
+    return InstallTruncCarryGroup(kTruncGroupExplosion, "explosion fuel timer");
+}
+
+bool InstallPlaneDamageWaveCarry() {
+    return InstallTruncCarryGroup(kTruncGroupPlaneDamage, "plane engine sputter");
+}
+
+bool InstallMissionTimersFix() {
+    if (!InstallTruncCarryGroup(kTruncGroupMission, "mission countdown")) {
+        return false;
+    }
+    // Never written back over another plugin's carry at the same call.
+    ExemptFromConflictGuard(kScriptTimerTruncCall);
+    if (InstallFrameHook("Mission timer fix")) {
+        g_scriptTimerPending = true;
+        AddFrameCallback(&InstallScriptTimerCarry);
+    }
+    return true;
 }
 
 } // namespace hff::timers

@@ -14,8 +14,9 @@ why.
   address, return address and expected bytes together, with the comment that
   explains what the game does there. `frame_hook` gives fixes a call once a
   frame; `frame_steps` holds the shared scaled per-frame steps.
-- One directory per area (`camera`, `player`, `vehicles`, `handling`,
-  `bikes`, `weapons`, `world`, `hud`, `scripts`, `timers`, `framerate`),
+- One directory per area (`audio`, `camera`, `player`, `vehicles`,
+  `handling`, `bikes`, `weapons`, `world`, `hud`, `scripts`, `timers`,
+  `framerate`),
   namespace `hff::<area>`, one `.cpp`/`.h` pair per fix or per small group of
   fixes with one subject. A header declares only the installers and what
   another file calls; patch records, thunks and helpers stay in the
@@ -50,3 +51,10 @@ starts the game while another game or a full-screen application holds the
 screen. A fix that changes runtime behaviour gets a
 scenario where one can measure it, and its result at 300 FPS is compared with
 30 FPS before the fix is called done.
+
+Scenarios live in `tests\<subject>_scenarios.cpp` and register in the list at
+the end of their file. `-Settings key=value,...` sets INI keys of the fixed
+copy for one run, which finds the fix a measurement depends on. A scenario
+whose measurement varies between runs at the same frame rate is a broken
+scenario, not a frame rate bug: hold its random draws or measure a quantity
+the randomness does not reach.

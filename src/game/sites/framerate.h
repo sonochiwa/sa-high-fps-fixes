@@ -12,6 +12,10 @@ namespace hff {
 // without touching the saved preference.
 constexpr uintptr_t kFrameLimiterGate = 0x00748D68;
 constexpr std::array<uint8_t, 2> kExpectedFrameLimiterGate{0x75, 0x17};
+// WidescreenFixesPack replaces the limiter with its own and, on the first pass
+// of the main loop, looks this `jne` up by its bytes to remove it; finding the
+// gate already turned into `jmp` would leave that search empty.
+constexpr char kWidescreenFixModule[] = "GTASA.WidescreenFix.asi";
 // The store of the default 30 into `RsGlobal.frameLimit`.
 constexpr uintptr_t kFrameLimitStore = 0x00619620;
 constexpr uintptr_t kFrameLimitStoreOperand = 0x00619626;

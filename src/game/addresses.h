@@ -100,6 +100,12 @@ constexpr size_t kVehiclePoolElementSize = 0xA18;
 
 // `_CIpow`: the base in st(1), the exponent in st(0), the result in st(0).
 constexpr uintptr_t kPow = 0x00822130;
+// The C runtime `rand`, and `CGeneral::GetRandomNumberInRange(int, int)`.
+constexpr uintptr_t kRand = 0x00821B1E;
+constexpr uintptr_t kRandomNumberInRange = 0x00407180;
+// `FxManager_c::CreateFxSystem(const char*, const CVector&, RwMatrix*, bool)`,
+// a thiscall on `g_fxMan` that returns null when no system was created.
+constexpr uintptr_t kCreateFxSystem = 0x004A9BE0;
 
 // Three per-frame steps the game repeats across unrelated functions, each
 // against a shared constant, and replaced by the scaled steps in

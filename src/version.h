@@ -1,7 +1,7 @@
 #pragma once
 
 #define PLUGIN_VERSION_MAJOR 1
-#define PLUGIN_VERSION_MINOR 7
+#define PLUGIN_VERSION_MINOR 8
 #define PLUGIN_VERSION_PATCH 0
-#define PLUGIN_VERSION "1.7.0"
+#define PLUGIN_VERSION "1.8.0"
 #define PLUGIN_NAME "High FPS Fixes"

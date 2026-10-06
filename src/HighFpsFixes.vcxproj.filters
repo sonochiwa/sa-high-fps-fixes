@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
+    <Filter Include="audio">
+      <UniqueIdentifier>{986CE8EC-52A2-4D5C-BEDB-D3C88505E857}</UniqueIdentifier>
+    </Filter>
     <Filter Include="bikes">
       <UniqueIdentifier>{4A2B3A85-A883-4672-B4E4-D8BE0D74CBF0}</UniqueIdentifier>
     </Filter>
@@ -103,6 +106,12 @@
     <ClCompile Include="game\vehicles.cpp">
       <Filter>game</Filter>
     </ClCompile>
+    <ClCompile Include="audio\ambience.cpp">
+      <Filter>audio</Filter>
+    </ClCompile>
+    <ClCompile Include="audio\engine_revs.cpp">
+      <Filter>audio</Filter>
+    </ClCompile>
     <ClCompile Include="camera\aim_camera.cpp">
       <Filter>camera</Filter>
     </ClCompile>
@@ -157,10 +166,16 @@
     <ClCompile Include="vehicles\boat_engine.cpp">
       <Filter>vehicles</Filter>
     </ClCompile>
+    <ClCompile Include="vehicles\boat_waves.cpp">
+      <Filter>vehicles</Filter>
+    </ClCompile>
     <ClCompile Include="vehicles\doors.cpp">
       <Filter>vehicles</Filter>
     </ClCompile>
     <ClCompile Include="vehicles\head_bop.cpp">
+      <Filter>vehicles</Filter>
+    </ClCompile>
+    <ClCompile Include="vehicles\hydraulics.cpp">
       <Filter>vehicles</Filter>
     </ClCompile>
     <ClCompile Include="vehicles\jump_out.cpp">
@@ -170,6 +185,9 @@
       <Filter>vehicles</Filter>
     </ClCompile>
     <ClCompile Include="vehicles\rest.cpp">
+      <Filter>vehicles</Filter>
+    </ClCompile>
+    <ClCompile Include="vehicles\sinking.cpp">
       <Filter>vehicles</Filter>
     </ClCompile>
     <ClCompile Include="vehicles\siren.cpp">
@@ -226,6 +244,9 @@
     <ClCompile Include="weapons\chainsaw.cpp">
       <Filter>weapons</Filter>
     </ClCompile>
+    <ClCompile Include="weapons\tear_gas.cpp">
+      <Filter>weapons</Filter>
+    </ClCompile>
     <ClCompile Include="weapons\weapon_ammo.cpp">
       <Filter>weapons</Filter>
     </ClCompile>
@@ -235,13 +256,22 @@
     <ClCompile Include="world\breakable_objects.cpp">
       <Filter>world</Filter>
     </ClCompile>
+    <ClCompile Include="world\explosions.cpp">
+      <Filter>world</Filter>
+    </ClCompile>
     <ClCompile Include="world\falling_glass.cpp">
       <Filter>world</Filter>
     </ClCompile>
     <ClCompile Include="world\fire_spread.cpp">
       <Filter>world</Filter>
     </ClCompile>
+    <ClCompile Include="world\lightning.cpp">
+      <Filter>world</Filter>
+    </ClCompile>
     <ClCompile Include="world\particle_emission.cpp">
+      <Filter>world</Filter>
+    </ClCompile>
+    <ClCompile Include="world\police.cpp">
       <Filter>world</Filter>
     </ClCompile>
     <ClCompile Include="world\samp_objects.cpp">
@@ -335,6 +365,9 @@
     <ClInclude Include="game\scripts.h">
       <Filter>game</Filter>
     </ClInclude>
+    <ClInclude Include="game\sites\audio.h">
+      <Filter>game\sites</Filter>
+    </ClInclude>
     <ClInclude Include="game\sites\bikes.h">
       <Filter>game\sites</Filter>
     </ClInclude>
@@ -362,6 +395,9 @@
     <ClInclude Include="game\sites\vehicles.h">
       <Filter>game\sites</Filter>
     </ClInclude>
+    <ClInclude Include="game\sites\water.h">
+      <Filter>game\sites</Filter>
+    </ClInclude>
     <ClInclude Include="game\sites\weapons.h">
       <Filter>game\sites</Filter>
     </ClInclude>
@@ -373,6 +409,12 @@
     </ClInclude>
     <ClInclude Include="game\vehicles.h">
       <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="audio\ambience.h">
+      <Filter>audio</Filter>
+    </ClInclude>
+    <ClInclude Include="audio\engine_revs.h">
+      <Filter>audio</Filter>
     </ClInclude>
     <ClInclude Include="camera\aim_camera.h">
       <Filter>camera</Filter>
@@ -428,10 +470,16 @@
     <ClInclude Include="vehicles\boat_engine.h">
       <Filter>vehicles</Filter>
     </ClInclude>
+    <ClInclude Include="vehicles\boat_waves.h">
+      <Filter>vehicles</Filter>
+    </ClInclude>
     <ClInclude Include="vehicles\doors.h">
       <Filter>vehicles</Filter>
     </ClInclude>
     <ClInclude Include="vehicles\head_bop.h">
+      <Filter>vehicles</Filter>
+    </ClInclude>
+    <ClInclude Include="vehicles\hydraulics.h">
       <Filter>vehicles</Filter>
     </ClInclude>
     <ClInclude Include="vehicles\jump_out.h">
@@ -441,6 +489,9 @@
       <Filter>vehicles</Filter>
     </ClInclude>
     <ClInclude Include="vehicles\rest.h">
+      <Filter>vehicles</Filter>
+    </ClInclude>
+    <ClInclude Include="vehicles\sinking.h">
       <Filter>vehicles</Filter>
     </ClInclude>
     <ClInclude Include="vehicles\siren.h">
@@ -497,6 +548,9 @@
     <ClInclude Include="weapons\chainsaw.h">
       <Filter>weapons</Filter>
     </ClInclude>
+    <ClInclude Include="weapons\tear_gas.h">
+      <Filter>weapons</Filter>
+    </ClInclude>
     <ClInclude Include="weapons\weapon_ammo.h">
       <Filter>weapons</Filter>
     </ClInclude>
@@ -506,13 +560,22 @@
     <ClInclude Include="world\breakable_objects.h">
       <Filter>world</Filter>
     </ClInclude>
+    <ClInclude Include="world\explosions.h">
+      <Filter>world</Filter>
+    </ClInclude>
     <ClInclude Include="world\falling_glass.h">
       <Filter>world</Filter>
     </ClInclude>
     <ClInclude Include="world\fire_spread.h">
       <Filter>world</Filter>
     </ClInclude>
+    <ClInclude Include="world\lightning.h">
+      <Filter>world</Filter>
+    </ClInclude>
     <ClInclude Include="world\particle_emission.h">
+      <Filter>world</Filter>
+    </ClInclude>
+    <ClInclude Include="world\police.h">
       <Filter>world</Filter>
     </ClInclude>
     <ClInclude Include="world\samp_objects.h">

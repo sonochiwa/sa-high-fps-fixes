@@ -3,6 +3,7 @@
 #include "core/log.h"
 #include "core/memory.h"
 #include "core/patch.h"
+#include "core/timestep.h"
 #include "game/addresses.h"
 #include "game/frame_steps.h"
 #include "game/sites/player.h"
@@ -16,8 +17,51 @@ namespace hff::player {
 
 namespace {
 
+using CreateFxSystemFn = void*(__thiscall*)(void*, const char*, const void*, void*, bool);
+
 SitePatch g_swimmingPatch{};
 std::array<SitePatch, 3> g_swimPitchPatches{};
+SitePatch g_swimSurfacePatch{};
+std::array<SitePatch, kSwimSplashEffects.size()> g_swimSplashPatches{};
+
+__declspec(naked) void SwimSurfaceSpeedLimitThunk() {
+    __asm {
+        fld g_originalTimeStepValue
+        ret
+    }
+}
+
+// Splashes only on the frames on which an original 30 FPS frame has passed.
+void* __fastcall GatedSwimSplash(void* manager, void*, const char* name,
+                                 const void* position, void* matrix, bool ignoreBounds) {
+    if (!FrameTick(kFrameTickSwimSplash)) {
+        return nullptr;
+    }
+    return reinterpret_cast<CreateFxSystemFn>(kCreateFxSystem)(manager, name, position,
+                                                              matrix, ignoreBounds);
+}
+
+// The swimming speed fix stands without these, so they are taken only where
+// no other plugin has changed them.
+void InstallSwimSurfaceAndSplashes() {
+    PatchSet patches("Swim surface and splash fix");
+    bool installed = patches.Track(InstallCall(g_swimSurfacePatch, kSwimSurfaceSpeedLimit,
+                                               &SwimSurfaceSpeedLimitThunk,
+                                               kExpectedSwimSurfaceSpeedLimit),
+                                   g_swimSurfacePatch);
+    for (size_t i = 0; installed && i < kSwimSplashEffects.size(); ++i) {
+        installed = patches.Track(RepointCall(g_swimSplashPatches[i], kSwimSplashEffects[i],
+                                              kCreateFxSystem, &GatedSwimSplash),
+                                  g_swimSplashPatches[i]);
+    }
+    if (!installed) {
+        Log("Swim surface pull and sprint splashes left as they are: another "
+            "plugin has changed CTaskSimpleSwim.");
+        return;
+    }
+    patches.Commit();
+    Log("Installed the swim surface pull and sprint splashes at the original rate.");
+}
 
 // The animation shift is a displacement for one frame, so turning it into a
 // speed in original timestep units means dividing by the ratio. The original
@@ -116,6 +160,7 @@ bool InstallSwimmingMovementFix() {
         return false;
     }
     Log("Installed frame-independent swimming speed.");
+    InstallSwimSurfaceAndSplashes();
     return true;
 }
 

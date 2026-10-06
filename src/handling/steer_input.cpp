@@ -171,6 +171,7 @@ __declspec(naked) void PlaneSteerInput3Thunk() {
         jmp kPlaneSteerInputReturn3
     }
 }
+
 // The plane's own transaction: a mod that changed its controls leaves planes
 // with the stock step without taking the fix from cars and bikes.
 void InstallPlaneSteerInputRate() {
@@ -188,6 +189,14 @@ void InstallPlaneSteerInputRate() {
     patches.Commit();
 }
 } // namespace
+
+float PlaneSteerShare() {
+    const float k = ReadGameFloat(kPlaneSteerInputConstant, 0.2f);
+    if (g_planeSteerInputPatches[0].installed) {
+        return SteerInputGain(k);
+    }
+    return k * *reinterpret_cast<const float*>(kTimerTimeStep);
+}
 
 bool InstallSteerInputRateFix() {
     PatchSet patches("Steer input rate fix");

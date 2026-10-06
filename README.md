@@ -15,15 +15,19 @@ is reached at any higher frame rate. Each fix has its own switch.
 - Player: swimming, diving, buoyancy, climbing, picking up objects, aiming
   walk, skill and stunt counters, drowning, drunk steering, jetpack flame.
 - Vehicles: wheel friction, burnout, bike lean and pitch, aircraft turning,
-  rotor and propeller speed, door swing, forklift forks, fire truck water
-  jets, head bop, siren tap and the timers that park, burn or flip a vehicle.
+  damaged plane controls, rotor and propeller speed, door swing, forklift
+  forks, fire truck water jets, sinking, boat wave slams, hydraulics, SWAT
+  ropes, head bop, siren tap and the timers that park, burn, flip or blow up
+  a vehicle.
 - Weapons: extinguisher, spraycan and flamethrower particles and ammunition,
-  chainsaw strike rate.
+  chainsaw strike rate, tear gas.
 - HUD: health, armor, breath, wanted-star and radar flashes at their
   original rate.
-- World: gang war countdown, fire spread, scripted and SA-MP object movement,
-  falling glass, breakable objects, burglary noise meter, pause menu map
-  zoom.
+- Audio: the engine note, distant gunfire and the San Fierro foghorn.
+- World: gang war and mission countdowns, fire spread, explosions, lightning,
+  cops leaving their car, scripted and SA-MP object movement, falling glass,
+  breakable objects, the noise meters and chase cars of several missions,
+  pause menu map zoom.
 - Frame rate: no 30 FPS lock while the car radio plays, an optional frame
   limit and automatic limits for game cases known to break.
 - Verifies the bytes it replaces before writing and refuses to patch any
@@ -65,7 +69,7 @@ missing:
 | `drunkCameraShake` | `1` | Drunk camera sways at its original speed. |
 | `[player]` | | |
 | `aimingRifleWalk` | `1` | Walk step while aiming a rifle. |
-| `swimmingMovement` | `1` | Surface swimming, diving and underwater movement speed. |
+| `swimmingMovement` | `1` | Surface swimming, diving and underwater movement speed, how fast a swimmer comes back up to the surface, and the splashes of a sprinting swimmer. |
 | `swimPitchRate` | `1` | Swim pitch settles at the original rate. |
 | `pedPushVehicle` | `1` | A walking ped no longer shoves cars at high FPS. |
 | `bloodyFootprints` | `1` | Bloody footprints fade in real time. |
@@ -79,7 +83,7 @@ missing:
 | `objectPickUp` | `1` | The player steps up to an object being picked up, such as a box, at the original speed instead of being thrown at it. |
 | `skillProgress` | `1` | Skill stats progress at the original rate. |
 | `stuntCounters` | `1` | Wheelie, stoppie and two-wheel counters run in real time. |
-| `taskTimers` | `1` | Ped task timers run in real time. |
+| `taskTimers` | `1` | Ped task timers, such as how long a knocked-down ped stays down, run in real time. |
 | `[vehicles]` | | |
 | `bikeLeanTarget` | `1` | A standing bike no longer rocks from side to side. |
 | `bikePitchExperiment` | `1` | Removes the excessive backward pitch at bike takeoff. |
@@ -107,7 +111,7 @@ missing:
 | `attachedEntitySpeed` | `1` | Attached entities move at the same speed at any FPS. |
 | `aiAircraftSteer` | `1` | AI aircraft steer at the same rate at any FPS. |
 | `upsideDownTimer` | `1` | Upside-down vehicle timer runs in real time. |
-| `vehicleTimers` | `1` | AI and flight timers run in real time. |
+| `vehicleTimers` | `1` | AI, flight, car bomb and car alarm timers run in real time. |
 | `burnTimers` | `1` | Burning vehicles explode after the same time. |
 | `wheelSettle` | `1` | Bike and aircraft wheels settle in real time. |
 | `wheelSpin` | `1` | Free wheel spin at the original rate. |
@@ -120,29 +124,43 @@ missing:
 | `doorSwing` | `1` | Vehicle doors swing at the original rate. |
 | `movingParts` | `1` | Forklift forks, the dozer blade, the dumper bed and cargo ramps move at the original speed instead of slowing down or sticking. |
 | `waterCannon` | `1` | Fire truck and SWAT van water jets reach as far and put fires out as fast as at 30 FPS. |
+| `vehicleSinking` | `1` | A car in deep water, or a burnt-out boat, sinks and stalls after the same time at any FPS. |
+| `damagedPlaneControl` | `1` | A damaged plane keeps as much control as at 30 FPS instead of hardly answering the stick. |
+| `hydraulicStance` | `1` | A parked car with hydraulics settles to its idle stance after the same time at any FPS instead of dropping at once. |
+| `boatWaves` | `1` | Boats slam into waves, with their thud, as hard and as often as at 30 FPS. |
+| `swatRopes` | `1` | SWAT helicopter ropes stay out as long as at 30 FPS. |
 | `[weapons]` | | |
 | `continuousWeaponParticles` | `1` | Extinguisher, spraycan and flamethrower particles stay visible without the frame limiter. |
 | `continuousWeaponAmmo` | `1` | Those weapons use ammunition at the original rate. |
 | `continuousWeaponShots` | `1` | Those weapons hurt, paint, put out and start fires at the original rate. |
 | `chainsawStrikeRate` | `1` | Chainsaw hits fifteen times a second at any FPS. |
+| `tearGas` | `1` | Tear gas chokes as hard as at 30 FPS. |
 | `[particles]` | | |
 | `emissionRate` | `1` | Particle effects emit at the original rate. |
 | `[hud]` | | |
 | `hudTiming` | `1` | Health, armor, breath, wanted-star and radar flashes blink at the original rate. |
 | `disableFlashing` | `0` | `1` keeps the radar and the low-health bar permanently visible. |
+| `[audio]` | | |
+| `engineRevs` | `1` | The engine note follows the throttle as fast as at 30 FPS instead of jumping to it. |
+| `ambientSounds` | `1` | Distant gunfire in Los Santos and the foghorn in a foggy San Fierro play as often as at 30 FPS. |
 | `[world]` | | |
-| `gangWarTimer` | `1` | Gang war countdown runs in real time. |
+| `gangWarTimer` | `1` | The gang war countdown and the time until rival gangs attack run in real time. |
+| `missionTimers` | `1` | On-screen mission countdowns run in real time, and so do script timers when SilentPatch does not already handle them. |
 | `fireSpread` | `1` | Fire spreads at the original rate. |
 | `scriptObjectSlide` | `1` | Scripted object movement at the original speed. |
 | `scriptObjectRotate` | `1` | Scripted object rotation at the original speed. |
 | `sampObjectRotation` | `1` | SA-MP moving objects rotate in real time. |
 | `fallingGlass` | `1` | Falling glass moves at the original speed. |
 | `breakableObjectLifetime` | `1` | Broken object pieces last the same time at any FPS. |
-| `burglaryNoise` | `1` | The burglary noise meter fills as at 30 FPS instead of staying near empty. |
+| `burglaryNoise` | `1` | The noise meters of burglary and Home Invasion fill as at 30 FPS instead of staying near empty. |
+| `missionScripts` | `1` | Small Town Bank hostages give up, and the cars in Tanker Commander and Zeroing In speed up, as at 30 FPS. |
+| `copCarExit` | `1` | Cops leave their car to arrest you only once you are as slow as at 30 FPS. |
+| `explosions` | `1` | Explosions last their full time, and set off secondary blasts and fires as often as at 30 FPS. |
+| `lightning` | `1` | Lightning strikes as often and as long, with its thunder as late, as at 30 FPS. |
 | `[menu]` | | |
 | `mapZoomWheel` | `1` | The mouse wheel zooms the pause menu map at high FPS. |
 | `[framerate]` | | |
-| `fpsLimit` | `0` | Frame limit in FPS, `1` to `255`. `0` leaves the game's limiter alone. |
+| `fpsLimit` | `0` | Frame limit in FPS, `1` to `255`. `0` leaves the game's limiter alone. Ignored when WidescreenFixesPack, which has its own limiter, is installed. |
 | `forSchools` | `0` | FPS limit during driving, boat and bike school. |
 | `forMissions` | `200` | FPS limit during missions known to break at high FPS. |
 | `forMinigames` | `30` | FPS limit during pool and the intimacy minigame. |
@@ -151,8 +169,9 @@ missing:
 | `forPauseMenu` | `200` | FPS limit while a menu is drawn, the main menu included. |
 
 Each automatic case takes the FPS limit to apply, `20` to `255`, and `0`
-or less leaves that case off; a value from `1` to `19` is raised to `20`. The limit is never raised above the one already in
-effect, and the previous limit returns when the case ends.
+or less leaves that case off; a value from `1` to `19` is raised to `20`.
+The limit is never raised above the one already in effect, and the previous
+limit returns when the case ends.
 
 ## Release Integrity
 

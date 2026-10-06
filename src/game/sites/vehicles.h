@@ -6,15 +6,6 @@
 
 namespace hff {
 
-// Skimmer: the water resistance constant `CVehicle::ApplyBoatWaterResistance`
-// uses for the Skimmer.
-constexpr uintptr_t kSkimmerResistancePatch = 0x006D2771;
-constexpr uintptr_t kSkimmerResistanceReturn = 0x006D2777;
-constexpr uintptr_t kSkimmerResistanceConstant = 0x00871DDC;
-constexpr std::array<uint8_t, 6> kExpectedSkimmerResistance{
-    0xD8, 0x0D, 0xDC, 0x1D, 0x87, 0x00
-};
-
 // Helicopter rotor: the two per-frame spin-up steps in
 // `CHeli::ProcessFlyingCarStuff`, a fraction of the final rotor speed whose
 // operand is read through the instruction at 0x6C4EFE.
@@ -161,21 +152,6 @@ constexpr std::array<uint8_t, 9> kExpectedWaterCannonAdvance{
     0x05, 0x96, 0x00, 0x00, 0x00, 0x3B, 0xC8, 0x76, 0x20
 };
 
-// CBoat::ProcessControl at 0x6F1770 spins the propeller down once per frame
-// with no timestep when the boat is not under player, remote or physics
-// control:
-//
-//     } else if (m_EngineSpeed > 0.0f) {
-//         m_EngineSpeed *= 0.95f;
-//     }
-//
-// The three branches directly above it, which drive the same field while the
-// boat is being controlled, all carry the timestep, and the propeller angle a
-// hundred bytes below integrates with it as well. Only the coast down branch is
-// bare, so an abandoned boat's propeller stops turning, and its engine note
-// dies, far sooner at high frame rates. It is the shared 0.95 decay.
-constexpr uintptr_t kBoatEngineDamping = 0x006F1900;
-
 // `CVehicle::CanPedJumpOutCar` at `0x6D2030` damps both speeds once per call
 // with no timestep, three components each:
 //
@@ -255,5 +231,57 @@ constexpr std::array<uint8_t, 47> kExpectedAttachedSpeedClamp{
 // under-damped.
 constexpr uintptr_t kAiAircraftSteerRate = 0x004235D2;
 constexpr uintptr_t kAiAircraftSteerRateReturn = 0x004235F3;
+
+// CPlane::ProcessFlyingCarStuff takes control away from a damaged plane: for
+// each damaged part it multiplies one slewed control input, m_fLeftRightSkid,
+// m_fSteeringUpDown or m_fSteeringLeftRight, by 1 - 0.2 * the part's damage
+// status every frame, after CPlane::ProcessControlInputs has eased it towards
+// the stick. Part 16 bleeds the skid, 17 and 18 the pitch, 19 and 20 the roll;
+// a part counts when its node exists and its status, read with
+// CDamageManager::GetAeroplaneCompStatus, is above zero. The factor is on the
+// x87 stack when the input is read:
+// fmul dword ptr [esi+988h] / [esi+98Ch] / [esi+990h]
+constexpr uintptr_t kGetAeroplaneCompStatus = 0x006C2300;
+constexpr size_t kAutomobileDamageManager = 0x5A0;
+constexpr size_t kAutomobileNodes = 0x648;
+constexpr uint32_t kPlaneSkidParts[] = {16};
+constexpr uint32_t kPlanePitchParts[] = {17, 18};
+constexpr uint32_t kPlaneRollParts[] = {19, 20};
+constexpr uintptr_t kPlaneDamageSkidDecay = 0x006CBADC;
+constexpr uintptr_t kPlaneDamagePitchDecay = 0x006CBBF5;
+constexpr uintptr_t kPlaneDamageRollDecay = 0x006CBD1A;
+constexpr std::array<uint8_t, 6> kExpectedPlaneDamageSkidDecay{
+    0xD8, 0x8E, 0x88, 0x09, 0x00, 0x00
+};
+constexpr std::array<uint8_t, 6> kExpectedPlaneDamagePitchDecay{
+    0xD8, 0x8E, 0x8C, 0x09, 0x00, 0x00
+};
+constexpr std::array<uint8_t, 6> kExpectedPlaneDamageRollDecay{
+    0xD8, 0x8E, 0x90, 0x09, 0x00, 0x00
+};
+
+// CAutomobile::HydraulicControl keeps a hydraulic car's raised stance in
+// m_wMiscComponentAngle: driving off sets it to 20 and steps it back up to 20
+// once a frame, and standing still steps it down once a frame from at most 60
+// to the idle stance at zero, so above 30 FPS a parked lowrider drops at once.
+// inc ecx / mov [ebp+86Ch],cx
+constexpr uintptr_t kHydraulicRaise = 0x006A0AF6;
+constexpr std::array<uint8_t, 8> kExpectedHydraulicRaise{
+    0x41, 0x66, 0x89, 0x8D, 0x6C, 0x08, 0x00, 0x00
+};
+// lea eax,[ecx-1] / test ax,ax
+constexpr uintptr_t kHydraulicLower = 0x006A0B1E;
+constexpr std::array<uint8_t, 6> kExpectedHydraulicLower{
+    0x8D, 0x41, 0xFF, 0x66, 0x85, 0xC0
+};
+
+// CHeli::ProcessControl counts down each SWAT rope's state, m_aSwatState, once
+// a frame and lays out the rope from it, so above 30 FPS the ropes are pulled
+// in while the officers are still sliding down.
+// dec al / mov [edi],al / mov eax,[esp+18h]
+constexpr uintptr_t kSwatRopeCountdown = 0x006C782E;
+constexpr std::array<uint8_t, 8> kExpectedSwatRopeCountdown{
+    0xFE, 0xC8, 0x88, 0x07, 0x8B, 0x44, 0x24, 0x18
+};
 
 } // namespace hff

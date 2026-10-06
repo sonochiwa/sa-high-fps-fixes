@@ -9,7 +9,12 @@
     <ClCompile Include="HighFpsFixesTests.cpp" />
     <ClCompile Include="game.cpp" />
     <ClCompile Include="harness.cpp" />
+    <ClCompile Include="aircraft_scenarios.cpp" />
+    <ClCompile Include="ped_scenarios.cpp" />
+    <ClCompile Include="scenario_tools.cpp" />
     <ClCompile Include="scenarios.cpp" />
+    <ClCompile Include="vehicle_scenarios.cpp" />
+    <ClCompile Include="world_scenarios.cpp" />
     <ClCompile Include="..\vendor\minhook\src\buffer.c">
       <Filter>vendor</Filter>
     </ClCompile>
@@ -26,6 +31,7 @@
   <ItemGroup>
     <ClInclude Include="game.h" />
     <ClInclude Include="harness.h" />
+    <ClInclude Include="scenario_tools.h" />
     <ClInclude Include="scenarios.h" />
   </ItemGroup>
   <ItemGroup>

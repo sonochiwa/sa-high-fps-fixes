@@ -10,6 +10,8 @@
 // the loader lock in the order of the INI sections, and restores everything
 // on unload.
 
+#include "audio/ambience.h"
+#include "audio/engine_revs.h"
 #include "bikes/abandoned_bike.h"
 #include "bikes/bike_wheel_spin.h"
 #include "bikes/bmx_lean.h"
@@ -56,22 +58,29 @@
 #include "vehicles/aircraft.h"
 #include "vehicles/attached_entity.h"
 #include "vehicles/boat_engine.h"
+#include "vehicles/boat_waves.h"
 #include "vehicles/doors.h"
 #include "vehicles/head_bop.h"
+#include "vehicles/hydraulics.h"
 #include "vehicles/jump_out.h"
 #include "vehicles/moving_parts.h"
 #include "vehicles/rest.h"
+#include "vehicles/sinking.h"
 #include "vehicles/siren.h"
 #include "vehicles/water_cannon.h"
 #include "vehicles/wheels.h"
 #include "weapons/area_shots.h"
 #include "weapons/chainsaw.h"
+#include "weapons/tear_gas.h"
 #include "weapons/weapon_ammo.h"
 #include "weapons/weapon_particles.h"
 #include "world/breakable_objects.h"
+#include "world/explosions.h"
 #include "world/falling_glass.h"
 #include "world/fire_spread.h"
+#include "world/lightning.h"
 #include "world/particle_emission.h"
+#include "world/police.h"
 #include "world/samp_objects.h"
 
 #include <windows.h>
@@ -202,6 +211,14 @@ constexpr FixSpec kVehicleFixes[] = {
      vehicles::InstallJumpOutCarSpeedFix},
     {"vehicles", "skimmerResistance", "Skimmer resistance fix",
      vehicles::InstallSkimmerResistanceFix},
+    {"vehicles", "vehicleSinking", "Vehicle sinking fix",
+     vehicles::InstallVehicleSinkingFix},
+    {"vehicles", "damagedPlaneControl", "Damaged plane control fix",
+     vehicles::InstallDamagedPlaneControlFix},
+    {"vehicles", "hydraulicStance", "Hydraulic stance fix",
+     vehicles::InstallHydraulicStanceFix},
+    {"vehicles", "boatWaves", "Boat wave fix", vehicles::InstallBoatWavesFix},
+    {"vehicles", "swatRopes", "SWAT rope fix", vehicles::InstallSwatRopesFix},
 };
 
 constexpr FixSpec kWeaponFixes[] = {
@@ -213,13 +230,21 @@ constexpr FixSpec kWeaponFixes[] = {
      weapons::InstallContinuousWeaponShotsFix},
     {"weapons", "chainsawStrikeRate", "Chainsaw strike rate fix",
      weapons::InstallChainsawStrikeRateFix},
+    {"weapons", "tearGas", "Tear gas fix", weapons::InstallTearGasFix},
     {"particles", "emissionRate", "Particle emission rate fix",
      world::InstallParticleEmissionRateFix},
+};
+
+constexpr FixSpec kAudioFixes[] = {
+    {"audio", "engineRevs", "Engine revs fix", audio::InstallEngineRevsFix},
+    {"audio", "ambientSounds", "Ambient sounds fix", audio::InstallAmbientSoundsFix},
 };
 
 constexpr FixSpec kWorldFixes[] = {
     {"world", "gangWarTimer", "Gang war timer fix",
      timers::InstallGangWarTimerFix},
+    {"world", "missionTimers", "Mission timer fix",
+     timers::InstallMissionTimersFix},
     {"world", "fireSpread", "Fire spread fix", world::InstallFireSpreadFix},
     {"world", "scriptObjectSlide", "Script object slide fix",
      scripts::InstallScriptObjectSlideFix},
@@ -233,6 +258,11 @@ constexpr FixSpec kWorldFixes[] = {
      world::InstallBreakableObjectLifetimeFix},
     {"world", "burglaryNoise", "Burglary noise fix",
      scripts::InstallBurglaryNoiseFix},
+    {"world", "missionScripts", "Mission script fix",
+     scripts::InstallMissionScriptsFix},
+    {"world", "copCarExit", "Cop car exit fix", world::InstallCopCarExitFix},
+    {"world", "explosions", "Explosion fix", world::InstallExplosionsFix},
+    {"world", "lightning", "Lightning fix", world::InstallLightningFix},
     {"menu", "mapZoomWheel", "Map zoom wheel fix", hud::InstallMapZoomWheelFix},
 };
 
@@ -298,12 +328,14 @@ DWORD WINAPI Initialize(void*) {
     InstallFixes(kVehicleFixes);
     InstallFixes(kWeaponFixes);
     InstallHudFixes();
+    InstallFixes(kAudioFixes);
     InstallFixes(kWorldFixes);
     InstallFramerateFixes();
     InstallConflictingHookGuard();
 
     ReportConfigWarnings();
     LogInstallSummary();
+    MarkFixesInstalled();
     return 0;
 }
 

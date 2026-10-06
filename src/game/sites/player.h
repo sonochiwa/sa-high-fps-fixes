@@ -104,6 +104,24 @@ constexpr uintptr_t kSwimPitchDecayA = 0x0068A6BD;
 constexpr uintptr_t kSwimPitchDecayB = 0x0068A735;
 constexpr uintptr_t kSwimPitchDecayC = 0x0068A7C0;
 
+// The same function lifts a surface swimmer towards the water line no faster
+// than timestep * 0.1, a speed limit that shrinks with the frame, so above
+// 30 FPS the swimmer settles to swimming depth and follows the waves many
+// times more slowly. The limit takes the 30 FPS timestep instead.
+// fld dword ptr ds:[00B7CB5Ch]
+constexpr uintptr_t kSwimSurfaceSpeedLimit = 0x0068A7E6;
+constexpr std::array<uint8_t, 6> kExpectedSwimSurfaceSpeedLimit{
+    0xD9, 0x05, 0x5C, 0xCB, 0xB7, 0x00
+};
+
+// `CTaskSimpleSwim::ProcessEffects` makes a splash with its stroke sound on
+// every frame a hand or foot of a sprinting surface swimmer is within 0.05 of
+// the ped's height, so above 30 FPS more frames fall in that window and the
+// splashes multiply. Each is a `CreateFxSystem` whose null result skips both.
+constexpr std::array<uintptr_t, 4> kSwimSplashEffects{
+    0x0068AEBA, 0x0068AF15, 0x0068AF66, 0x0068AFB3
+};
+
 // Climbing. `CTaskSimpleClimb::ProcessPed` drags the ped onto the hand hold by
 // setting `m_vecMoveSpeed` to the remaining offset divided by the timestep. The
 // branch taken while that offset is still large clamps the result to the `0.2`

@@ -19,7 +19,7 @@ using ScriptsProcessFn = void(__cdecl*)();
 
 ScriptsProcessFn g_originalScriptsProcess{};
 bool g_frameHookInstalled{};
-std::array<FrameCallback, 8> g_frameCallbacks{};
+std::array<FrameCallback, 16> g_frameCallbacks{};
 // Fixes add callbacks from the initialization thread while the game thread
 // may already be running them, so a callback is stored before it is counted.
 std::atomic<size_t> g_frameCallbackCount{};

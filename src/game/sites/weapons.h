@@ -86,4 +86,10 @@ constexpr float kChainsawStrikePeriodMs = 2000.0f / 30.0f;
 constexpr uint32_t kChainsawBurstGapMs = 300;
 constexpr float kChainsawParkMargin = 0.001f;
 
+// CProjectileInfo::Update chokes the peds around a tear gas grenade when
+// `GetRandomNumberInRange(0, 100) < 10`, rolled every frame for every grenade,
+// and every choke costs health, so above 30 FPS the gas chokes many times
+// harder.
+constexpr uintptr_t kTearGasChokeRoll = 0x00738C19;
+
 } // namespace hff

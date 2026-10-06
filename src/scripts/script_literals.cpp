@@ -22,10 +22,13 @@
 // `player_parachute.scm` turn by a share of the roll a frame, and ease roll,
 // pitch, horizontal speed and sink rate towards their targets by a fixed share
 // a frame, so above 30 FPS the jumper spins and settles many times faster. The
-// burglary mission keeps a fixed share of its noise meter a frame, so above
-// 30 FPS the meter drains before it can fill. Before the scripts run each
-// frame, the running script's literals are set to the values that give the
-// 30 FPS steps over the current timestep; at 30 FPS they are the stock values.
+// burglary mission and Home Invasion keep a fixed share of their noise meters
+// a frame, so above 30 FPS the meter drains before it can fill. Small Town
+// Bank, Tanker Commander and Zeroing In add a fixed step a frame to how fast
+// the hostages give up and how fast the car the player follows may drive.
+// Before the scripts run each frame, the running script's literals are set to
+// the values that give the 30 FPS steps over the current timestep; at 30 FPS
+// they are the stock values.
 //
 // A literal is only written into a script that is running from memory that is
 // still its own: an active script whose image is a loaded streamed script or
@@ -47,6 +50,11 @@ struct ScriptLiteralSet {
     const ScriptLiteral* literals;
     size_t count;
     ScriptImage image;
+    // Instructions that end at the first literal and are unique in the
+    // mission, so it is still found when the mission has moved, or null.
+    const uint8_t* pattern;
+    size_t patternSize;
+    size_t patternLiteral;
     bool enabled;
     // The image last checked and how far its literals sit from their stock
     // offsets, so the result is logged once per image.
@@ -55,11 +63,27 @@ struct ScriptLiteralSet {
     bool matches;
 };
 
-std::array<ScriptLiteralSet, 2> g_literalSets{{
+std::array<ScriptLiteralSet, 6> g_literalSets{{
     {kParachuteScriptName, "Parachute flight fix", "player_parachute.scm",
-     kParachuteLiterals, std::size(kParachuteLiterals), ScriptImage::streamed},
+     kParachuteLiterals, std::size(kParachuteLiterals), ScriptImage::streamed,
+     nullptr, 0, 0},
     {kBurglaryScriptName, "Burglary noise fix", "the burglary mission",
-     kBurglaryLiterals, std::size(kBurglaryLiterals), ScriptImage::mission},
+     kBurglaryLiterals, std::size(kBurglaryLiterals), ScriptImage::mission,
+     kBurglaryNoisePattern.data(), kBurglaryNoisePattern.size(),
+     kBurglaryNoisePatternLiteral},
+    {kHomeInvasionScriptName, "Burglary noise fix", "Home Invasion",
+     kHomeInvasionLiterals, std::size(kHomeInvasionLiterals),
+     ScriptImage::mission, kHomeInvasionNoisePattern.data(),
+     kHomeInvasionNoisePattern.size(), kHomeInvasionNoisePatternLiteral},
+    {kSmallTownBankScriptName, "Mission script fix", "Small Town Bank",
+     kSmallTownBankLiterals, std::size(kSmallTownBankLiterals),
+     ScriptImage::mission, nullptr, 0, 0},
+    {kTankerCommanderScriptName, "Mission script fix", "Tanker Commander",
+     kTankerCommanderLiterals, std::size(kTankerCommanderLiterals),
+     ScriptImage::mission, nullptr, 0, 0},
+    {kZeroingInScriptName, "Mission script fix", "Zeroing In",
+     kZeroingInLiterals, std::size(kZeroingInLiterals), ScriptImage::mission,
+     nullptr, 0, 0},
 }};
 
 // The end of the farthest literal of a set, which the image must reach.
@@ -106,25 +130,23 @@ bool ScriptLiteralsMatch(const uint8_t* base, const ScriptLiteralSet& set) {
         const ScriptLiteral& literal = set.literals[i];
         const uint8_t* at = base + literal.offset + set.shift;
         uint16_t opcode{};
-        uint16_t localVar{};
+        uint16_t variable{};
         std::memcpy(&opcode, at, sizeof(opcode));
-        std::memcpy(&localVar, at + 3, sizeof(localVar));
-        if (opcode != literal.opcode || at[2] != 3 || localVar != literal.localVar
-            || at[5] != 6) {
+        std::memcpy(&variable, at + 3, sizeof(variable));
+        if (opcode != literal.opcode || at[2] != literal.variableType
+            || variable != literal.variable || at[5] != 6) {
             return false;
         }
     }
     return true;
 }
 
-// Where the noise meter's literal is in a mission edited so that it moved:
-// the offset from its stock place, or 0 when the pattern is not found exactly
-// once.
-int32_t LocateBurglaryLiteral(const uint8_t* base) {
+// Where the first literal is in a mission edited so that it moved: the offset
+// from its stock place, or 0 when the pattern is not found exactly once.
+int32_t LocateMovedLiteral(const uint8_t* base, const ScriptLiteralSet& set) {
     const uint8_t* found = nullptr;
-    for (size_t i = 0; i + kBurglaryNoisePattern.size() <= kMissionBlockSize; ++i) {
-        if (std::memcmp(base + i, kBurglaryNoisePattern.data(),
-                        kBurglaryNoisePattern.size()) != 0) {
+    for (size_t i = 0; i + set.patternSize <= kMissionBlockSize; ++i) {
+        if (std::memcmp(base + i, set.pattern, set.patternSize) != 0) {
             continue;
         }
         if (found) {
@@ -135,8 +157,8 @@ int32_t LocateBurglaryLiteral(const uint8_t* base) {
     if (!found) {
         return 0;
     }
-    return static_cast<int32_t>(found - base + kBurglaryNoisePatternLiteral)
-         - static_cast<int32_t>(kBurglaryLiterals[0].offset);
+    return static_cast<int32_t>(found - base + set.patternLiteral)
+         - static_cast<int32_t>(set.literals[0].offset);
 }
 
 float ScriptLiteralValue(const ScriptLiteral& literal, float ratio) {
@@ -151,6 +173,8 @@ float ScriptLiteralValue(const ScriptLiteral& literal, float ratio) {
         return std::pow(literal.stock, ratio);
     case ScriptLiteralKind::rateDivisor:
         return literal.stock / ratio;
+    case ScriptLiteralKind::frameStep:
+        return literal.stock * ratio;
     }
     return literal.stock;
 }
@@ -169,15 +193,15 @@ void LogScriptCheck(const ScriptLiteralSet& set) {
     Log(message.c_str());
 }
 
-// Checks a newly seen image once: at the stock offsets, then, for the
-// burglary mission, wherever its pattern finds the literal.
+// Checks a newly seen image once: at the stock offsets, then, for a mission
+// with a pattern, wherever the pattern finds the literal.
 void CheckScriptImage(ScriptLiteralSet& set, uintptr_t base) {
     set.checkedBase = base;
     set.shift = 0;
     const auto* image = reinterpret_cast<const uint8_t*>(base);
     set.matches = ScriptLiteralsMatch(image, set);
-    if (!set.matches && set.image == ScriptImage::mission) {
-        set.shift = LocateBurglaryLiteral(image);
+    if (!set.matches && set.image == ScriptImage::mission && set.pattern) {
+        set.shift = LocateMovedLiteral(image, set);
         set.matches = set.shift != 0 && LiteralsEnd(set) <= kMissionBlockSize
                    && ScriptLiteralsMatch(image, set);
     }
@@ -244,10 +268,22 @@ bool InstallParachuteFlightFix() {
 }
 
 bool InstallBurglaryNoiseFix() {
-    if (!InstallLiteralSet(g_literalSets[1])) {
+    if (!InstallLiteralSet(g_literalSets[1]) || !InstallLiteralSet(g_literalSets[2])) {
         return false;
     }
-    Log("Installed the burglary noise meter at the original rate.");
+    Log("Installed the burglary and Home Invasion noise meters at the original "
+        "rate.");
+    return true;
+}
+
+bool InstallMissionScriptsFix() {
+    for (size_t i = 3; i < g_literalSets.size(); ++i) {
+        if (!InstallLiteralSet(g_literalSets[i])) {
+            return false;
+        }
+    }
+    Log("Installed the Small Town Bank hostages and the Tanker Commander and "
+        "Zeroing In chase speeds at the original rate.");
     return true;
 }
 

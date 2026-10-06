@@ -31,5 +31,9 @@ void InstallFixes(const FixSpec (&fixes)[Count]) {
 void CountInstall(bool installed);
 void CountDisabled(size_t fixes, const char* message);
 void LogInstallSummary();
+// Set once the initialization thread has installed every fix, so a fix that
+// patches later from the game thread does not race it.
+void MarkFixesInstalled();
+bool FixesInstalled();
 
 } // namespace hff

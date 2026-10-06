@@ -41,6 +41,11 @@ void InstallFrameLimit() {
     if (limit == 0) {
         return;
     }
+    if (GetModuleHandleA(kWidescreenFixModule)) {
+        Log("Frame limit left to WidescreenFixesPack, which replaces the game's "
+            "frame limiter.");
+        return;
+    }
     PatchSet patches("Frame limit");
     if (!MemoryMatches(kFrameLimiterGate, kExpectedFrameLimiterGate)
         || !MemoryMatches(kFrameLimitStore, kExpectedFrameLimitStore)) {

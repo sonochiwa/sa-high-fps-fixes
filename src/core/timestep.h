@@ -20,10 +20,21 @@ enum FrameTickSlot : int32_t {
     kFrameTickDrunkSteer,
     kFrameTickFireEvents,
     kFrameTickWaterCannon,
+    kFrameTickExplosions,
+    kFrameTickSwimSplash,
+    kFrameTickTearGas,
+    kFrameTickHydraulics,
+    kFrameTickWeather,
+    kFrameTickBoatWaves,
+    kFrameTickSwatRopes,
+    kFrameTickAmbience,
     kFrameTickSlots,
 };
 void ResetFrameTicks();
 int32_t __cdecl FrameTick(int32_t slot);
+// How many frames the slot has let through, a count of original 30 FPS frames
+// for code that measures time in frames.
+uint32_t __cdecl FrameTickCount(int32_t slot);
 
 // True while an entity steps at the original rate inside
 // ScopedOriginalTimeStep. Its step stands for a whole original frame, so the

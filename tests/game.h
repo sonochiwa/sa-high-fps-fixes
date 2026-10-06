@@ -61,6 +61,7 @@ constexpr uintptr_t kGameProcess = 0x53BEE0;
 // UpdatePads, then DisablePlayerControls.
 constexpr uintptr_t kPad = 0xB73458;
 constexpr size_t kPadLeftStickX = 0x00;
+constexpr size_t kPadLeftStickY = 0x02;
 constexpr size_t kPadRightStickY = 0x06;
 constexpr size_t kPadRightShoulder1 = 0x0C;
 constexpr size_t kPadButtonSquare = 0x1C;
@@ -92,6 +93,8 @@ constexpr size_t kPhysicalTurnSpeed = 0x50;
 constexpr size_t kEntityTeleportSlot = 14;
 constexpr size_t kPedHealth = 0x540;
 constexpr size_t kPedFire = 0x730;
+constexpr size_t kPedCreatedBy = 0x484;
+constexpr uint8_t kPedCreatedByGame = 1;
 constexpr size_t kPedActiveWeaponSlot = 0x718;
 // CPed::m_pPlayerData and its m_nChosenWeapon: the player fires only while the
 // chosen slot is the active one.
@@ -127,7 +130,39 @@ constexpr size_t kWaterCannonPoints = 0x0C;
 constexpr size_t kWaterCannonUsed = 0x30C;
 constexpr size_t kWaterCannonSections = 32;
 
+// CPhysical buoyancy and CVehicle state, and the damage manager of a CAutomobile.
+constexpr size_t kPhysicalMass = 0x8C;
+constexpr size_t kPhysicalBuoyancy = 0xA0;
+constexpr size_t kVehicleDrowningByte = 0x42B;
+constexpr uint8_t kVehicleDrowning = 0x40;
+constexpr size_t kAutomobileDamageManager = 0x5A0;
+constexpr size_t kHeliRotorSpeed = 0x84C;
+constexpr size_t kVehicleHandlingFlags = 0x38C;
+constexpr uint32_t kHydraulicsInstalled = 0x20000;
+constexpr size_t kAutomobileGasPedalAudio = 0x964;
+constexpr size_t kVehicleEngineByte = 0x428;
+constexpr uint8_t kVehicleEngineOn = 0x10;
+
+// CExplosion::aExplosions.
+constexpr uintptr_t kExplosions = 0xC88950;
+constexpr size_t kExplosionCount = 16;
+constexpr size_t kExplosionSize = 0x7C;
+constexpr size_t kExplosionType = 0x00;
+constexpr size_t kExplosionActiveCounter = 0x28;
+
+// CUserDisplay::OnscnTimer, the on-screen mission clock, which counts a
+// script variable given by its byte offset in CTheScripts::ScriptSpace.
+constexpr uintptr_t kOnscreenTimer = 0xBA1788;
+constexpr uintptr_t kScriptSpace = 0xA49960;
+
 // Functions.
+constexpr uintptr_t kRand = 0x821B1E;
+constexpr uintptr_t kRandomNumberInRange = 0x407180;
+constexpr uintptr_t kAddProjectile = 0x737C80;
+constexpr uintptr_t kAddExplosion = 0x736A50;
+constexpr uintptr_t kSetAeroplaneCompStatus = 0x6C22D0;
+constexpr uintptr_t kAddClock = 0x44CD50;
+constexpr uintptr_t kClearClock = 0x44CE60;
 constexpr uintptr_t kFindPlayerPed = 0x56E210;
 constexpr uintptr_t kVehicleCheat = 0x43A0B0;
 constexpr uintptr_t kSetPedInCarDirect = 0x650280;
@@ -167,5 +202,21 @@ void StartFire(const Vector& position, float size);
 void ExtinguishFiresAround(const Vector& position, float radius);
 uint8_t* ActiveCam();
 void SleepAllScripts();
+// An explosion of `type`, with no victim or creator, silent and visible.
+void AddExplosion(int32_t type, const Vector& position);
+// A projectile of `weapon`, whose model is `model`, dropped at `position` by
+// the player.
+void DropProjectile(int32_t weapon, int32_t model, const Vector& position);
+// While on, every `GetRandomNumberInRange(0, 100)` walks 0 to 99 in a fixed
+// order, so a roll below n passes exactly n times in a hundred.
+void EvenRandomPercent(bool on);
+// Sets the damage state, 0 to 2, of a plane's moving part `frame`.
+void DamagePlanePart(void* plane, int32_t frame, int32_t state);
+// Makes the `call rand` at `site` yield the middle of the range, so a random
+// amount added there every frame adds nothing, or puts the call back.
+void MidRangeRandom(uintptr_t site, bool on);
+// Shows the mission clock counting `variable` down from `milliseconds`.
+void StartCountdown(uint32_t variable, int32_t milliseconds);
+void StopCountdown(uint32_t variable);
 
 }  // namespace game

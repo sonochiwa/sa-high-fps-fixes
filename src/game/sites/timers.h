@@ -5,7 +5,7 @@
 
 // Sites where the game truncates a frame's worth of time to a whole number,
 // repointed at one wrapper that carries the fraction: stat, stunt, task,
-// vehicle, idle camera, HUD, burn and gang war counters.
+// vehicle, idle camera, HUD, burn, gang war and mission counters.
 
 namespace hff {
 
@@ -46,10 +46,19 @@ constexpr uint8_t kTruncGroupIdleCam = 5;
 constexpr uint8_t kTruncGroupHud = 6;
 constexpr uint8_t kTruncGroupBurn = 7;
 constexpr uint8_t kTruncGroupWorld = 8;
+constexpr uint8_t kTruncGroupMission = 9;
+constexpr uint8_t kTruncGroupScript = 10;
+constexpr uint8_t kTruncGroupExplosion = 11;
+constexpr uint8_t kTruncGroupPlaneDamage = 12;
+
+// `CTheScripts::Process` adds the truncated frame time to TIMERA and TIMERB of
+// every script. SilentPatch replaces this call with its own carry of the same
+// fraction, so the site is only taken while it still calls `_ftol`.
+constexpr uintptr_t kScriptTimerTruncCall = 0x0046A036;
 
 // The counter each site feeds is named so the next reader does not have to
 // chase the global back through the disassembly.
-constexpr std::array<StatTruncSite, 103> kStatTruncSites{{
+constexpr std::array<StatTruncSite, 118> kStatTruncSites{{
     // m_FatCounter, milliseconds
     {0x0055C5C3, kTruncGroupStats},
     // m_MaxHealthCounter
@@ -239,7 +248,49 @@ constexpr std::array<StatTruncSite, 103> kStatTruncSites{{
 
     // Gang war countdown, both branches of the same global at 0x96AB44.
     {0x00446BB4, kTruncGroupWorld},
-    {0x00446CDC, kTruncGroupWorld}
+    {0x00446CDC, kTruncGroupWorld},
+    // How long until rival gangs next attack a territory.
+    // CGangWars::Update
+    {0x00446DEC, kTruncGroupWorld},
+
+    // Ped task timers that count down.
+    // CTaskSimpleFall::ProcessPed, +0x1C, how long a fallen ped stays down
+    {0x0067FB47, kTruncGroupTask},
+    // the same timer, second branch
+    {0x0067FBB3, kTruncGroupTask},
+    // CTaskSimpleChoking::ProcessPed, +0x10
+    {0x00620532, kTruncGroupTask},
+    // CTaskSimpleGunControl::ProcessPed, +0x28
+    {0x00625664, kTruncGroupTask},
+
+    // Vehicle timers that scale the frame time by 16.67 instead of 20.
+    // CVehicle::ProcessDelayedExplosion, +0x4DE, a car bomb's fuse
+    {0x006D135C, kTruncGroupVehicle},
+    // CVehicle::ProcessCarAlarm, +0x45C, compared with the time left
+    {0x006D221B, kTruncGroupVehicle},
+    // the same timer, then subtracted from it
+    {0x006D223F, kTruncGroupVehicle},
+    // CCarAI::UpdateCarAI, +0x4DC, how long a ramming or blocking police car
+    // has waited, two more branches of the timer at 0x41F28D
+    {0x0041DE6A, kTruncGroupVehicle},
+    {0x0041E1D5, kTruncGroupVehicle},
+
+    // Mission countdowns on screen.
+    // COnscreenTimerEntry::Process
+    {0x0044CB31, kTruncGroupMission},
+    // TIMERA and TIMERB of every script.
+    {kScriptTimerTruncCall, kTruncGroupScript},
+
+    // How long an explosion has burnt fuel; the burning fuel is drawn for its
+    // first 200 ms.
+    // CExplosion::Update, +0x0C, negated
+    {0x00737A09, kTruncGroupExplosion},
+
+    // The phase of a damaged plane's engine sputter, the frame time scaled by
+    // a random factor and truncated twice.
+    // CPlane::ProcessFlyingCarStuff, m_planeDamageWave
+    {0x006CB833, kTruncGroupPlaneDamage},
+    {0x006CB84C, kTruncGroupPlaneDamage}
 
 }};
 

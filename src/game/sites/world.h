@@ -167,4 +167,49 @@ constexpr std::array<uint8_t, 10> kExpectedSampObjectRotation{
     0xD8, 0xB3, 0x5B, 0x01, 0x00, 0x00
 };
 
+// CTaskComplexCopInCar::ControlSubTask lets a cop leave the police car and
+// arrest on foot once the suspect's car is slow, tested in two places as
+// |moveSpeed|^2 * timestep * 50 <= 1. With the timestep in the test the speed
+// that counts as slow rises with the frame rate, from about 20 km/h at
+// 30 FPS to about 60 km/h at 300.
+// fmul dword ptr ds:[00B7CB5Ch]
+constexpr std::array<uintptr_t, 2> kCopSuspectSlowTests{0x0068FF6F, 0x0069017E};
+constexpr std::array<uint8_t, 6> kExpectedCopSuspectSlowTest{
+    0xD8, 0x0D, 0x5C, 0xCB, 0xB7, 0x00
+};
+
+// CExplosion::Update. Each explosion counts its frames in a byte that the
+// update increments and that ends the explosion when it wraps to zero, after
+// 255 frames: 8.5 s at 30 FPS, longer than any explosion lasts, but 0.85 s at
+// 300 FPS, which cuts car, boat and aircraft explosions and the fires they
+// light short.
+// inc byte ptr [esi-8] / jmp 007379F7h
+constexpr uintptr_t kExplosionFrameCount = 0x007379EE;
+constexpr uintptr_t kExplosionFrameCountResume = 0x007379F7;
+constexpr std::array<uint8_t, 5> kExpectedExplosionFrameCount{
+    0xFE, 0x46, 0xF8, 0xEB, 0x04
+};
+// Rolled once a frame for every explosion: an aircraft explosion sets off a
+// smaller one with `GetRandomNumberInRange(0, 100) < 5`, and an explosion
+// with a victim sets it alight with `rand() & 0x1F == 0`. The burning fuel of
+// a car, boat or aircraft explosion is drawn with one `CreateFxSystem` per
+// fuel stream a frame for its first 200 ms.
+constexpr uintptr_t kExplosionAircraftBlastRoll = 0x007378D7;
+constexpr uintptr_t kExplosionVictimFireRoll = 0x00737717;
+constexpr uintptr_t kExplosionFuelEffect = 0x00737AE0;
+
+// CWeather::Update starts a lightning burst in a storm when
+// `(rand() & 0xFFFF) < 200` and ends it when `(rand() & 0xFF) < 24`, both
+// rolled every frame, and measures the burst in CTimer::m_FrameCounter frames,
+// up to 20; that length sets how late the thunder follows and how hard the pad
+// shakes. Above 30 FPS bursts start many times more often and count short
+// frames.
+constexpr uintptr_t kLightningEndRoll = 0x0072B9DB;
+constexpr uintptr_t kLightningStartRoll = 0x0072BA88;
+// mov eax,dword ptr ds:[00B7CB4Ch]
+constexpr std::array<uintptr_t, 2> kLightningFrameReads{0x0072B9EA, 0x0072BAA6};
+constexpr std::array<uint8_t, 5> kExpectedLightningFrameRead{
+    0xA1, 0x4C, 0xCB, 0xB7, 0x00
+};
+
 } // namespace hff

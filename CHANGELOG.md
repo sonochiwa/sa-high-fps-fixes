@@ -1,5 +1,28 @@
 # Changelog
 
+## 1.8.0
+
+- Added `missionTimers`: on-screen mission countdowns run in real time, and
+  so do script timers when SilentPatch does not already handle them.
+- Added `missionScripts`: Small Town Bank hostages, and the cars in Tanker
+  Commander and Zeroing In, behave as at 30 FPS.
+- Added `explosions`, `lightning` and `tearGas`: explosions last their full
+  time, and lightning and tear gas strike as often as at 30 FPS.
+- Added `copCarExit`: cops leave their car to arrest you only once you are as
+  slow as at 30 FPS.
+- Added `vehicleSinking`, `boatWaves`, `hydraulicStance`, `swatRopes` and
+  `damagedPlaneControl`: sinking cars, boats in waves, lowriders, SWAT
+  helicopters and damaged planes behave as at 30 FPS.
+- Added an `[audio]` section: `engineRevs` and `ambientSounds` keep the
+  engine note, distant gunfire and the foghorn at their 30 FPS pace.
+- Changed `burglaryNoise` to cover the Home Invasion noise meter.
+- Changed `fpsLimit` to step aside when WidescreenFixesPack, which replaces
+  the game's frame limiter, is installed.
+- Fixed swimmers rising back to the surface slowly and sprint splashes
+  multiplying above 30 FPS.
+- Fixed knocked-down peds staying down, car bombs and alarms running long,
+  ramming cops waiting and rival gangs attacking late above 30 FPS.
+
 ## 1.7.0
 
 - Added `waterCannon`: fire truck and SWAT van water jets reach as far and

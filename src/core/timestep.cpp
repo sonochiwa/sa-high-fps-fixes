@@ -17,6 +17,7 @@ struct FrameTickState {
     uint32_t frame;
     int32_t decision;
     float carry;
+    uint32_t ticks;
 };
 
 std::array<FrameTickState, kFrameTickSlots> g_frameTicks{};
@@ -73,17 +74,25 @@ int32_t __cdecl FrameTick(int32_t index) {
     if (!std::isfinite(ratio) || ratio >= 1.0f || ratio <= 0.0f) {
         slot.carry = 0.0f;
         slot.decision = 1;
-        return 1;
-    }
-    const float total = slot.carry + ratio;
-    if (total >= 1.0f) {
-        slot.carry = total - 1.0f;
-        slot.decision = 1;
     } else {
-        slot.carry = total;
-        slot.decision = 0;
+        const float total = slot.carry + ratio;
+        if (total >= 1.0f) {
+            slot.carry = total - 1.0f;
+            slot.decision = 1;
+        } else {
+            slot.carry = total;
+            slot.decision = 0;
+        }
     }
+    slot.ticks += static_cast<uint32_t>(slot.decision);
     return slot.decision;
+}
+
+uint32_t __cdecl FrameTickCount(int32_t index) {
+    if (index < 0 || static_cast<size_t>(index) >= g_frameTicks.size()) {
+        return 0;
+    }
+    return g_frameTicks[index].ticks;
 }
 
 bool InsideOriginalTimeStep() {

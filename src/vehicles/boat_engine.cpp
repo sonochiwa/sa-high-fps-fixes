@@ -4,7 +4,7 @@
 #include "core/patch.h"
 #include "game/addresses.h"
 #include "game/frame_steps.h"
-#include "game/sites/vehicles.h"
+#include "game/sites/water.h"
 
 namespace hff::vehicles {
 

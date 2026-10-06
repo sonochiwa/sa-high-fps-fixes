@@ -1,5 +1,7 @@
 #include "game.h"
 
+#include "MinHook.h"
+
 #include <windows.h>
 
 #include <array>
@@ -34,6 +36,12 @@ constexpr Prologue kPrologues[] = {
     {kExtinguishPoint, {0x56, 0x57, 0x8B, 0xF1}, 4},
     {kRequestModel, {0x53, 0x8B, 0x5C, 0x24, 0x0C}, 5},
     {kLoadAllRequestedModels, {0xE9}, 1},
+    {kRandomNumberInRange, {0x51, 0x56, 0xE8}, 3},
+    {kAddProjectile, {0x6A, 0xFF, 0xE9}, 3},
+    {kAddExplosion, {0x83, 0xEC, 0x1C, 0x53, 0x55}, 5},
+    {kSetAeroplaneCompStatus, {0x8A, 0x44, 0x24, 0x04, 0x2C, 0x0C}, 6},
+    {kAddClock, {0xE9}, 1},
+    {kClearClock, {0xE9}, 1},
 };
 
 using FindPlayerPedFn = uint8_t*(__cdecl*)(int32_t);
@@ -51,6 +59,26 @@ using StartFireFn = void*(__thiscall*)(void*, Vector, float, uint8_t, void*, uin
 using ExtinguishFn = void(__thiscall*)(void*, Vector, float);
 using RequestModelFn = void(__cdecl*)(int32_t, int32_t);
 using LoadAllFn = void(__cdecl*)(bool);
+using AddExplosionFn = void(__cdecl*)(void*, void*, int32_t, Vector, uint32_t, int32_t, float,
+                                      int32_t);
+using SetPartStatusFn = void(__thiscall*)(void*, int32_t, int32_t);
+using AddProjectileFn = bool(__cdecl*)(void*, int32_t, Vector, float, const Vector*, void*);
+using RandomRangeFn = int32_t(__cdecl*)(int32_t, int32_t);
+
+RandomRangeFn g_randomRange = nullptr;
+bool g_evenPercent = false;
+uint32_t g_percentStep = 0;
+
+// 37 and 100 share no factor, so the steps visit every value once a hundred.
+int32_t __cdecl RandomRangeHook(int32_t low, int32_t high) {
+    if (g_evenPercent && low == 0 && high == 100) {
+        g_percentStep = (g_percentStep + 37) % 100;
+        return static_cast<int32_t>(g_percentStep);
+    }
+    return g_randomRange(low, high);
+}
+using AddClockFn = void(__thiscall*)(void*, uint32_t, const char*, int32_t);
+using ClearClockFn = void(__thiscall*)(void*, uint32_t);
 
 template <typename T>
 T Function(uintptr_t address) {
@@ -160,6 +188,62 @@ void SleepAllScripts() {
          script = Field<uint8_t*>(script, kScriptNext)) {
         Field<int32_t>(script, kScriptWakeTime) = INT32_MAX;
     }
+}
+
+void AddExplosion(int32_t type, const Vector& position) {
+    Function<AddExplosionFn>(kAddExplosion)(nullptr, nullptr, type, position, 0, 0, 0.0f, 1);
+}
+
+void DropProjectile(int32_t weapon, int32_t model, const Vector& position) {
+    LoadModel(model);
+    Function<AddProjectileFn>(kAddProjectile)(Player(), weapon, position, 0.0f, nullptr,
+                                              nullptr);
+}
+
+void EvenRandomPercent(bool on) {
+    if (!g_randomRange) {
+        void* original = nullptr;
+        auto* target = reinterpret_cast<void*>(kRandomNumberInRange);
+        if (MH_CreateHook(target, reinterpret_cast<void*>(&RandomRangeHook), &original) != MH_OK
+            || MH_EnableHook(target) != MH_OK) {
+            return;
+        }
+        g_randomRange = reinterpret_cast<RandomRangeFn>(original);
+    }
+    g_evenPercent = on;
+    g_percentStep = 0;
+}
+
+void DamagePlanePart(void* plane, int32_t frame, int32_t state) {
+    void* damage = reinterpret_cast<uint8_t*>(plane) + kAutomobileDamageManager;
+    Function<SetPartStatusFn>(kSetAeroplaneCompStatus)(damage, frame, state);
+}
+
+void MidRangeRandom(uintptr_t site, bool on) {
+    std::array<uint8_t, 5> bytes{0xB8, 0xFF, 0x3F, 0x00, 0x00};
+    if (!on) {
+        const auto offset = static_cast<int32_t>(kRand - (site + 5));
+        bytes[0] = 0xE8;
+        std::memcpy(&bytes[1], &offset, sizeof(offset));
+    }
+    auto* code = reinterpret_cast<void*>(site);
+    DWORD protection = 0;
+    if (VirtualProtect(code, bytes.size(), PAGE_EXECUTE_READWRITE, &protection)) {
+        std::memcpy(code, bytes.data(), bytes.size());
+        VirtualProtect(code, bytes.size(), protection, &protection);
+        FlushInstructionCache(GetCurrentProcess(), code, bytes.size());
+    }
+}
+
+void StartCountdown(uint32_t variable, int32_t milliseconds) {
+    constexpr int32_t kCountDown = 1;
+    At<int32_t>(kScriptSpace + variable) = milliseconds;
+    Function<AddClockFn>(kAddClock)(reinterpret_cast<void*>(kOnscreenTimer), variable,
+                                    nullptr, kCountDown);
+}
+
+void StopCountdown(uint32_t variable) {
+    Function<ClearClockFn>(kClearClock)(reinterpret_cast<void*>(kOnscreenTimer), variable);
 }
 
 }  // namespace game

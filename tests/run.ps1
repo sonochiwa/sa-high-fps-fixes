@@ -15,8 +15,10 @@
 # in build\autotest\. The game is not started while another game or a
 # full-screen application holds the screen.
 param(
-    [string[]]$Scenarios = @('timer', 'forklift', 'burning', 'plane', 'sniper', 'firetruck',
-        'parking'),
+    [string[]]$Scenarios = @('timer', 'countdown', 'burning', 'explosion', 'teargas',
+        'forklift', 'firetruck', 'parking', 'braking', 'cornering', 'sinking', 'hydraulics',
+        'engine_revs', 'plane', 'plane_gentle', 'plane_damaged', 'heli', 'sniper', 'swim',
+        'swim_speed'),
     [string[]]$Fps = @('30', '300'),
     [string[]]$Modes = @('stock', 'fixed'),
     [string]$Copies = $env:HFF_TEST_COPIES,

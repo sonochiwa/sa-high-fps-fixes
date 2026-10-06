@@ -3,6 +3,7 @@
 #include "core/config.h"
 #include "core/log.h"
 
+#include <atomic>
 #include <cstdio>
 #include <cstring>
 #include <string>
@@ -18,6 +19,7 @@ struct InstallSummary {
 };
 
 InstallSummary g_installSummary{};
+std::atomic<bool> g_fixesInstalled{};
 
 // The handling switches added since 1.3.0. `classicHandling=1` keeps all of
 // them off, whatever their own keys say, so a vehicle drives and flies as it
@@ -91,6 +93,14 @@ void LogInstallSummary() {
                   static_cast<unsigned>(g_installSummary.failed),
                   static_cast<unsigned>(g_installSummary.disabled));
     Log(summary);
+}
+
+void MarkFixesInstalled() {
+    g_fixesInstalled.store(true, std::memory_order_release);
+}
+
+bool FixesInstalled() {
+    return g_fixesInstalled.load(std::memory_order_acquire);
 }
 
 } // namespace hff

@@ -1,0 +1,420 @@
+#include "core/config.h"
+
+#include "core/config_migration.h"
+#include "core/log.h"
+#include "core/module.h"
+#include "resource.h"
+
+#include <windows.h>
+
+#include <array>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <limits>
+
+namespace hff {
+
+namespace {
+
+struct ConfigKey {
+    const char* section;
+    const char* key;
+};
+
+std::string g_iniPath;
+std::array<ConfigKey, 128> g_knownConfigKeys{};
+size_t g_knownConfigKeyCount{};
+std::array<std::string, 32> g_configWarnings{};
+size_t g_configWarningCount{};
+std::array<char, 8192> g_iniSectionBuffer{};
+std::array<char, 16384> g_iniEntryBuffer{};
+
+struct IniCompletionResult {
+    size_t added{};
+    bool complete{true};
+};
+
+// The canonical Config\HighFpsFixes.ini, compiled into the plugin as RCDATA
+// and read back byte for byte.
+const std::string& DefaultIniText() {
+    static const std::string text = [] {
+        std::string bytes;
+        const HRSRC resource = FindResourceW(g_module, MAKEINTRESOURCEW(IDR_DEFAULT_INI), RT_RCDATA);
+        if (!resource) {
+            return bytes;
+        }
+        const HGLOBAL handle = LoadResource(g_module, resource);
+        const DWORD size = SizeofResource(g_module, resource);
+        const void* data = handle ? LockResource(handle) : nullptr;
+        if (data && size != 0) {
+            bytes.assign(static_cast<const char*>(data), size);
+        }
+        return bytes;
+    }();
+    return text;
+}
+
+bool CreateDefaultIniIfMissing() {
+    if (g_iniPath.empty()) {
+        return false;
+    }
+    if (GetFileAttributesA(g_iniPath.c_str()) != INVALID_FILE_ATTRIBUTES) {
+        return true;
+    }
+
+    const std::string& text = DefaultIniText();
+    if (text.empty()) {
+        return false;
+    }
+
+    HANDLE file = CreateFileA(g_iniPath.c_str(), GENERIC_WRITE, 0, nullptr,
+                              CREATE_NEW, FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (file == INVALID_HANDLE_VALUE) {
+        return false;
+    }
+
+    DWORD written{};
+    const DWORD size = static_cast<DWORD>(text.size());
+    const bool ok = WriteFile(file, text.data(), size, &written, nullptr) != FALSE
+                 && written == size;
+    CloseHandle(file);
+    return ok;
+}
+
+// The version comment on the first line is the one piece of the template that
+// is kept current: an INI created by an older release would otherwise carry
+// that release's number forever and be mistaken for a stale plugin. Only a
+// first line that is itself a version header is touched, and only when it
+// differs, so a file the user has edited is not rewritten on every launch.
+// Returns true when the header was brought up to date.
+bool RefreshIniVersionHeader() {
+    if (g_iniPath.empty()) {
+        return false;
+    }
+    const std::string& text = DefaultIniText();
+    const size_t templateEnd = text.find('\n');
+    if (templateEnd == std::string::npos) {
+        return false;
+    }
+    std::string header = text.substr(0, templateEnd);
+    if (!header.empty() && header.back() == '\r') {
+        header.pop_back();
+    }
+    constexpr char prefix[] = "# High FPS Fixes v";
+
+    HANDLE file = CreateFileA(g_iniPath.c_str(), GENERIC_READ | GENERIC_WRITE,
+                              FILE_SHARE_READ, nullptr, OPEN_EXISTING,
+                              FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (file == INVALID_HANDLE_VALUE) {
+        return false;
+    }
+    std::string contents;
+    LARGE_INTEGER size{};
+    if (!GetFileSizeEx(file, &size) || size.QuadPart > (1 << 20)) {
+        CloseHandle(file);
+        return false;
+    }
+    contents.resize(static_cast<size_t>(size.QuadPart));
+    DWORD read{};
+    if (!contents.empty()
+        && (!ReadFile(file, contents.data(),
+                      static_cast<DWORD>(contents.size()), &read, nullptr)
+            || read != contents.size())) {
+        CloseHandle(file);
+        return false;
+    }
+
+    size_t lineEnd = contents.find('\n');
+    if (lineEnd == std::string::npos) {
+        lineEnd = contents.size();
+    }
+    size_t lineLength = lineEnd;
+    if (lineLength != 0 && contents[lineLength - 1] == '\r') {
+        --lineLength;
+    }
+    const bool isHeader =
+        contents.compare(0, sizeof(prefix) - 1, prefix) == 0;
+    if (!isHeader || contents.compare(0, lineLength, header) == 0) {
+        CloseHandle(file);
+        return false;
+    }
+
+    contents.replace(0, lineLength, header);
+    // Write first and truncate after, so a failed write leaves the old file
+    // rather than an empty one.
+    bool written = false;
+    if (SetFilePointer(file, 0, nullptr, FILE_BEGIN)
+        != INVALID_SET_FILE_POINTER) {
+        DWORD count{};
+        written = WriteFile(file, contents.data(),
+                            static_cast<DWORD>(contents.size()), &count,
+                            nullptr) != FALSE
+               && count == contents.size()
+               && SetEndOfFile(file) != FALSE;
+    }
+    CloseHandle(file);
+    return written;
+}
+
+// Add only settings represented by the embedded canonical INI. Profile writes
+// insert a key into its existing section (or append a missing section) without
+// replacing the file, so user values, ordering, blank lines, comments and
+// non-canonical settings survive an upgrade. Comments from the template are
+// deliberately not restored: deleting one is a harmless user edit and must not
+// make every launch rewrite the file.
+IniCompletionResult CompleteIniWithMissingDefaults() {
+    IniCompletionResult result{};
+    if (g_iniPath.empty()) {
+        result.complete = false;
+        return result;
+    }
+
+    constexpr char missingValue[] = "\x1Dhigh-fps-fixes-missing\x1D";
+    std::string section;
+    const std::string& text = DefaultIniText();
+    const char* cursor = text.c_str();
+    while (*cursor) {
+        const char* newline = std::strchr(cursor, '\n');
+        const size_t length = newline
+                                ? static_cast<size_t>(newline - cursor)
+                                : std::strlen(cursor);
+        std::string line(cursor, length);
+        if (!line.empty() && line.back() == '\r') {
+            line.pop_back();
+        }
+
+        if (line.size() >= 3 && line.front() == '[' && line.back() == ']') {
+            section.assign(line.data() + 1, line.size() - 2);
+        } else if (!section.empty() && !line.empty()
+                   && line.front() != '#' && line.front() != ';') {
+            const size_t equals = line.find('=');
+            if (equals != std::string::npos && equals != 0) {
+                const std::string key = line.substr(0, equals);
+                const std::string defaultValue = line.substr(equals + 1);
+                std::array<char, 128> existing{};
+                GetPrivateProfileStringA(
+                    section.c_str(), key.c_str(), missingValue,
+                    existing.data(), static_cast<DWORD>(existing.size()),
+                    g_iniPath.c_str());
+                if (std::strcmp(existing.data(), missingValue) == 0) {
+                    if (WritePrivateProfileStringA(
+                            section.c_str(), key.c_str(),
+                            defaultValue.c_str(), g_iniPath.c_str())) {
+                        ++result.added;
+                    } else {
+                        result.complete = false;
+                    }
+                }
+            }
+        }
+
+        if (!newline) {
+            break;
+        }
+        cursor = newline + 1;
+    }
+
+    if (result.added != 0) {
+        // The all-null form only flushes the profile API cache. Some Windows
+        // versions return zero for this form even when every preceding write
+        // succeeded, so it must not turn a successful migration into a warning.
+        WritePrivateProfileStringA(nullptr, nullptr, nullptr,
+                                   g_iniPath.c_str());
+    }
+    return result;
+}
+
+bool IsKnownConfigKey(const char* section, const char* key) {
+    for (size_t i = 0; i < g_knownConfigKeyCount; ++i) {
+        if (_stricmp(g_knownConfigKeys[i].section, section) == 0
+            && _stricmp(g_knownConfigKeys[i].key, key) == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// Keys read only while the fix they tune is installed, so that switching the
+// fix off does not make them look unknown.
+void RegisterConditionalConfigKeys() {
+    constexpr ConfigKey keys[] = {
+        {"vehicles", "bikePitchExperimentStrength"},
+        {"vehicles", "turnAirResistanceStrength"},
+        {"vehicles", "disableSwingingCompletely"},
+        {"hud", "disableFlashing"},
+    };
+    for (const auto& item : keys) {
+        RegisterConfigKey(item.section, item.key);
+    }
+}
+
+// Switches that existed in an earlier release and were removed. An INI written by
+// that release still carries them; that is not a mistake on the user's part, so
+// they are reported once as information rather than as a warning. Returns why
+// the key went, or null for any other key.
+const char* RetiredConfigKeyNote(const char* section, const char* key) {
+    constexpr struct {
+        const char* section;
+        const char* key;
+        const char* note;
+    } retired[] = {
+        {"vehicles", "groundFriction",
+         "the driving physics now match FramerateVigilante"},
+        {"vehicles", "wheelSlipScale",
+         "the driving physics now match FramerateVigilante"},
+        {"vehicles", "moveSpeedSnap",
+         "the driving physics now match FramerateVigilante"},
+        {"vehicles", "rollOntoWheels",
+         "the driving physics now match FramerateVigilante"},
+        {"vehicles", "collisionPushOut",
+         "the driving physics now match FramerateVigilante"},
+        {"particles", "particlesPerSecond",
+         "particle effects are no longer capped"},
+    };
+    for (const auto& item : retired) {
+        if (_stricmp(item.section, section) == 0
+            && _stricmp(item.key, key) == 0) {
+            return item.note;
+        }
+    }
+    return nullptr;
+}
+
+void ValidateUnknownConfigKeys() {
+    g_iniSectionBuffer.fill('\0');
+    GetPrivateProfileSectionNamesA(g_iniSectionBuffer.data(),
+                                   static_cast<DWORD>(g_iniSectionBuffer.size()),
+                                   g_iniPath.c_str());
+    for (const char* section = g_iniSectionBuffer.data(); *section;
+         section += std::strlen(section) + 1) {
+        g_iniEntryBuffer.fill('\0');
+        GetPrivateProfileSectionA(section, g_iniEntryBuffer.data(),
+                                  static_cast<DWORD>(g_iniEntryBuffer.size()),
+                                  g_iniPath.c_str());
+        for (const char* entry = g_iniEntryBuffer.data(); *entry;
+             entry += std::strlen(entry) + 1) {
+            const char* equals = std::strchr(entry, '=');
+            if (!equals) {
+                continue;
+            }
+            std::string key(entry, static_cast<size_t>(equals - entry));
+            if (const char* note = RetiredConfigKeyNote(section, key.c_str())) {
+                std::string message("Configuration note: [");
+                message += section;
+                message += "] ";
+                message += key;
+                message += " was removed and is ignored; ";
+                message += note;
+                message += ".";
+                Log(message.c_str());
+            } else if (!IsKnownConfigKey(section, key.c_str())) {
+                AddConfigWarning(section, key.c_str(), "is not recognized.");
+            }
+        }
+    }
+}
+
+} // namespace
+
+void SetConfigPath(const std::string& path) {
+    g_iniPath = path;
+}
+
+void PrepareConfig() {
+    const bool iniCreatedOrPresent = CreateDefaultIniIfMissing();
+    MigrateIniLayout(g_iniPath);
+    const IniCompletionResult iniCompletion = CompleteIniWithMissingDefaults();
+    const bool iniHeaderRefreshed = RefreshIniVersionHeader();
+    RegisterConditionalConfigKeys();
+
+    if (!iniCreatedOrPresent || !iniCompletion.complete) {
+        Log("Configuration warning: could not add every missing default INI "
+            "setting; in-memory defaults will be used.");
+    } else if (iniCompletion.added != 0) {
+        char message[128];
+        std::snprintf(message, sizeof(message),
+                      "Added %zu missing default setting%s to HighFpsFixes.ini.",
+                      iniCompletion.added,
+                      iniCompletion.added == 1 ? "" : "s");
+        Log(message);
+    }
+    if (iniHeaderRefreshed) {
+        Log("Updated the HighFpsFixes.ini version header.");
+    }
+}
+
+void RegisterConfigKey(const char* section, const char* key) {
+    if (IsKnownConfigKey(section, key)) {
+        return;
+    }
+    if (g_knownConfigKeyCount < g_knownConfigKeys.size()) {
+        g_knownConfigKeys[g_knownConfigKeyCount++] = {section, key};
+    }
+}
+
+void AddConfigWarning(const char* section, const char* key,
+                      const char* reason) {
+    if (g_configWarningCount >= g_configWarnings.size()) {
+        return;
+    }
+    std::string warning("Configuration warning: [");
+    warning += section;
+    warning += "] ";
+    warning += key;
+    warning += " ";
+    warning += reason;
+    g_configWarnings[g_configWarningCount++] = warning;
+}
+
+bool ReadSetting(const char* section, const char* key, bool defaultValue) {
+    RegisterConfigKey(section, key);
+    std::array<char, 64> value{};
+    GetPrivateProfileStringA(section, key, "", value.data(),
+                             static_cast<DWORD>(value.size()),
+                             g_iniPath.c_str());
+    if (value[0] == '\0') {
+        return defaultValue;
+    }
+    if (std::strcmp(value.data(), "0") == 0) {
+        return false;
+    }
+    if (std::strcmp(value.data(), "1") == 0) {
+        return true;
+    }
+    AddConfigWarning(section, key, "must be 0 or 1; using its default.");
+    return defaultValue;
+}
+
+int ReadNumber(const char* section, const char* key, int defaultValue) {
+    RegisterConfigKey(section, key);
+    std::array<char, 64> value{};
+    GetPrivateProfileStringA(section, key, "", value.data(),
+                             static_cast<DWORD>(value.size()),
+                             g_iniPath.c_str());
+    if (value[0] == '\0') {
+        return defaultValue;
+    }
+    char* end{};
+    const long parsed = std::strtol(value.data(), &end, 10);
+    while (end && *end == ' ') {
+        ++end;
+    }
+    if (!end || *end != '\0'
+        || parsed < std::numeric_limits<int>::min()
+        || parsed > std::numeric_limits<int>::max()) {
+        AddConfigWarning(section, key,
+                         "must be an integer; using its default.");
+        return defaultValue;
+    }
+    return static_cast<int>(parsed);
+}
+
+void ReportConfigWarnings() {
+    ValidateUnknownConfigKeys();
+    for (size_t i = 0; i < g_configWarningCount; ++i) {
+        Log(g_configWarnings[i].c_str());
+    }
+}
+
+} // namespace hff

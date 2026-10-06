@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.7.0
+
+- Added `waterCannon`: fire truck and SWAT van water jets reach as far and
+  put fires out as fast as at 30 FPS.
+- Added `aircraftTurnResistance`: planes and helicopters turn and settle as
+  at 30 FPS.
+- Changed `steerInputRate` to cover plane controls too.
+- Changed the log to start afresh on every launch.
+- Fixed the sniper, camera and rocket launcher scopes zooming and turning too
+  fast above 50 FPS.
+- Fixed the extinguisher and flamethrower being weak above 70 FPS, and some
+  fires never spreading or setting cars alight at a steady frame rate.
+- Fixed riderless bikes juddering after a while of play, and the bike lean
+  fix dropping out with many bikes around.
+- Fixed parked vehicles waking up on most frames, and peds leaving vehicles
+  that were still moving.
+- Fixed `parachuteFlight`, `burglaryNoise`, `gearChangeKick`, the automatic
+  limits and the SA-MP object fix not installing alongside some plugins.
+- Removed the undocumented `particlesPerSecond` cap.
+
 ## 1.6.0
 
 - Added `objectPickUp`: the player steps up to an object being picked up

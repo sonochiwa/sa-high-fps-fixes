@@ -34,7 +34,7 @@ foreach ($file in Get-ChildItem -LiteralPath $sourceRoot -File -Recurse | Where-
         throw "$relative is not listed in HighFpsFixes.vcxproj."
     }
     $lineCount = ([IO.File]::ReadAllLines($file.FullName)).Length
-    $limit = if ($file.Extension -eq '.h') { 1200 } else { 500 }
+    $limit = if ($file.Extension -eq '.h') { 300 } else { 500 }
     if ($lineCount -gt $limit) {
         throw "$relative has grown to $lineCount lines; split it."
     }

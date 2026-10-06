@@ -14,9 +14,9 @@ is reached at any higher frame rate. Each fix has its own switch.
 - Camera: stunt jump, aim shake, follow, idle and drunk camera timing.
 - Player: swimming, diving, buoyancy, climbing, picking up objects, aiming
   walk, skill and stunt counters, drowning, drunk steering, jetpack flame.
-- Vehicles: wheel friction, burnout, bike lean and pitch, rotor and
-  propeller speed, door swing, forklift forks, head bop, siren tap and the
-  timers that park, burn or flip a vehicle.
+- Vehicles: wheel friction, burnout, bike lean and pitch, aircraft turning,
+  rotor and propeller speed, door swing, forklift forks, fire truck water
+  jets, head bop, siren tap and the timers that park, burn or flip a vehicle.
 - Weapons: extinguisher, spraycan and flamethrower particles and ammunition,
   chainsaw strike rate.
 - HUD: health, armor, breath, wanted-star and radar flashes at their
@@ -55,7 +55,7 @@ missing:
 | Setting | Default | Meaning |
 | --- | ---: | --- |
 | `[general]` | | |
-| `log` | `0` | Writes `HighFpsFixes.log` beside the plugin. `0` writes nothing, whatever goes wrong. |
+| `log` | `0` | Writes `HighFpsFixes.log` beside the plugin, afresh at every launch. `0` writes nothing, whatever goes wrong. |
 | `overrideConflictingHooks` | `1` | Wins over another frame-rate plugin, such as FramerateVigilante, at the sites both patch. `0` leaves the first one in place. |
 | `[camera]` | | |
 | `stuntJumpCamera` | `1` | Stunt jump camera timers no longer stall at very high FPS. |
@@ -87,10 +87,11 @@ missing:
 | `restThreshold` | `1` | Abandoned and wrecked vehicles come to rest after the same time. |
 | `physicsSleepRate` | `1` | Vehicle physics sleep in real time. |
 | `wheelFriction` | `1` | Cars and bikes brake and coast as at 30 FPS. |
-| `classicHandling` | `0` | `1` restores the handling of versions before 1.3.0, planted as at a high frame rate; the seven keys below are then ignored. |
-| `turnAirResistance` | `1` | Cars and bikes turn as at 30 FPS instead of heavily above it. Aircraft, boats and airborne vehicles are left as they are. |
-| `turnAirResistanceStrength` | `100` | Percent of that correction: `100` is the 30 FPS feel, `0` the stock one. |
-| `steerInputRate` | `1` | Keyboard and pad steering reaches full lock in the same time at any FPS. |
+| `classicHandling` | `0` | `1` restores the handling of versions before 1.3.0, planted as at a high frame rate; the eight keys below are then ignored. |
+| `turnAirResistance` | `1` | Cars and bikes turn as at 30 FPS instead of heavily above it. Boats and airborne cars are left as they are. |
+| `turnAirResistanceStrength` | `100` | Percent of that correction and of `aircraftTurnResistance`: `100` is the 30 FPS feel, `0` the stock one. |
+| `aircraftTurnResistance` | `1` | Planes and helicopters turn and settle as at 30 FPS. |
+| `steerInputRate` | `1` | Keyboard and pad steering of cars, bikes and planes reaches full lock in the same time at any FPS. |
 | `gearChangeInertia` | `1` | Engine inertia and gear change smoothing run at the original rate. |
 | `gearChangeKick` | `1` | An upshift kicks the car once, as at 30 FPS, and the engine note no longer jumps to top gear early. |
 | `suspensionDampingLimit` | `1` | Suspension damping keeps its 30 FPS strength instead of stiffening above it. |
@@ -118,6 +119,7 @@ missing:
 | `jumpOutCarSpeed` | `1` | Jumping out of a car is allowed at the same speeds at any FPS. |
 | `doorSwing` | `1` | Vehicle doors swing at the original rate. |
 | `movingParts` | `1` | Forklift forks, the dozer blade, the dumper bed and cargo ramps move at the original speed instead of slowing down or sticking. |
+| `waterCannon` | `1` | Fire truck and SWAT van water jets reach as far and put fires out as fast as at 30 FPS. |
 | `[weapons]` | | |
 | `continuousWeaponParticles` | `1` | Extinguisher, spraycan and flamethrower particles stay visible without the frame limiter. |
 | `continuousWeaponAmmo` | `1` | Those weapons use ammunition at the original rate. |

@@ -1,206 +1,552 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <Filter Include="modules" />
-    <Filter Include="modules\installers" />
-    <Filter Include="modules\thunks" />
+    <Filter Include="bikes">
+      <UniqueIdentifier>{4A2B3A85-A883-4672-B4E4-D8BE0D74CBF0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="camera">
+      <UniqueIdentifier>{C08613B8-E4E4-4C11-AB06-68F5F37863F9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="core">
+      <UniqueIdentifier>{8A6F59A7-BDF7-4391-8FFB-8E7E99C71711}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="framerate">
+      <UniqueIdentifier>{B44D01C5-6F4C-4B56-8116-4102AA681081}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="game">
+      <UniqueIdentifier>{BE076B6B-8027-410A-9FFE-612C26BBA3E5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="game\sites">
+      <UniqueIdentifier>{C0F912B9-43CA-4C7E-9EB4-186D75ADFA49}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="handling">
+      <UniqueIdentifier>{F664A175-47FF-4FB6-B466-9BE6CF212C8E}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="hud">
+      <UniqueIdentifier>{41EF0030-C391-46D9-9C60-BCD03F0B8C0A}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="player">
+      <UniqueIdentifier>{0E6A5DDE-CCB6-4B28-B3E3-65CD7DC5267D}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="scripts">
+      <UniqueIdentifier>{849CCD96-A38E-45BE-9E1B-74BBD8C79793}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="timers">
+      <UniqueIdentifier>{08B42F67-22DF-4B64-B5A5-AC598F5D1B33}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="vehicles">
+      <UniqueIdentifier>{03328C38-5C3B-4233-9A9F-DDDA0EAC1B45}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="vendor">
+      <UniqueIdentifier>{B18D3944-4C01-4E32-984E-EEE95810AF4A}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="vendor\minhook">
+      <UniqueIdentifier>{4C8FD6C1-92D0-437D-847A-193C64AC8149}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="vendor\minhook\src">
+      <UniqueIdentifier>{3919078C-8399-461E-9613-750AFABAE46B}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="vendor\minhook\src\hde">
+      <UniqueIdentifier>{58CD8EE2-9946-4F6B-AC2E-891FE9442BE4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="weapons">
+      <UniqueIdentifier>{6EA91DFA-0E15-499E-9B4D-B89E4435C9D5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="world">
+      <UniqueIdentifier>{EFE4990E-10BF-485C-BB23-16CCF0ED1A67}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="HighFpsFixes.cpp" />
-    <ClCompile Include="modules\aim_camera.cpp">
-      <Filter>modules</Filter>
+    <ClCompile Include="core\config_migration.cpp">
+      <Filter>core</Filter>
     </ClCompile>
-    <ClCompile Include="modules\bike_hooks.cpp">
-      <Filter>modules</Filter>
+    <ClCompile Include="core\config.cpp">
+      <Filter>core</Filter>
     </ClCompile>
-    <ClCompile Include="modules\bike_lean_filter.cpp">
-      <Filter>modules</Filter>
+    <ClCompile Include="core\conflicts.cpp">
+      <Filter>core</Filter>
     </ClCompile>
-    <ClCompile Include="modules\bike_pitch.cpp">
-      <Filter>modules</Filter>
+    <ClCompile Include="core\fixes.cpp">
+      <Filter>core</Filter>
     </ClCompile>
-    <ClCompile Include="modules\bike_transform.cpp">
-      <Filter>modules</Filter>
+    <ClCompile Include="core\hook.cpp">
+      <Filter>core</Filter>
     </ClCompile>
-    <ClCompile Include="modules\bootstrap.cpp">
-      <Filter>modules</Filter>
+    <ClCompile Include="core\log.cpp">
+      <Filter>core</Filter>
     </ClCompile>
-    <ClCompile Include="modules\continuous_weapons.cpp">
-      <Filter>modules</Filter>
+    <ClCompile Include="core\memory.cpp">
+      <Filter>core</Filter>
     </ClCompile>
-    <ClCompile Include="modules\game_profiles.cpp">
-      <Filter>modules</Filter>
+    <ClCompile Include="core\module.cpp">
+      <Filter>core</Filter>
     </ClCompile>
-    <ClCompile Include="modules\hud.cpp">
-      <Filter>modules</Filter>
+    <ClCompile Include="core\patch.cpp">
+      <Filter>core</Filter>
     </ClCompile>
-    <ClCompile Include="modules\ini_settings.cpp">
-      <Filter>modules</Filter>
+    <ClCompile Include="core\timestep.cpp">
+      <Filter>core</Filter>
     </ClCompile>
-    <ClCompile Include="modules\installers\core_installers.cpp">
-      <Filter>modules\installers</Filter>
+    <ClCompile Include="game\frame_hook.cpp">
+      <Filter>game</Filter>
     </ClCompile>
-    <ClCompile Include="modules\installers\core_vehicle_installers.cpp">
-      <Filter>modules\installers</Filter>
+    <ClCompile Include="game\frame_steps.cpp">
+      <Filter>game</Filter>
     </ClCompile>
-    <ClCompile Include="modules\installers\vehicle_installers.cpp">
-      <Filter>modules\installers</Filter>
+    <ClCompile Include="game\profile.cpp">
+      <Filter>game</Filter>
     </ClCompile>
-    <ClCompile Include="modules\installers\vehicle_control_installers.cpp">
-      <Filter>modules\installers</Filter>
+    <ClCompile Include="game\scripts.cpp">
+      <Filter>game</Filter>
     </ClCompile>
-    <ClCompile Include="modules\installers\world_optional_installers.cpp">
-      <Filter>modules\installers</Filter>
+    <ClCompile Include="game\vehicles.cpp">
+      <Filter>game</Filter>
     </ClCompile>
-    <ClCompile Include="modules\move_speed_watch.cpp">
-      <Filter>modules</Filter>
+    <ClCompile Include="camera\aim_camera.cpp">
+      <Filter>camera</Filter>
     </ClCompile>
-    <ClCompile Include="modules\particles.cpp">
-      <Filter>modules</Filter>
+    <ClCompile Include="camera\drunk_camera.cpp">
+      <Filter>camera</Filter>
     </ClCompile>
-    <ClCompile Include="modules\patch_conflicts.cpp">
-      <Filter>modules</Filter>
+    <ClCompile Include="camera\follow_camera.cpp">
+      <Filter>camera</Filter>
     </ClCompile>
-    <ClCompile Include="modules\patch_infrastructure.cpp">
-      <Filter>modules</Filter>
+    <ClCompile Include="camera\stunt_jump_camera.cpp">
+      <Filter>camera</Filter>
     </ClCompile>
-    <ClCompile Include="modules\patching.cpp">
-      <Filter>modules</Filter>
+    <ClCompile Include="player\aiming_walk.cpp">
+      <Filter>player</Filter>
     </ClCompile>
-    <ClCompile Include="modules\player.cpp">
-      <Filter>modules</Filter>
+    <ClCompile Include="player\bloody_footprints.cpp">
+      <Filter>player</Filter>
     </ClCompile>
-    <ClCompile Include="modules\push_telemetry.cpp">
-      <Filter>modules</Filter>
+    <ClCompile Include="player\buoyancy.cpp">
+      <Filter>player</Filter>
     </ClCompile>
-    <ClCompile Include="modules\runtime_features.cpp">
-      <Filter>modules</Filter>
+    <ClCompile Include="player\climbing.cpp">
+      <Filter>player</Filter>
     </ClCompile>
-    <ClCompile Include="modules\script_literals.cpp">
-      <Filter>modules</Filter>
+    <ClCompile Include="player\drowning.cpp">
+      <Filter>player</Filter>
     </ClCompile>
-    <ClCompile Include="modules\stat_carries.cpp">
-      <Filter>modules</Filter>
+    <ClCompile Include="player\drunk_steering.cpp">
+      <Filter>player</Filter>
     </ClCompile>
-    <ClCompile Include="modules\thunk_helpers.cpp">
-      <Filter>modules</Filter>
+    <ClCompile Include="player\fat_counter.cpp">
+      <Filter>player</Filter>
     </ClCompile>
-    <ClCompile Include="modules\thunks\base_thunks.cpp">
-      <Filter>modules\thunks</Filter>
+    <ClCompile Include="player\jetpack.cpp">
+      <Filter>player</Filter>
     </ClCompile>
-    <ClCompile Include="modules\thunks\camera_thunks.cpp">
-      <Filter>modules\thunks</Filter>
+    <ClCompile Include="player\object_pickup.cpp">
+      <Filter>player</Filter>
     </ClCompile>
-    <ClCompile Include="modules\thunks\player_thunks.cpp">
-      <Filter>modules\thunks</Filter>
+    <ClCompile Include="player\ped_push.cpp">
+      <Filter>player</Filter>
     </ClCompile>
-    <ClCompile Include="modules\thunks\runtime_thunks.cpp">
-      <Filter>modules\thunks</Filter>
+    <ClCompile Include="player\swimming.cpp">
+      <Filter>player</Filter>
     </ClCompile>
-    <ClCompile Include="modules\thunks\vehicle_thunks.cpp">
-      <Filter>modules\thunks</Filter>
+    <ClCompile Include="vehicles\aircraft.cpp">
+      <Filter>vehicles</Filter>
     </ClCompile>
-    <ClCompile Include="modules\thunks\world_runtime_thunks.cpp">
-      <Filter>modules\thunks</Filter>
+    <ClCompile Include="vehicles\attached_entity.cpp">
+      <Filter>vehicles</Filter>
     </ClCompile>
-    <ClCompile Include="modules\timestep.cpp">
-      <Filter>modules</Filter>
+    <ClCompile Include="vehicles\boat_engine.cpp">
+      <Filter>vehicles</Filter>
     </ClCompile>
-    <ClCompile Include="modules\vehicles.cpp">
-      <Filter>modules</Filter>
+    <ClCompile Include="vehicles\doors.cpp">
+      <Filter>vehicles</Filter>
+    </ClCompile>
+    <ClCompile Include="vehicles\head_bop.cpp">
+      <Filter>vehicles</Filter>
+    </ClCompile>
+    <ClCompile Include="vehicles\jump_out.cpp">
+      <Filter>vehicles</Filter>
+    </ClCompile>
+    <ClCompile Include="vehicles\moving_parts.cpp">
+      <Filter>vehicles</Filter>
+    </ClCompile>
+    <ClCompile Include="vehicles\rest.cpp">
+      <Filter>vehicles</Filter>
+    </ClCompile>
+    <ClCompile Include="vehicles\siren.cpp">
+      <Filter>vehicles</Filter>
+    </ClCompile>
+    <ClCompile Include="vehicles\water_cannon.cpp">
+      <Filter>vehicles</Filter>
+    </ClCompile>
+    <ClCompile Include="vehicles\wheels.cpp">
+      <Filter>vehicles</Filter>
+    </ClCompile>
+    <ClCompile Include="handling\gearbox.cpp">
+      <Filter>handling</Filter>
+    </ClCompile>
+    <ClCompile Include="handling\steer_input.cpp">
+      <Filter>handling</Filter>
+    </ClCompile>
+    <ClCompile Include="handling\suspension.cpp">
+      <Filter>handling</Filter>
+    </ClCompile>
+    <ClCompile Include="handling\turn_air_resistance.cpp">
+      <Filter>handling</Filter>
+    </ClCompile>
+    <ClCompile Include="handling\wheel_slip.cpp">
+      <Filter>handling</Filter>
+    </ClCompile>
+    <ClCompile Include="bikes\abandoned_bike.cpp">
+      <Filter>bikes</Filter>
+    </ClCompile>
+    <ClCompile Include="bikes\bike_wheel_spin.cpp">
+      <Filter>bikes</Filter>
+    </ClCompile>
+    <ClCompile Include="bikes\bmx_jump.cpp">
+      <Filter>bikes</Filter>
+    </ClCompile>
+    <ClCompile Include="bikes\bmx_lean.cpp">
+      <Filter>bikes</Filter>
+    </ClCompile>
+    <ClCompile Include="bikes\lean_target.cpp">
+      <Filter>bikes</Filter>
+    </ClCompile>
+    <ClCompile Include="bikes\process_control.cpp">
+      <Filter>bikes</Filter>
+    </ClCompile>
+    <ClCompile Include="bikes\render_transform.cpp">
+      <Filter>bikes</Filter>
+    </ClCompile>
+    <ClCompile Include="bikes\takeoff_pitch.cpp">
+      <Filter>bikes</Filter>
+    </ClCompile>
+    <ClCompile Include="weapons\area_shots.cpp">
+      <Filter>weapons</Filter>
+    </ClCompile>
+    <ClCompile Include="weapons\chainsaw.cpp">
+      <Filter>weapons</Filter>
+    </ClCompile>
+    <ClCompile Include="weapons\weapon_ammo.cpp">
+      <Filter>weapons</Filter>
+    </ClCompile>
+    <ClCompile Include="weapons\weapon_particles.cpp">
+      <Filter>weapons</Filter>
+    </ClCompile>
+    <ClCompile Include="world\breakable_objects.cpp">
+      <Filter>world</Filter>
+    </ClCompile>
+    <ClCompile Include="world\falling_glass.cpp">
+      <Filter>world</Filter>
+    </ClCompile>
+    <ClCompile Include="world\fire_spread.cpp">
+      <Filter>world</Filter>
+    </ClCompile>
+    <ClCompile Include="world\particle_emission.cpp">
+      <Filter>world</Filter>
+    </ClCompile>
+    <ClCompile Include="world\samp_objects.cpp">
+      <Filter>world</Filter>
+    </ClCompile>
+    <ClCompile Include="hud\flash_rate.cpp">
+      <Filter>hud</Filter>
+    </ClCompile>
+    <ClCompile Include="hud\map_zoom.cpp">
+      <Filter>hud</Filter>
+    </ClCompile>
+    <ClCompile Include="hud\money_counter.cpp">
+      <Filter>hud</Filter>
+    </ClCompile>
+    <ClCompile Include="scripts\script_literals.cpp">
+      <Filter>scripts</Filter>
+    </ClCompile>
+    <ClCompile Include="scripts\script_objects.cpp">
+      <Filter>scripts</Filter>
+    </ClCompile>
+    <ClCompile Include="timers\frame_time_carry.cpp">
+      <Filter>timers</Filter>
+    </ClCompile>
+    <ClCompile Include="framerate\auto_limit.cpp">
+      <Filter>framerate</Filter>
+    </ClCompile>
+    <ClCompile Include="framerate\frame_limit.cpp">
+      <Filter>framerate</Filter>
+    </ClCompile>
+    <ClCompile Include="framerate\radio_lock.cpp">
+      <Filter>framerate</Filter>
+    </ClCompile>
+    <ClCompile Include="..\vendor\minhook\src\buffer.c">
+      <Filter>vendor\minhook\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\vendor\minhook\src\hook.c">
+      <Filter>vendor\minhook\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\vendor\minhook\src\trampoline.c">
+      <Filter>vendor\minhook\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\vendor\minhook\src\hde\hde32.c">
+      <Filter>vendor\minhook\src\hde</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="resource.h" />
     <ClInclude Include="version.h" />
-    <ClInclude Include="modules\bike_lean_filter.h">
-      <Filter>modules</Filter>
+    <ClInclude Include="core\config_migration.h">
+      <Filter>core</Filter>
     </ClInclude>
-    <ClInclude Include="modules\bootstrap.h">
-      <Filter>modules</Filter>
+    <ClInclude Include="core\config.h">
+      <Filter>core</Filter>
     </ClInclude>
-    <ClInclude Include="modules\diagnostics.h">
-      <Filter>modules</Filter>
+    <ClInclude Include="core\conflicts.h">
+      <Filter>core</Filter>
     </ClInclude>
-    <ClInclude Include="modules\expected_bytes.h">
-      <Filter>modules</Filter>
+    <ClInclude Include="core\fixes.h">
+      <Filter>core</Filter>
     </ClInclude>
-    <ClInclude Include="modules\game_addresses.h">
-      <Filter>modules</Filter>
+    <ClInclude Include="core\hook.h">
+      <Filter>core</Filter>
     </ClInclude>
-    <ClInclude Include="modulesehicle_control_addresses.h">
-      <Filter>modules</Filter>
+    <ClInclude Include="core\log.h">
+      <Filter>core</Filter>
     </ClInclude>
-    <ClInclude Include="modules\game_profiles.h">
-      <Filter>modules</Filter>
+    <ClInclude Include="core\memory.h">
+      <Filter>core</Filter>
     </ClInclude>
-    <ClInclude Include="modules\hud.h">
-      <Filter>modules</Filter>
+    <ClInclude Include="core\module.h">
+      <Filter>core</Filter>
     </ClInclude>
-    <ClInclude Include="modules\ini_settings.h">
-      <Filter>modules</Filter>
+    <ClInclude Include="core\patch.h">
+      <Filter>core</Filter>
     </ClInclude>
-    <ClInclude Include="modules\modules.h">
-      <Filter>modules</Filter>
+    <ClInclude Include="core\timestep.h">
+      <Filter>core</Filter>
     </ClInclude>
-    <ClInclude Include="modules\patching.h">
-      <Filter>modules</Filter>
+    <ClInclude Include="game\addresses.h">
+      <Filter>game</Filter>
     </ClInclude>
-    <ClInclude Include="modules\player.h">
-      <Filter>modules</Filter>
+    <ClInclude Include="game\frame_hook.h">
+      <Filter>game</Filter>
     </ClInclude>
-    <ClInclude Include="modules\prelude.h">
-      <Filter>modules</Filter>
+    <ClInclude Include="game\frame_steps.h">
+      <Filter>game</Filter>
     </ClInclude>
-    <ClInclude Include="modules\runtime_features.h">
-      <Filter>modules</Filter>
+    <ClInclude Include="game\profile.h">
+      <Filter>game</Filter>
     </ClInclude>
-    <ClInclude Include="modules\script_addresses.h">
-      <Filter>modules</Filter>
+    <ClInclude Include="game\scripts.h">
+      <Filter>game</Filter>
     </ClInclude>
-    <ClInclude Include="modules\script_literals.h">
-      <Filter>modules</Filter>
+    <ClInclude Include="game\sites\bikes.h">
+      <Filter>game\sites</Filter>
     </ClInclude>
-    <ClInclude Include="modules\thunk_helpers.h">
-      <Filter>modules</Filter>
+    <ClInclude Include="game\sites\camera.h">
+      <Filter>game\sites</Filter>
     </ClInclude>
-    <ClInclude Include="modules\trunc_carry_addresses.h">
-      <Filter>modules</Filter>
+    <ClInclude Include="game\sites\framerate.h">
+      <Filter>game\sites</Filter>
     </ClInclude>
-    <ClInclude Include="modules\vehicles.h">
-      <Filter>modules</Filter>
+    <ClInclude Include="game\sites\handling.h">
+      <Filter>game\sites</Filter>
     </ClInclude>
-    <ClInclude Include="modules\weapons_and_particles.h">
-      <Filter>modules</Filter>
+    <ClInclude Include="game\sites\hud.h">
+      <Filter>game\sites</Filter>
     </ClInclude>
-    <ClInclude Include="modules\installers\core_installers.h">
-      <Filter>modules\installers</Filter>
+    <ClInclude Include="game\sites\player.h">
+      <Filter>game\sites</Filter>
     </ClInclude>
-    <ClInclude Include="modules\installers\vehicle_installers.h">
-      <Filter>modules\installers</Filter>
+    <ClInclude Include="game\sites\scripts.h">
+      <Filter>game\sites</Filter>
     </ClInclude>
-    <ClInclude Include="modules\installers\world_optional_installers.h">
-      <Filter>modules\installers</Filter>
+    <ClInclude Include="game\sites\timers.h">
+      <Filter>game\sites</Filter>
     </ClInclude>
-    <ClInclude Include="modules\thunks\base_thunks.h">
-      <Filter>modules\thunks</Filter>
+    <ClInclude Include="game\sites\vehicles.h">
+      <Filter>game\sites</Filter>
     </ClInclude>
-    <ClInclude Include="modules\thunks\vehicle_thunks.h">
-      <Filter>modules\thunks</Filter>
+    <ClInclude Include="game\sites\weapons.h">
+      <Filter>game\sites</Filter>
     </ClInclude>
-    <ClInclude Include="modules\thunks\world_runtime_thunks.h">
-      <Filter>modules\thunks</Filter>
+    <ClInclude Include="game\sites\wheels.h">
+      <Filter>game\sites</Filter>
+    </ClInclude>
+    <ClInclude Include="game\sites\world.h">
+      <Filter>game\sites</Filter>
+    </ClInclude>
+    <ClInclude Include="game\vehicles.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="camera\aim_camera.h">
+      <Filter>camera</Filter>
+    </ClInclude>
+    <ClInclude Include="camera\drunk_camera.h">
+      <Filter>camera</Filter>
+    </ClInclude>
+    <ClInclude Include="camera\follow_camera.h">
+      <Filter>camera</Filter>
+    </ClInclude>
+    <ClInclude Include="camera\stunt_jump_camera.h">
+      <Filter>camera</Filter>
+    </ClInclude>
+    <ClInclude Include="player\aiming_walk.h">
+      <Filter>player</Filter>
+    </ClInclude>
+    <ClInclude Include="player\bloody_footprints.h">
+      <Filter>player</Filter>
+    </ClInclude>
+    <ClInclude Include="player\buoyancy.h">
+      <Filter>player</Filter>
+    </ClInclude>
+    <ClInclude Include="player\climbing.h">
+      <Filter>player</Filter>
+    </ClInclude>
+    <ClInclude Include="player\drowning.h">
+      <Filter>player</Filter>
+    </ClInclude>
+    <ClInclude Include="player\drunk_steering.h">
+      <Filter>player</Filter>
+    </ClInclude>
+    <ClInclude Include="player\fat_counter.h">
+      <Filter>player</Filter>
+    </ClInclude>
+    <ClInclude Include="player\jetpack.h">
+      <Filter>player</Filter>
+    </ClInclude>
+    <ClInclude Include="player\object_pickup.h">
+      <Filter>player</Filter>
+    </ClInclude>
+    <ClInclude Include="player\ped_push.h">
+      <Filter>player</Filter>
+    </ClInclude>
+    <ClInclude Include="player\swimming.h">
+      <Filter>player</Filter>
+    </ClInclude>
+    <ClInclude Include="vehicles\aircraft.h">
+      <Filter>vehicles</Filter>
+    </ClInclude>
+    <ClInclude Include="vehicles\attached_entity.h">
+      <Filter>vehicles</Filter>
+    </ClInclude>
+    <ClInclude Include="vehicles\boat_engine.h">
+      <Filter>vehicles</Filter>
+    </ClInclude>
+    <ClInclude Include="vehicles\doors.h">
+      <Filter>vehicles</Filter>
+    </ClInclude>
+    <ClInclude Include="vehicles\head_bop.h">
+      <Filter>vehicles</Filter>
+    </ClInclude>
+    <ClInclude Include="vehicles\jump_out.h">
+      <Filter>vehicles</Filter>
+    </ClInclude>
+    <ClInclude Include="vehicles\moving_parts.h">
+      <Filter>vehicles</Filter>
+    </ClInclude>
+    <ClInclude Include="vehicles\rest.h">
+      <Filter>vehicles</Filter>
+    </ClInclude>
+    <ClInclude Include="vehicles\siren.h">
+      <Filter>vehicles</Filter>
+    </ClInclude>
+    <ClInclude Include="vehicles\water_cannon.h">
+      <Filter>vehicles</Filter>
+    </ClInclude>
+    <ClInclude Include="vehicles\wheels.h">
+      <Filter>vehicles</Filter>
+    </ClInclude>
+    <ClInclude Include="handling\gearbox.h">
+      <Filter>handling</Filter>
+    </ClInclude>
+    <ClInclude Include="handling\steer_input.h">
+      <Filter>handling</Filter>
+    </ClInclude>
+    <ClInclude Include="handling\suspension.h">
+      <Filter>handling</Filter>
+    </ClInclude>
+    <ClInclude Include="handling\turn_air_resistance.h">
+      <Filter>handling</Filter>
+    </ClInclude>
+    <ClInclude Include="handling\wheel_slip.h">
+      <Filter>handling</Filter>
+    </ClInclude>
+    <ClInclude Include="bikes\abandoned_bike.h">
+      <Filter>bikes</Filter>
+    </ClInclude>
+    <ClInclude Include="bikes\bike_wheel_spin.h">
+      <Filter>bikes</Filter>
+    </ClInclude>
+    <ClInclude Include="bikes\bmx_jump.h">
+      <Filter>bikes</Filter>
+    </ClInclude>
+    <ClInclude Include="bikes\bmx_lean.h">
+      <Filter>bikes</Filter>
+    </ClInclude>
+    <ClInclude Include="bikes\lean_target.h">
+      <Filter>bikes</Filter>
+    </ClInclude>
+    <ClInclude Include="bikes\process_control.h">
+      <Filter>bikes</Filter>
+    </ClInclude>
+    <ClInclude Include="bikes\render_transform.h">
+      <Filter>bikes</Filter>
+    </ClInclude>
+    <ClInclude Include="bikes\takeoff_pitch.h">
+      <Filter>bikes</Filter>
+    </ClInclude>
+    <ClInclude Include="weapons\area_shots.h">
+      <Filter>weapons</Filter>
+    </ClInclude>
+    <ClInclude Include="weapons\chainsaw.h">
+      <Filter>weapons</Filter>
+    </ClInclude>
+    <ClInclude Include="weapons\weapon_ammo.h">
+      <Filter>weapons</Filter>
+    </ClInclude>
+    <ClInclude Include="weapons\weapon_particles.h">
+      <Filter>weapons</Filter>
+    </ClInclude>
+    <ClInclude Include="world\breakable_objects.h">
+      <Filter>world</Filter>
+    </ClInclude>
+    <ClInclude Include="world\falling_glass.h">
+      <Filter>world</Filter>
+    </ClInclude>
+    <ClInclude Include="world\fire_spread.h">
+      <Filter>world</Filter>
+    </ClInclude>
+    <ClInclude Include="world\particle_emission.h">
+      <Filter>world</Filter>
+    </ClInclude>
+    <ClInclude Include="world\samp_objects.h">
+      <Filter>world</Filter>
+    </ClInclude>
+    <ClInclude Include="hud\flash_rate.h">
+      <Filter>hud</Filter>
+    </ClInclude>
+    <ClInclude Include="hud\map_zoom.h">
+      <Filter>hud</Filter>
+    </ClInclude>
+    <ClInclude Include="hud\money_counter.h">
+      <Filter>hud</Filter>
+    </ClInclude>
+    <ClInclude Include="scripts\script_literals.h">
+      <Filter>scripts</Filter>
+    </ClInclude>
+    <ClInclude Include="scripts\script_objects.h">
+      <Filter>scripts</Filter>
+    </ClInclude>
+    <ClInclude Include="timers\frame_time_carry.h">
+      <Filter>timers</Filter>
+    </ClInclude>
+    <ClInclude Include="framerate\auto_limit.h">
+      <Filter>framerate</Filter>
+    </ClInclude>
+    <ClInclude Include="framerate\frame_limit.h">
+      <Filter>framerate</Filter>
+    </ClInclude>
+    <ClInclude Include="framerate\radio_lock.h">
+      <Filter>framerate</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="HighFpsFixes.rc" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="..\.github\workflows\release.yml" />
-    <None Include="..\CHANGELOG.md" />
-    <None Include="..\LICENSE" />
-    <None Include="..\README.md" />
-    <None Include="..\Config\HighFpsFixes.ini" />
-    <None Include="..\.github\workflows\build.yml" />
   </ItemGroup>
 </Project>

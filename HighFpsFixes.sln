@@ -4,6 +4,8 @@ VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{BC8A1FFA-BEE3-4634-8014-F334798102B3}") = "HighFpsFixes", "src\HighFpsFixes.vcxproj", "{15D0A799-2715-4E34-BD02-E505BFB46DB7}"
 EndProject
+Project("{BC8A1FFA-BEE3-4634-8014-F334798102B3}") = "HighFpsFixesTests", "tests\HighFpsFixesTests.vcxproj", "{EE70F49A-CE11-436E-BFBE-A13F15BA71F9}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -14,5 +16,9 @@ Global
 		{15D0A799-2715-4E34-BD02-E505BFB46DB7}.Debug|Win32.Build.0 = Debug|Win32
 		{15D0A799-2715-4E34-BD02-E505BFB46DB7}.Release|Win32.ActiveCfg = Release|Win32
 		{15D0A799-2715-4E34-BD02-E505BFB46DB7}.Release|Win32.Build.0 = Release|Win32
+		{EE70F49A-CE11-436E-BFBE-A13F15BA71F9}.Debug|Win32.ActiveCfg = Debug|Win32
+		{EE70F49A-CE11-436E-BFBE-A13F15BA71F9}.Debug|Win32.Build.0 = Debug|Win32
+		{EE70F49A-CE11-436E-BFBE-A13F15BA71F9}.Release|Win32.ActiveCfg = Release|Win32
+		{EE70F49A-CE11-436E-BFBE-A13F15BA71F9}.Release|Win32.Build.0 = Release|Win32
 	EndGlobalSection
 EndGlobal

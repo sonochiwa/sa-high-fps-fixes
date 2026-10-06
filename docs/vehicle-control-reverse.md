@@ -165,7 +165,7 @@ write to a `this` field and every `ApplyMoveForce` / `ApplyTurnForce` call
 checked for the timestep in its own computation; the model-0 block, the entry
 of the plane and heli blocks and the resistance tail read by hand) to answer
 one question: does the flight code contain its own frame-rate dependence that
-the stock `0.99` per frame was masking? It does not.
+the stock `0.99` per frame was masking? It does, in the resistance tail.
 
 Structure: a switch on the flight model via the table at `0x6DAEE4`:
 
@@ -182,10 +182,15 @@ All blocks end at the resistance tail `0x6DA900`–`0x6DAEE1`:
 006DA906: fld [edi+40h]  ; vecTurnRes.x  ; fld ms_fTimeStep ; call pow
 006DA930: fld [edi+44h]  ; vecTurnRes.y  ; fld ms_fTimeStep ; call pow
 006DA942: fld [edi+48h]  ; vecTurnRes.z  ; fld ms_fTimeStep ; call pow
-006DAA0B..: per axis, either 1/(speedRes·ω²+1)·turnRes raised to ts, applied as
-            an impulse (turnSpeed·mult − turnSpeed)·turnMass via ApplyTurnForce
+006DAA0B..: per axis, either (turnRes^ts / (speedRes·ω²+1)) raised to ts, applied
+            as an impulse (turnSpeed·mult − turnSpeed)·turnMass via ApplyTurnForce
             at 0x6DAC11 / 0x6DACE3 / 0x6DADB5, or the plain pow'd factor
 ```
+
+On an axis with a speed resistance, `turnRes` is raised to the timestep at
+`0x6DA906` and the quotient raised to it again at `0x6DAA26`, so it acts as
+`turnRes^(ts²)`: per second `turnRes^(2500/FPS)`, which keeps far more of the
+turn at a high frame rate. This is the opposite sign of the `0.99` drain.
 
 Force applications, all 28 of them, checked individually for a
 `ms_fTimeStep` multiply in their own computation (between them and the
@@ -204,14 +209,13 @@ state at `+0x84C` ramps with `ts · 0.006` and decays with `pow(0.997, ts)`.
 The roll timer at `+0x9A0` (`0x6D9702`) is the site `vehicleTimers` already
 carries.
 
-Conclusion: an aircraft's angular damping per second is
-`vecTurnRes^50 · 0.99^FPS`. The first factor is handling data applied
-correctly; the second is the same bug as the car's. At 300 FPS the second
-factor alone is `0.99^270 ≈ 0.066` smaller than at 30 FPS. Removing it
-globally hands a Hydra or a Maverick fifteen times more angular momentum per
-second than a high-FPS player has ever flown with. That is the "amplified
-flight physics" of 0.9.x: the 30 FPS aircraft, not a wrong formula. It is
-also why the fix must be scoped by vehicle class rather than merely tuned.
+Conclusion: on an axis with a speed resistance an aircraft's angular damping
+per second is `vecTurnRes^(2500/FPS) · 0.99^FPS`, two frame-rate dependences
+of opposite sign. Removing only the `0.99` drain, as 0.9.x did for every
+class, left the tail term at its high frame rate value and made aircraft
+turn more freely than they ever did at 30 FPS: the "amplified flight
+physics" of 0.9.x. `aircraftTurnResistance` corrects both together, which is
+why aircraft have a switch of their own rather than the car fix.
 
 `CPlane::ProcessControl` `0x6C9260`, `CPlane::ProcessFlyingCarStuff`
 `0x6CB7C0` (12 timestep uses, three `FlyingControl` calls, no velocity

@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.8.1
+
+- Fixed a rare hang at start-up when another plugin hooks the game at the
+  same moment.
+
 ## 1.8.0
 
 - Added `missionTimers`: on-screen mission countdowns run in real time, and

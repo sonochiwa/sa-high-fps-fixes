@@ -60,8 +60,15 @@ bool InstallFrameHook(const char* fixName) {
         LogFrameHookSkipped(fixName, "CTheScripts::Process could not be hooked.");
         return false;
     }
-    if (MH_EnableHook(target) != MH_OK) {
-        MH_RemoveHook(target);
+    bool enabled{};
+    {
+        ThreadFreezeLock lock;
+        enabled = MH_EnableHook(target) == MH_OK;
+        if (!enabled) {
+            MH_RemoveHook(target);
+        }
+    }
+    if (!enabled) {
         LogFrameHookSkipped(fixName, "CTheScripts::Process could not be hooked.");
         return false;
     }

@@ -262,9 +262,12 @@ bool InstallAimCameraShakeFix() {
                          &HookedProcessAimWeapon,
                          reinterpret_cast<void**>(&g_originalAimWeapon))
                 == MH_OK;
-    const bool enabled = created
-        && MH_EnableHook(reinterpret_cast<void*>(kCameraProcess)) == MH_OK
-        && MH_EnableHook(reinterpret_cast<void*>(kProcessAimWeapon)) == MH_OK;
+    bool enabled = false;
+    if (created) {
+        ThreadFreezeLock lock;
+        enabled = MH_EnableHook(reinterpret_cast<void*>(kCameraProcess)) == MH_OK
+            && MH_EnableHook(reinterpret_cast<void*>(kProcessAimWeapon)) == MH_OK;
+    }
     if (!enabled) {
         RemoveAimCameraHooks();
         RestoreSite(g_aimWeaponFovStepPatch);
@@ -280,6 +283,7 @@ void RemoveAimCameraHooks() {
     if (!g_aimHooksCreated) {
         return;
     }
+    ThreadFreezeLock lock;
     MH_DisableHook(reinterpret_cast<void*>(kCameraProcess));
     MH_DisableHook(reinterpret_cast<void*>(kProcessAimWeapon));
     MH_RemoveHook(reinterpret_cast<void*>(kCameraProcess));

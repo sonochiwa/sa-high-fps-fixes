@@ -8,8 +8,9 @@
 namespace scenarios {
 
 const harness::Scenario* Find(const char* name) {
-    const std::array<ScenarioList, 4> lists{
-        WorldScenarios(), VehicleScenarios(), AircraftScenarios(), PedScenarios()
+    const std::array<ScenarioList, 5> lists{
+        WorldScenarios(), VehicleScenarios(), AircraftScenarios(), PedScenarios(),
+        ScriptScenarios()
     };
     for (const ScenarioList& list : lists) {
         for (size_t i = 0; i < list.count; ++i) {

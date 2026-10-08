@@ -67,19 +67,32 @@ constexpr size_t kPadRightShoulder1 = 0x0C;
 constexpr size_t kPadButtonSquare = 0x1C;
 constexpr size_t kPadButtonCross = 0x20;
 constexpr size_t kPadButtonCircle = 0x22;
+constexpr size_t kPadShockButtonL = 0x24;
 constexpr size_t kPadDisablePlayerControls = 0x10E;
 // bDisablePlayerEnterCar, Duck, FireWeapon, FireWeaponWithL1, CycleWeapon and
 // Jump, one byte each, which the opening of a new game sets.
 constexpr size_t kPadDisableFlags = 0x119;
 constexpr size_t kPadDisableFlagCount = 6;
 constexpr int16_t kButtonDown = 255;
+// CPad::bHornHistory, the horn of the last five frames, which CPad::Update
+// fills from the real pad before the scenario's input, and its newest entry.
+constexpr size_t kPadHornHistory = 0x111;
+constexpr size_t kPadHornHistoryIndex = 0x116;
+constexpr size_t kPadHornHistorySize = 5;
 
 // CTheScripts::pActiveScripts, the list of running scripts, and the fields
-// of CRunningScript read and written: the next script and the time the
-// script sleeps until.
+// of CRunningScript read and written: the next script, its name, its base
+// and the time the script sleeps until.
 constexpr uintptr_t kActiveScripts = 0xA8B42C;
 constexpr size_t kScriptNext = 0x00;
+constexpr size_t kScriptName = 0x08;
+constexpr size_t kScriptNameSize = 8;
+constexpr size_t kScriptBaseIp = 0x10;
 constexpr size_t kScriptWakeTime = 0xCC;
+// CTheScripts::MissionBlock and LocalVariablesForCurrentMission.
+constexpr uintptr_t kMissionBlock = 0xA7A6A0;
+constexpr size_t kMissionBlockSize = 69000;
+constexpr uintptr_t kMissionLocals = 0xA48960;
 
 // Entities.
 constexpr size_t kEntityMatrix = 0x14;
@@ -137,6 +150,18 @@ constexpr size_t kVehicleDrowningByte = 0x42B;
 constexpr uint8_t kVehicleDrowning = 0x40;
 constexpr size_t kAutomobileDamageManager = 0x5A0;
 constexpr size_t kHeliRotorSpeed = 0x84C;
+constexpr float kHeliRotorFullSpeed = 0.22f;
+// CAutoPilot's mission, its target entity and cruise speed, and the follow
+// radius HELI_FOLLOW_ENTITY keeps in CHeli::m_fMinAltitude.
+constexpr size_t kAutoPilotMission = 0x3BA;
+constexpr uint8_t kMissionHeliFollowEntity = 39;
+constexpr size_t kAutoPilotTarget = 0x41C;
+constexpr size_t kHeliFollowRadius = 0x9B0;
+// bSirenOrAlarm in the top bit, and m_HornCounter, which the siren code sets
+// while the horn is held.
+constexpr size_t kVehicleSirenByte = 0x42D;
+constexpr uint8_t kVehicleSiren = 0x80;
+constexpr size_t kVehicleHornCounter = 0x514;
 constexpr size_t kVehicleHandlingFlags = 0x38C;
 constexpr uint32_t kHydraulicsInstalled = 0x20000;
 constexpr size_t kAutomobileGasPedalAudio = 0x964;
@@ -176,6 +201,8 @@ constexpr uintptr_t kStartFire = 0x539F00;
 constexpr uintptr_t kExtinguishPoint = 0x539450;
 constexpr uintptr_t kRequestModel = 0x4087E0;
 constexpr uintptr_t kLoadAllRequestedModels = 0x40EA10;
+constexpr uintptr_t kTellHeliToGoToCoors = 0x6A2390;
+constexpr uintptr_t kStartNewScript = 0x464C20;
 
 template <typename T>
 T& At(uintptr_t address) {
@@ -212,9 +239,18 @@ void DropProjectile(int32_t weapon, int32_t model, const Vector& position);
 void EvenRandomPercent(bool on);
 // Sets the damage state, 0 to 2, of a plane's moving part `frame`.
 void DamagePlanePart(void* plane, int32_t frame, int32_t state);
+// Hands a helicopter to its autopilot, flying to `target` between the two
+// altitudes, as HELI_GOTO_COORDS does.
+void FlyHeliTo(void* heli, const Vector& target, float lowest, float highest);
+// Makes the `call rand` at `site` yield `value`, or puts the call back.
+void HoldRandom(uintptr_t site, int32_t value, bool on);
 // Makes the `call rand` at `site` yield the middle of the range, so a random
 // amount added there every frame adds nothing, or puts the call back.
 void MidRangeRandom(uintptr_t site, bool on);
+// Loads bytes [start, end) of main.scm into the mission block and starts a
+// script named `name` there that sleeps for good, so what runs on a mission
+// of that name sees its code without it running.
+bool LoadSleepingMission(const char* name, uint32_t start, uint32_t end);
 // Shows the mission clock counting `variable` down from `milliseconds`.
 void StartCountdown(uint32_t variable, int32_t milliseconds);
 void StopCountdown(uint32_t variable);

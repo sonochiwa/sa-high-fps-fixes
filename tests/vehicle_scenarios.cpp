@@ -314,6 +314,57 @@ bool Step(const Frame& frame) {
 }
 }  // namespace engine_revs
 
+// A police car whose horn is tapped for a tenth of a second at one second,
+// held from two to three seconds and tapped again at four: a tap switches the
+// siren, a hold sounds the fast siren and leaves it switched. The horn goes
+// into the pad's horn history too, which the stock code reads.
+namespace siren {
+constexpr int32_t kModel = 596;
+uint8_t* g_vehicle = nullptr;
+
+bool Start() {
+    g_vehicle = game::SpawnVehicle(kModel);
+    if (!g_vehicle) {
+        return false;
+    }
+    game::PutPlayerIn(g_vehicle);
+    return true;
+}
+
+void Input(const Frame& frame, uint8_t* pad) {
+    const float t = Elapsed(frame);
+    const bool horn = (t > 1.0f && t <= 1.1f) || (t > 2.0f && t <= 3.0f)
+                   || (t > 4.0f && t <= 4.1f);
+    if (horn) {
+        Press(pad, game::kPadShockButtonL);
+    }
+    const uint8_t newest = Field<uint8_t>(pad, game::kPadHornHistoryIndex);
+    if (newest < game::kPadHornHistorySize) {
+        Field<uint8_t>(pad, game::kPadHornHistory + newest) = horn ? 1 : 0;
+    }
+}
+
+double SirenOn() {
+    return (Field<uint8_t>(g_vehicle, game::kVehicleSirenByte) & game::kVehicleSiren) ? 1.0
+                                                                                       : 0.0;
+}
+
+bool Step(const Frame& frame) {
+    if (At(frame, 1.5f)) {
+        Record("siren", "on_after_first_tap", SirenOn());
+    } else if (At(frame, 2.9f)) {
+        Record("siren", "fast_siren_while_held",
+               Field<uint32_t>(g_vehicle, game::kVehicleHornCounter) != 0 ? 1.0 : 0.0);
+    } else if (At(frame, 3.5f)) {
+        Record("siren", "on_after_hold", SirenOn());
+    } else if (At(frame, 4.5f)) {
+        Record("siren", "on_after_second_tap", SirenOn());
+        return true;
+    }
+    return false;
+}
+}  // namespace siren
+
 const harness::Scenario kList[] = {
     {"forklift", forklift::Start, forklift::Step, forklift::Input},
     {"firetruck", firetruck::Start, firetruck::Step, firetruck::Input},
@@ -323,6 +374,7 @@ const harness::Scenario kList[] = {
     {"sinking", sinking::Start, sinking::Step, nullptr},
     {"hydraulics", hydraulics::Start, hydraulics::Step, nullptr},
     {"engine_revs", engine_revs::Start, engine_revs::Step, engine_revs::Input},
+    {"siren", siren::Start, siren::Step, siren::Input},
 };
 
 }  // namespace

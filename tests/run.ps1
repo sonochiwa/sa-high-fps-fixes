@@ -17,8 +17,8 @@
 param(
     [string[]]$Scenarios = @('timer', 'countdown', 'burning', 'explosion', 'teargas',
         'forklift', 'firetruck', 'parking', 'braking', 'cornering', 'sinking', 'hydraulics',
-        'engine_revs', 'plane', 'plane_gentle', 'plane_damaged', 'heli', 'sniper', 'swim',
-        'swim_speed'),
+        'engine_revs', 'siren', 'plane', 'plane_gentle', 'plane_damaged', 'heli',
+        'ai_heli_follow', 'sniper', 'swim', 'swim_speed', 'catalyst', 'interdiction'),
     [string[]]$Fps = @('30', '300'),
     [string[]]$Modes = @('stock', 'fixed'),
     [string]$Copies = $env:HFF_TEST_COPIES,

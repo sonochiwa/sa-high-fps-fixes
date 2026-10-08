@@ -5,6 +5,7 @@
 #include <windows.h>
 
 #include <array>
+#include <cstdio>
 #include <cstring>
 
 namespace game {
@@ -42,6 +43,8 @@ constexpr Prologue kPrologues[] = {
     {kSetAeroplaneCompStatus, {0x8A, 0x44, 0x24, 0x04, 0x2C, 0x0C}, 6},
     {kAddClock, {0xE9}, 1},
     {kClearClock, {0xE9}, 1},
+    {kTellHeliToGoToCoors, {0x8B, 0x44, 0x24, 0x04, 0x8B, 0x54}, 6},
+    {kStartNewScript, {0xE9}, 1},
 };
 
 using FindPlayerPedFn = uint8_t*(__cdecl*)(int32_t);
@@ -64,6 +67,8 @@ using AddExplosionFn = void(__cdecl*)(void*, void*, int32_t, Vector, uint32_t, i
 using SetPartStatusFn = void(__thiscall*)(void*, int32_t, int32_t);
 using AddProjectileFn = bool(__cdecl*)(void*, int32_t, Vector, float, const Vector*, void*);
 using RandomRangeFn = int32_t(__cdecl*)(int32_t, int32_t);
+using HeliGoToFn = void(__thiscall*)(void*, float, float, float, float, float);
+using StartScriptFn = uint8_t*(__cdecl*)(uint8_t*);
 
 RandomRangeFn g_randomRange = nullptr;
 bool g_evenPercent = false;
@@ -219,8 +224,14 @@ void DamagePlanePart(void* plane, int32_t frame, int32_t state) {
     Function<SetPartStatusFn>(kSetAeroplaneCompStatus)(damage, frame, state);
 }
 
-void MidRangeRandom(uintptr_t site, bool on) {
-    std::array<uint8_t, 5> bytes{0xB8, 0xFF, 0x3F, 0x00, 0x00};
+void FlyHeliTo(void* heli, const Vector& target, float lowest, float highest) {
+    Function<HeliGoToFn>(kTellHeliToGoToCoors)(heli, target.x, target.y, target.z, lowest,
+                                               highest);
+}
+
+void HoldRandom(uintptr_t site, int32_t value, bool on) {
+    std::array<uint8_t, 5> bytes{0xB8};
+    std::memcpy(&bytes[1], &value, sizeof(value));
     if (!on) {
         const auto offset = static_cast<int32_t>(kRand - (site + 5));
         bytes[0] = 0xE8;
@@ -233,6 +244,37 @@ void MidRangeRandom(uintptr_t site, bool on) {
         VirtualProtect(code, bytes.size(), protection, &protection);
         FlushInstructionCache(GetCurrentProcess(), code, bytes.size());
     }
+}
+
+void MidRangeRandom(uintptr_t site, bool on) {
+    constexpr int32_t kMiddle = 0x3FFF;
+    HoldRandom(site, kMiddle, on);
+}
+
+bool LoadSleepingMission(const char* name, uint32_t start, uint32_t end) {
+    if (end <= start || end - start > kMissionBlockSize) {
+        return false;
+    }
+    FILE* file = nullptr;
+    if (fopen_s(&file, "data\\script\\main.scm", "rb") != 0 || !file) {
+        return false;
+    }
+    auto* block = reinterpret_cast<uint8_t*>(kMissionBlock);
+    const size_t size = end - start;
+    const bool read = std::fseek(file, static_cast<long>(start), SEEK_SET) == 0
+                   && std::fread(block, 1, size, file) == size;
+    std::fclose(file);
+    if (!read) {
+        return false;
+    }
+    uint8_t* script = Function<StartScriptFn>(kStartNewScript)(block);
+    if (!script) {
+        return false;
+    }
+    strncpy_s(reinterpret_cast<char*>(script + kScriptName), kScriptNameSize, name, _TRUNCATE);
+    Field<uint8_t*>(script, kScriptBaseIp) = block;
+    Field<int32_t>(script, kScriptWakeTime) = INT32_MAX;
+    return true;
 }
 
 void StartCountdown(uint32_t variable, int32_t milliseconds) {

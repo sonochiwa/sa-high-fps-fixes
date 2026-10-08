@@ -149,11 +149,68 @@ bool Step(const Frame& frame) {
 }
 }  // namespace heli
 
+// A helicopter of a mission, rotor at full speed, 150 m from the player and
+// 40 m up, told to follow the player within 20 m as Interdiction's attackers
+// do: how far from the player it is at three seconds, how far it flies from
+// one second to six and how fast it goes at six. The autopilot jolts the
+// throttle each frame by a random step from -7 to 8, held at 0 so the run
+// repeats.
+namespace ai_heli_follow {
+constexpr int32_t kModel = 487;
+constexpr uintptr_t kThrottleJolt = 0x42A0F6;
+constexpr int32_t kNoJolt = 7;
+constexpr float kFollowRadius = 20.0f;
+uint8_t* g_vehicle = nullptr;
+Vector g_mark{};
+
+bool Start() {
+    g_vehicle = game::SpawnVehicle(kModel);
+    if (!g_vehicle) {
+        return false;
+    }
+    uint8_t* player = game::Player();
+    const Vector target = game::Position(player);
+    game::Teleport(g_vehicle, {target.x + 150.0f, target.y, target.z + 40.0f});
+    Field<uint8_t>(g_vehicle, game::kVehicleEngineByte) |= game::kVehicleEngineOn;
+    Field<float>(g_vehicle, game::kHeliRotorSpeed) = game::kHeliRotorFullSpeed;
+    game::FlyHeliTo(g_vehicle, target, 0.0f, target.z + 40.0f);
+    Field<uint8_t>(g_vehicle, game::kAutoPilotMission) = game::kMissionHeliFollowEntity;
+    Field<uint8_t*>(g_vehicle, game::kAutoPilotTarget) = player;
+    Field<float>(g_vehicle, game::kHeliFollowRadius) = kFollowRadius;
+    game::HoldRandom(kThrottleJolt, kNoJolt, true);
+    return true;
+}
+
+float GroundDistance(Vector a, const Vector& b) {
+    a.z = b.z;
+    return Distance(a, b);
+}
+
+bool Step(const Frame& frame) {
+    if (At(frame, 1.0f)) {
+        g_mark = game::Position(g_vehicle);
+    } else if (At(frame, 3.0f)) {
+        Record("ai_heli_follow", "player_distance_m_at_3s",
+               GroundDistance(game::Position(g_vehicle), game::Position(game::Player())));
+    } else if (At(frame, 6.0f)) {
+        Record("ai_heli_follow", "distance_m_1s_to_6s",
+               GroundDistance(game::Position(g_vehicle), g_mark));
+        Vector velocity = Field<Vector>(g_vehicle, game::kPhysicalMoveSpeed);
+        velocity.z = 0.0f;
+        Record("ai_heli_follow", "speed_kmh_at_6s", Distance(velocity, {}) * 50.0f * 3.6f);
+        game::HoldRandom(kThrottleJolt, kNoJolt, false);
+        return true;
+    }
+    return false;
+}
+}  // namespace ai_heli_follow
+
 const harness::Scenario kList[] = {
     {"plane", plane::Start, plane::Step, plane::Input},
     {"plane_gentle", plane::StartGentle, plane::Step, plane::Input},
     {"plane_damaged", plane::StartDamaged, plane::Step, plane::Input},
     {"heli", heli::Start, heli::Step, nullptr},
+    {"ai_heli_follow", ai_heli_follow::Start, ai_heli_follow::Step, nullptr},
 };
 
 }  // namespace

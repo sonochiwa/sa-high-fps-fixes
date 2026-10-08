@@ -24,6 +24,7 @@ ScenarioList WorldScenarios();
 ScenarioList VehicleScenarios();
 ScenarioList AircraftScenarios();
 ScenarioList PedScenarios();
+ScenarioList ScriptScenarios();
 
 // Open sea past the end of the Santa Maria pier.
 constexpr float kSeaX = 836.0f;

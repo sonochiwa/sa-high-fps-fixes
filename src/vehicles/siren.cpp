@@ -24,10 +24,20 @@ using PadStateFn = bool(__thiscall*)(void*);
 
 SitePatch g_sirenPatch{};
 std::array<HornTapState, 2> g_hornTapStates{};
+uintptr_t g_sirenHistoryCheck = kSirenHistoryCheck;
 
 void* PadAt(int index) {
     return reinterpret_cast<void*>(
         kPads + static_cast<uintptr_t>(index) * kPadSize);
+}
+
+// The original code from the patched instruction on: the newest history
+// index, then the history check.
+__declspec(naked) void SirenHornHistory() {
+    __asm {
+        movzx ecx, byte ptr ds:[0x00B7356E]
+        jmp dword ptr [g_sirenHistoryCheck]
+    }
 }
 
 // CVehicle::ProcessSirenAndHorn separates a horn tap from a hold using a
@@ -55,7 +65,7 @@ uintptr_t __cdecl SelectSirenReturnAddress(uintptr_t vehicle) {
             }
         }
         if (playerIndex < 0) {
-            return kSirenOriginalReturn;
+            return reinterpret_cast<uintptr_t>(&SirenHornHistory);
         }
 
         void* pad = PadAt(playerIndex);
@@ -80,7 +90,7 @@ uintptr_t __cdecl SelectSirenReturnAddress(uintptr_t vehicle) {
         }
         return kSirenNoHornReturn;
     } __except (EXCEPTION_EXECUTE_HANDLER) {
-        return kSirenOriginalReturn;
+        return reinterpret_cast<uintptr_t>(&SirenHornHistory);
     }
 }
 
@@ -105,8 +115,15 @@ bool InstallSirenTapFix() {
         Log("Siren tap fix skipped: ProcessSirenAndHorn layout does not match GTA SA 1.0 US.");
         return false;
     }
+    // The builds differ in every byte of the site. A branch another plugin
+    // wrote over its first five leaves the last two, which still tell them
+    // apart.
+    constexpr size_t kBranchSize = 5;
+    const bool compact = MemoryMatchesRaw(kSirenPatch + kBranchSize,
+                                          kExpectedSirenCompact.data() + kBranchSize,
+                                          kExpectedSirenCompact.size() - kBranchSize);
     if (!InstallJump(g_sirenPatch, kSirenPatch, &SirenTapThunk,
-                     kExpectedSiren)) {
+                     compact ? kExpectedSirenCompact : kExpectedSirenHoodlum)) {
         Log("Siren tap fix skipped: executable bytes do not match GTA SA 1.0 US.");
         return false;
     }

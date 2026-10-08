@@ -23,21 +23,24 @@ constexpr std::array<uint8_t, 6> kExpectedHeliRotorFast{
 constexpr std::array<uint8_t, 2> kExpectedHeliRotorOperand{0xD8, 0x1D};
 
 // Siren tap. `CVehicle::ProcessSirenAndHorn` tells a horn tap from a hold with
-// a per-frame history buffer.
+// a per-frame history buffer. At 0x006E0961 it loads the index of the newest
+// entry, `movzx ecx,byte ptr [0B7356Eh]`, and reads the history from
+// 0x006E0968. The Compact build has that instruction in place; the Hoodlum
+// build moved it to a stub at 0x00403940 and left `nop; nop; jmp` behind.
 constexpr uintptr_t kSirenPatch = 0x006E0961;
 constexpr uintptr_t kSirenAnchor = 0x006E0999;
-// The 1.0 US executable uses this trampoline to load the stock horn-history
-// index before continuing at 0x006E0968. Network and NPC vehicles must retain
-// that path because SA-MP writes their synchronized horn/siren state there.
-constexpr uintptr_t kSirenOriginalReturn = 0x00403940;
+constexpr uintptr_t kSirenHistoryCheck = 0x006E0968;
 constexpr uintptr_t kSirenToggleReturn = 0x006E0999;
 constexpr uintptr_t kSirenHornReturn = 0x006E09E8;
 constexpr uintptr_t kSirenNoHornReturn = 0x006E09F7;
 constexpr uintptr_t kPadGetHorn = 0x0053FEE0;
 constexpr uintptr_t kPadHornJustDown = 0x0053FF30;
 constexpr uint32_t kSirenTapMilliseconds = 150;
-constexpr std::array<uint8_t, 5> kExpectedSiren{
-    0x90, 0x90, 0xE9, 0xD8, 0x2F
+constexpr std::array<uint8_t, 7> kExpectedSirenCompact{
+    0x0F, 0xB6, 0x0D, 0x6E, 0x35, 0xB7, 0x00
+};
+constexpr std::array<uint8_t, 7> kExpectedSirenHoodlum{
+    0x90, 0x90, 0xE9, 0xD8, 0x2F, 0xD2, 0xFF
 };
 constexpr std::array<uint8_t, 6> kExpectedSirenAnchor{
     0x8A, 0x86, 0x2D, 0x04, 0x00, 0x00

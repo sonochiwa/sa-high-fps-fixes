@@ -50,6 +50,11 @@ constexpr size_t kStreamedScriptCount = 0xA44;
 constexpr uintptr_t kMissionBlock = 0x00A7A6A0;
 constexpr size_t kMissionBlockSize = 69000;
 
+// CTheScripts::LocalVariablesForCurrentMission, the locals of the running
+// mission, four bytes each.
+constexpr uintptr_t kMissionLocalVariables = 0x00A48960;
+constexpr size_t kMissionLocalVariableCount = 1024;
+
 // Literals inside SCM scripts that step a value once a frame: in the streamed
 // script `player_parachute.scm` (script.img), which runs the player's freefall
 // and canopy flight, and in missions of main.scm.
@@ -59,26 +64,38 @@ constexpr size_t kMissionBlockSize = 69000;
 // value each frame, so the share is raised to the timestep ratio; a rate
 // divisor turns a value into a per-frame step, so the step is multiplied by
 // it; a frame step is added once a frame, so it is multiplied by it too.
+// An integer step added once a frame cannot be cut into fractions, so a
+// frame tick is the step on the frames on which an original 30 FPS frame has
+// passed and zero on the others. A timer threshold is compared with a
+// millisecond timer that the script empties each time it passes, so it
+// passes once every whole number of 30 FPS frames; the threshold is moved so
+// that it passes on the frame nearest that period at any frame rate.
 enum class ScriptLiteralKind : uint8_t {
     smoothingDivisor,
     smoothingFactor,
     decayFactor,
     rateDivisor,
     frameStep,
+    frameTick,
+    timerThreshold,
 };
 
-// The SCM operand types of the variable an instruction changes: a global,
-// given by its byte offset, or a local, given by its index.
+// SCM operand types: a global, given by its byte offset, a local, given by
+// its index, a one-byte integer and a float.
 constexpr uint8_t kScriptGlobalVariable = 2;
 constexpr uint8_t kScriptLocalVariable = 3;
+constexpr uint8_t kScriptInt8 = 4;
+constexpr uint8_t kScriptFloat = 6;
 
-// One arithmetic instruction on a float variable with a float literal, such
-// as `ADD_VAL_TO_FLOAT_LVAR` (0x000B), `SUB_VAL_FROM_FLOAT_LVAR` (0x000F),
-// `MULT_FLOAT_LVAR_BY_VAL` (0x0013), `DIV_FLOAT_LVAR_BY_VAL` (0x0017) or the
-// global forms 0x0009 and 0x000D: opcode, the variable's type and number,
-// float type 6 and the value, which starts six bytes into the instruction.
-// The offset is from the script's base, which for a mission is the mission
-// block.
+// One instruction on a variable with a literal, such as
+// `ADD_VAL_TO_FLOAT_LVAR` (0x000B), `SUB_VAL_FROM_FLOAT_LVAR` (0x000F),
+// `MULT_FLOAT_LVAR_BY_VAL` (0x0013), `DIV_FLOAT_LVAR_BY_VAL` (0x0017), the
+// global forms 0x0009 and 0x000D, or their integer forms: opcode, the
+// variable's type and number, then the literal's type and value, which starts
+// six bytes into the instruction. A mission may keep the step in a local
+// instead, set once; its operand is then that local, and the local is written
+// in place of the literal. The offset is from the script's base, which for a
+// mission is the mission block.
 struct ScriptLiteral {
     uint16_t offset;
     uint16_t opcode;
@@ -86,6 +103,8 @@ struct ScriptLiteral {
     float stock;
     ScriptLiteralKind kind;
     uint8_t variableType{kScriptLocalVariable};
+    uint8_t operandType{kScriptFloat};
+    uint16_t operandLocal{};
 };
 
 constexpr size_t kScriptLiteralValueOffset = 6;
@@ -179,6 +198,51 @@ constexpr ScriptLiteral kZeroingInLiterals[] = {
      kScriptGlobalVariable},
     {4302, 0x000D, 7405 * 4, 0.1f, ScriptLiteralKind::frameStep,
      kScriptGlobalVariable},
+};
+
+// Catalyst: while the player holds fire on the train, the throw meter, global
+// $6874, rises by local 124@, set to 5 at the start, every frame up to 100. A
+// crate that has touched something for more than four frames in a row,
+// counted in 126@, breaks.
+constexpr char kCatalystScriptName[] = "RYDER3";
+
+constexpr ScriptLiteral kCatalystLiterals[] = {
+    {11105, 0x005E, 6874 * 4, 5.0f, ScriptLiteralKind::frameTick,
+     kScriptGlobalVariable, kScriptLocalVariable, 124},
+    {12859, 0x000A, 126, 1.0f, ScriptLiteralKind::frameTick,
+     kScriptLocalVariable, kScriptInt8},
+};
+
+// Interdiction. For their first seconds the attacking helicopters are pushed
+// towards Mike's helicopter with APPLY_FORCE_TO_CAR every frame while they
+// are more than 50 m from it, each push a hundredth of the unit direction,
+// which the command adds to the speed whole: 0.5 m/s a frame. Landing, the
+// first is pushed towards its landing point the same way, braked by its
+// velocity in m/s times a thousandth, a twentieth of its speed a frame, and,
+// hovering slowly, pushed along it by a ten thousandth. Mike's helicopter
+// loses 5 health whenever a timer of real milliseconds passes 50 with an
+// attacker within 40 m of it; the timer is emptied each time, so at 30 FPS
+// that is every 67 ms.
+constexpr char kInterdictionScriptName[] = "DES3";
+
+constexpr ScriptLiteral kInterdictionLiterals[] = {
+    {11364, 0x0019, 139, 50.0f, ScriptLiteralKind::timerThreshold,
+     kScriptLocalVariable, kScriptInt8},
+    {19743, 0x0013, 50, 0.01f, ScriptLiteralKind::frameStep},
+    {19753, 0x0013, 51, 0.01f, ScriptLiteralKind::frameStep},
+    {19763, 0x0013, 52, 0.01f, ScriptLiteralKind::frameStep},
+    {20309, 0x0013, 50, -0.001f, ScriptLiteralKind::frameStep},
+    {20319, 0x0013, 51, -0.001f, ScriptLiteralKind::frameStep},
+    {20329, 0x0013, 52, -0.001f, ScriptLiteralKind::frameStep},
+    {20562, 0x0013, 50, 0.01f, ScriptLiteralKind::frameStep},
+    {20572, 0x0013, 51, 0.01f, ScriptLiteralKind::frameStep},
+    {20582, 0x0013, 52, 0.01f, ScriptLiteralKind::frameStep},
+    {22066, 0x0013, 50, 0.0001f, ScriptLiteralKind::frameStep},
+    {22076, 0x0013, 51, 0.0001f, ScriptLiteralKind::frameStep},
+    {22086, 0x0013, 52, 0.0001f, ScriptLiteralKind::frameStep},
+    {24959, 0x0013, 50, 0.01f, ScriptLiteralKind::frameStep},
+    {24969, 0x0013, 51, 0.01f, ScriptLiteralKind::frameStep},
+    {24979, 0x0013, 52, 0.01f, ScriptLiteralKind::frameStep},
 };
 
 } // namespace hff

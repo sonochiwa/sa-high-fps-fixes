@@ -153,7 +153,7 @@ missing:
 | `fallingGlass` | `1` | Falling glass moves at the original speed. |
 | `breakableObjectLifetime` | `1` | Broken object pieces last the same time at any FPS. |
 | `burglaryNoise` | `1` | The noise meters of burglary and Home Invasion fill as at 30 FPS instead of staying near empty. |
-| `missionScripts` | `1` | Small Town Bank hostages give up, and the cars in Tanker Commander and Zeroing In speed up, as at 30 FPS. |
+| `missionScripts` | `1` | Small Town Bank hostages give up, the cars in Tanker Commander and Zeroing In speed up, the Catalyst throw meter fills, and the Interdiction helicopters close in and do damage, as at 30 FPS. |
 | `copCarExit` | `1` | Cops leave their car to arrest you only once you are as slow as at 30 FPS. |
 | `explosions` | `1` | Explosions last their full time, and set off secondary blasts and fires as often as at 30 FPS. |
 | `lightning` | `1` | Lightning strikes as often and as long, with its thunder as late, as at 30 FPS. |

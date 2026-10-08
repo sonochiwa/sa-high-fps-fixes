@@ -28,6 +28,7 @@ enum FrameTickSlot : int32_t {
     kFrameTickBoatWaves,
     kFrameTickSwatRopes,
     kFrameTickAmbience,
+    kFrameTickScripts,
     kFrameTickSlots,
 };
 void ResetFrameTicks();

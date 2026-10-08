@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.8.2
+
+- Changed `missionScripts` to cover Catalyst, whose crate throw meter filled
+  too fast, and Interdiction, whose attacking helicopters closed in and
+  damaged Mike's helicopter too fast above 30 FPS.
+- Fixed `sirenTap` doing nothing with the Compact executable.
+
 ## 1.8.1
 
 - Fixed a rare hang at start-up when another plugin hooks the game at the

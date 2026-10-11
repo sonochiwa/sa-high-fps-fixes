@@ -239,6 +239,7 @@ bool IsKnownConfigKey(const char* section, const char* key) {
 // fix off does not make them look unknown.
 void RegisterConditionalConfigKeys() {
     constexpr ConfigKey keys[] = {
+        {"player", "parachuteResponseFps"},
         {"vehicles", "bikePitchExperimentStrength"},
         {"vehicles", "turnAirResistanceStrength"},
         {"vehicles", "disableSwingingCompletely"},

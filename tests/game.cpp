@@ -1,5 +1,7 @@
 #include "game.h"
 
+#include "core/hook.h"
+
 #include "MinHook.h"
 
 #include <windows.h>
@@ -7,6 +9,7 @@
 #include <array>
 #include <cstdio>
 #include <cstring>
+#include <vector>
 
 namespace game {
 namespace {
@@ -45,6 +48,20 @@ constexpr Prologue kPrologues[] = {
     {kClearClock, {0xE9}, 1},
     {kTellHeliToGoToCoors, {0x8B, 0x44, 0x24, 0x04, 0x8B, 0x54}, 6},
     {kStartNewScript, {0xE9}, 1},
+    {kProcessOneCommand, {0x66, 0xFF, 0x05, 0xF4, 0x47, 0xA4}, 6},
+};
+
+// Compact keeps these bodies at their entry points without Hoodlum's jumps.
+constexpr Prologue kCompactPrologues[] = {
+    {kUpdatePads, {0x56, 0x57, 0xB9, 0x58, 0x34, 0xB7}, 6},
+    {kVehicleCheat, {0x64, 0xA1, 0x00, 0x00, 0x00, 0x00}, 6},
+    {kSetPedInCarDirect, {0x64, 0xA1, 0x00, 0x00, 0x00, 0x00}, 6},
+    {kCameraFade, {0x66, 0x8B, 0x54, 0x24, 0x08, 0x53}, 6},
+    {kLoadAllRequestedModels, {0xA0, 0x38, 0x55, 0x96, 0x00, 0x56}, 6},
+    {kAddProjectile, {0x6A, 0xFF, 0x68, 0xF3, 0x8D, 0x84}, 6},
+    {kAddClock, {0x8B, 0xC1, 0x33, 0xD2, 0x83, 0x38}, 6},
+    {kClearClock, {0x8B, 0x01, 0x3B, 0x44, 0x24, 0x04}, 6},
+    {kStartNewScript, {0x56, 0x8B, 0x35, 0x28, 0xB4, 0xA8}, 6},
 };
 
 using FindPlayerPedFn = uint8_t*(__cdecl*)(int32_t);
@@ -73,6 +90,7 @@ using StartScriptFn = uint8_t*(__cdecl*)(uint8_t*);
 RandomRangeFn g_randomRange = nullptr;
 bool g_evenPercent = false;
 uint32_t g_percentStep = 0;
+std::vector<uint8_t> g_streamedImage;
 
 // 37 and 100 share no factor, so the steps visit every value once a hundred.
 int32_t __cdecl RandomRangeHook(int32_t low, int32_t high) {
@@ -107,7 +125,18 @@ bool VerifyFunctions() {
     for (const Prologue& prologue : kPrologues) {
         if (std::memcmp(reinterpret_cast<const void*>(prologue.address), prologue.bytes.data(),
                         prologue.size) != 0) {
-            return false;
+            bool compact = false;
+            for (const auto& alternative : kCompactPrologues) {
+                if (alternative.address == prologue.address
+                    && std::memcmp(reinterpret_cast<const void*>(alternative.address),
+                                   alternative.bytes.data(), alternative.size) == 0) {
+                    compact = true;
+                    break;
+                }
+            }
+            if (!compact) {
+                return false;
+            }
         }
     }
     return true;
@@ -209,9 +238,15 @@ void EvenRandomPercent(bool on) {
     if (!g_randomRange) {
         void* original = nullptr;
         auto* target = reinterpret_cast<void*>(kRandomNumberInRange);
-        if (MH_CreateHook(target, reinterpret_cast<void*>(&RandomRangeHook), &original) != MH_OK
-            || MH_EnableHook(target) != MH_OK) {
+        if (MH_CreateHook(target, reinterpret_cast<void*>(&RandomRangeHook), &original) != MH_OK) {
             return;
+        }
+        {
+            hff::ThreadFreezeLock lock;
+            if (MH_EnableHook(target) != MH_OK) {
+                MH_RemoveHook(target);
+                return;
+            }
         }
         g_randomRange = reinterpret_cast<RandomRangeFn>(original);
     }
@@ -273,8 +308,85 @@ bool LoadSleepingMission(const char* name, uint32_t start, uint32_t end) {
     }
     strncpy_s(reinterpret_cast<char*>(script + kScriptName), kScriptNameSize, name, _TRUNCATE);
     Field<uint8_t*>(script, kScriptBaseIp) = block;
+    Field<bool>(script, kScriptMission) = true;
     Field<int32_t>(script, kScriptWakeTime) = INT32_MAX;
     return true;
+}
+
+uint8_t* FindScript(const char* name) {
+    for (auto* script = At<uint8_t*>(kActiveScripts); script;
+         script = Field<uint8_t*>(script, kScriptNext)) {
+        if (_strnicmp(reinterpret_cast<const char*>(script + kScriptName),
+                      name, kScriptNameSize) == 0) {
+            return script;
+        }
+    }
+    return nullptr;
+}
+
+bool LoadSleepingStreamedScript(const char* name, const char* fileName) {
+    FILE* file = nullptr;
+    if (fopen_s(&file, "data\\script\\script.img", "rb") != 0 || !file) {
+        return false;
+    }
+    std::array<char, 4> magic{};
+    uint32_t count = 0;
+    uint32_t sector = 0;
+    uint16_t sectors = 0;
+    if (std::fread(magic.data(), 1, magic.size(), file) == magic.size()
+        && std::memcmp(magic.data(), "VER2", 4) == 0
+        && std::fread(&count, sizeof(count), 1, file) == 1) {
+        for (uint32_t i = 0; i < count; ++i) {
+            std::array<uint8_t, 32> entry{};
+            if (std::fread(entry.data(), 1, entry.size(), file) != entry.size()) {
+                break;
+            }
+            if (_strnicmp(reinterpret_cast<const char*>(entry.data() + 8), fileName, 24) == 0) {
+                std::memcpy(&sector, entry.data(), sizeof(sector));
+                std::memcpy(&sectors, entry.data() + 4, sizeof(sectors));
+                break;
+            }
+        }
+    }
+    g_streamedImage.resize(static_cast<size_t>(sectors) * 2048);
+    const bool read = sectors != 0
+        && std::fseek(file, static_cast<long>(sector * 2048), SEEK_SET) == 0
+        && std::fread(g_streamedImage.data(), 1, g_streamedImage.size(), file)
+            == g_streamedImage.size();
+    std::fclose(file);
+    if (!read) {
+        return false;
+    }
+    for (size_t i = 0; i < kStreamedScriptSlots; ++i) {
+        const uintptr_t entry = kStreamedScripts + i * kStreamedScriptStride;
+        if (At<uintptr_t>(entry) || At<uint8_t>(entry + kStreamedScriptUsers)) {
+            continue;
+        }
+        auto* script = Function<StartScriptFn>(kStartNewScript)(g_streamedImage.data());
+        if (!script) {
+            return false;
+        }
+        At<uint8_t*>(entry) = g_streamedImage.data();
+        At<uint8_t>(entry + kStreamedScriptUsers) = 1;
+        At<int32_t>(entry + kStreamedScriptSize) = static_cast<int32_t>(g_streamedImage.size());
+        auto& registered = At<int16_t>(kStreamedScripts + kStreamedScriptCount);
+        if (i >= static_cast<size_t>(registered)) {
+            registered = static_cast<int16_t>(i + 1);
+        }
+        strncpy_s(reinterpret_cast<char*>(script + kScriptName), kScriptNameSize, name, _TRUNCATE);
+        Field<uint8_t*>(script, kScriptBaseIp) = g_streamedImage.data();
+        Field<bool>(script, kScriptExternal) = true;
+        Field<int32_t>(script, kScriptWakeTime) = INT32_MAX;
+        return true;
+    }
+    return false;
+}
+
+void ExecuteScriptCommand(uint8_t* script, uint32_t offset) {
+    Field<uint8_t*>(script, kScriptCurrentIp) =
+        Field<uint8_t*>(script, kScriptBaseIp) + offset;
+    using CommandFn = int32_t(__thiscall*)(void*);
+    Function<CommandFn>(kProcessOneCommand)(script);
 }
 
 void StartCountdown(uint32_t variable, int32_t milliseconds) {

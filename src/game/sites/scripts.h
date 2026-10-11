@@ -85,7 +85,10 @@ enum class ScriptLiteralKind : uint8_t {
 constexpr uint8_t kScriptGlobalVariable = 2;
 constexpr uint8_t kScriptLocalVariable = 3;
 constexpr uint8_t kScriptInt8 = 4;
+constexpr uint8_t kScriptInt16 = 5;
 constexpr uint8_t kScriptFloat = 6;
+// ADD_VAL_TO_INT_VAR accepts an immediate in place of a mission local.
+constexpr uint16_t kScriptAddIntGlobalLiteral = 0x0008;
 
 // One instruction on a variable with a literal, such as
 // `ADD_VAL_TO_FLOAT_LVAR` (0x000B), `SUB_VAL_FROM_FLOAT_LVAR` (0x000F),
@@ -93,9 +96,9 @@ constexpr uint8_t kScriptFloat = 6;
 // global forms 0x0009 and 0x000D, or their integer forms: opcode, the
 // variable's type and number, then the literal's type and value, which starts
 // six bytes into the instruction. A mission may keep the step in a local
-// instead, set once; its operand is then that local, and the local is written
-// in place of the literal. The offset is from the script's base, which for a
-// mission is the mission block.
+// instead; its operand is then replaced with an immediate of the same size,
+// leaving the local under the mission's control. The offset is from the
+// script's base, which for a mission is the mission block.
 struct ScriptLiteral {
     uint16_t offset;
     uint16_t opcode;
@@ -201,7 +204,8 @@ constexpr ScriptLiteral kZeroingInLiterals[] = {
 };
 
 // Catalyst: while the player holds fire on the train, the throw meter, global
-// $6874, rises by local 124@, set to 5 at the start, every frame up to 100. A
+// $6874, rises by local 124@, initially 5 and changed to 50 when the meter
+// empties, every frame up to 100. A
 // crate that has touched something for more than four frames in a row,
 // counted in 126@, breaks.
 constexpr char kCatalystScriptName[] = "RYDER3";

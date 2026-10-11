@@ -3,6 +3,8 @@
 #include "game.h"
 #include "scenarios.h"
 
+#include "core/hook.h"
+
 #include "MinHook.h"
 
 #include <windows.h>
@@ -44,6 +46,8 @@ GameFn g_timerUpdate = nullptr;
 std::vector<const Scenario*> g_scenarios;
 size_t g_current = 0;
 int g_fps = 30;
+bool g_interactive = false;
+bool g_stockPreview = false;
 Phase g_phase = Phase::kBoot;
 uint32_t g_phaseFrames = 0;
 FILE* g_results = nullptr;
@@ -138,6 +142,9 @@ void Advance() {
     if (g_phase == Phase::kDone) {
         return;
     }
+    if (g_interactive && g_phase == Phase::kRun) {
+        return;
+    }
     game::SleepAllScripts();
     switch (g_phase) {
     case Phase::kBoot: {
@@ -145,7 +152,7 @@ void Advance() {
         std::snprintf(line, sizeof(line), "screen %dx%d", game::At<int32_t>(game::kScreenWidth),
                       game::At<int32_t>(game::kScreenHeight));
         Note(line);
-        game::At<uint8_t>(game::kFrameLimiterPreference) = 0;
+        game::At<uint8_t>(game::kFrameLimiterPreference) = g_stockPreview ? 1 : 0;
         PlaceAtSite();
         EnterPhase(Phase::kSettle);
         return;
@@ -202,7 +209,7 @@ void Advance() {
 void __cdecl UpdatePadsHook() {
     SkipToNewGame();
     g_updatePads();
-    if (game::GameState() != game::kStatePlaying || g_phase != Phase::kRun) {
+    if (g_interactive || game::GameState() != game::kStatePlaying || g_phase != Phase::kRun) {
         return;
     }
     auto* pad = reinterpret_cast<uint8_t*>(game::kPad);
@@ -226,7 +233,7 @@ void __cdecl GameProcessHook() {
 // the machine draws. Everything else is done as the game does it.
 void __cdecl TimerUpdateHook() {
     using game::At;
-    if (game::GameState() != game::kStatePlaying || g_phase == Phase::kDone) {
+    if (g_interactive || game::GameState() != game::kStatePlaying || g_phase == Phase::kDone) {
         g_timerUpdate();
         return;
     }
@@ -295,6 +302,8 @@ bool Install() {
     }
     const int fps = _wtoi(ReadVariable(kFpsVariable).c_str());
     g_fps = fps > 0 ? fps : 30;
+    g_interactive = ReadVariable(L"HFF_AUTOTEST_INTERACTIVE") == L"1";
+    g_stockPreview = g_interactive && ReadVariable(L"HFF_AUTOTEST_STOCK") == L"1";
     if (!game::VerifyFunctions()) {
         Note("error unexpected game code");
         return false;
@@ -302,16 +311,26 @@ bool Install() {
     if (MH_Initialize() != MH_OK ||
         !Hook(game::kUpdatePads, reinterpret_cast<void*>(&UpdatePadsHook), &g_updatePads) ||
         !Hook(game::kGameProcess, reinterpret_cast<void*>(&GameProcessHook), &g_gameProcess) ||
-        !Hook(game::kTimerUpdate, reinterpret_cast<void*>(&TimerUpdateHook), &g_timerUpdate) ||
-        MH_EnableHook(MH_ALL_HOOKS) != MH_OK) {
+        !Hook(game::kTimerUpdate, reinterpret_cast<void*>(&TimerUpdateHook), &g_timerUpdate)) {
         Note("error hooks");
+        return false;
+    }
+    bool enabled = false;
+    {
+        hff::ThreadFreezeLock lock;
+        enabled = MH_EnableHook(MH_ALL_HOOKS) == MH_OK;
+    }
+    if (!enabled) {
+        Note("error enabling hooks");
         return false;
     }
     char line[64];
     std::snprintf(line, sizeof(line), "fps %d", g_fps);
     Note(line);
-    if (HANDLE thread = CreateThread(nullptr, 0, KeepForeground, nullptr, 0, nullptr)) {
-        CloseHandle(thread);
+    if (!g_interactive) {
+        if (HANDLE thread = CreateThread(nullptr, 0, KeepForeground, nullptr, 0, nullptr)) {
+            CloseHandle(thread);
+        }
     }
     return true;
 }

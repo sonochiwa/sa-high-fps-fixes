@@ -1,5 +1,6 @@
 #include "scripts/script_literals.h"
 
+#include "core/config.h"
 #include "core/log.h"
 #include "core/timestep.h"
 #include "game/addresses.h"
@@ -30,8 +31,8 @@
 // Interdiction pushes its attacking helicopters a frame and times the damage
 // they do with a threshold that 30 FPS frames pass every 67 ms. Before the
 // scripts run each frame, the running script's literals are set to the values
-// that give the 30 FPS steps over the current timestep; at 30 FPS they are
-// the stock values.
+// that give the 30 FPS steps over the current timestep, with the parachute's
+// response optionally accelerated to a selected equivalent frame rate.
 //
 // A literal is only written into a script that is running from memory that is
 // still its own: an active script whose image is a loaded streamed script or
@@ -67,6 +68,7 @@ struct ScriptLiteralSet {
 };
 
 constexpr float kOriginalFrameMilliseconds = 1000.0f / 30.0f;
+float g_parachuteRate = 1.0f;
 
 std::array<ScriptLiteralSet, 8> g_literalSets{{
     {kParachuteScriptName, "Parachute flight fix", "player_parachute.scm",
@@ -164,11 +166,13 @@ bool ScriptLiteralsMatch(const uint8_t* base, const ScriptLiteralSet& set) {
         uint16_t variable{};
         std::memcpy(&opcode, at, sizeof(opcode));
         std::memcpy(&variable, at + 3, sizeof(variable));
-        if (opcode != literal.opcode || at[2] != literal.variableType
-            || variable != literal.variable || at[5] != literal.operandType) {
+        const bool rewrittenLocal = literal.operandType == kScriptLocalVariable
+            && opcode == kScriptAddIntGlobalLiteral && at[5] == kScriptInt16;
+        if ((!rewrittenLocal && (opcode != literal.opcode || at[5] != literal.operandType))
+            || at[2] != literal.variableType || variable != literal.variable) {
             return false;
         }
-        if (literal.operandType == kScriptLocalVariable) {
+        if (literal.operandType == kScriptLocalVariable && !rewrittenLocal) {
             uint16_t local{};
             std::memcpy(&local, at + kScriptLiteralValueOffset, sizeof(local));
             if (set.image != ScriptImage::mission || local != literal.operandLocal
@@ -237,8 +241,17 @@ void WriteScriptLiteral(uint8_t* at, const ScriptLiteral& literal, float value) 
         break;
     }
     case kScriptLocalVariable:
-        reinterpret_cast<int32_t*>(kMissionLocalVariables)[literal.operandLocal] =
-            static_cast<int32_t>(std::lround(value));
+        // The mission changes its step from 5 to 50 after emptying the meter.
+        // Keep that local intact and give the addition an immediate instead;
+        // both operand forms occupy two bytes, so branch targets stay valid.
+        {
+            const int16_t step = static_cast<int16_t>(
+                std::clamp(std::lround(value), -32768L, 32767L));
+            const uint16_t opcode = kScriptAddIntGlobalLiteral;
+            std::memcpy(at, &opcode, sizeof(opcode));
+            at[5] = kScriptInt16;
+            std::memcpy(at + kScriptLiteralValueOffset, &step, sizeof(step));
+        }
         break;
     default:
         std::memcpy(at + kScriptLiteralValueOffset, &value, sizeof(value));
@@ -296,8 +309,12 @@ void UpdateScriptLiteralSet(ScriptLiteralSet& set, const FrameRate& rate) {
         }
         for (size_t i = 0; i < set.count; ++i) {
             const ScriptLiteral& literal = set.literals[i];
+            const float value = literal.operandType == kScriptLocalVariable
+                ? static_cast<float>(reinterpret_cast<const int32_t*>(
+                    kMissionLocalVariables)[literal.operandLocal]) * rate.ticks
+                : ScriptLiteralValue(literal, rate);
             WriteScriptLiteral(reinterpret_cast<uint8_t*>(base) + literal.offset + set.shift,
-                               literal, ScriptLiteralValue(literal, rate));
+                               literal, value);
         }
     } __except (EXCEPTION_EXECUTE_HANDLER) {
         set.checkedBase = 0;
@@ -308,7 +325,9 @@ void UpdateScriptLiterals() {
     const FrameRate rate{TimeStepRatio(), FrameTick(kFrameTickScripts)};
     for (auto& set : g_literalSets) {
         if (set.enabled) {
-            UpdateScriptLiteralSet(set, rate);
+            const FrameRate adjusted{rate.ratio * (&set == &g_literalSets[0]
+                ? g_parachuteRate : 1.0f), rate.ticks};
+            UpdateScriptLiteralSet(set, adjusted);
         }
     }
 }
@@ -325,10 +344,19 @@ bool InstallLiteralSet(ScriptLiteralSet& set) {
 } // namespace
 
 bool InstallParachuteFlightFix() {
+    int target = ReadNumber("player", "parachuteResponseFps", 30);
+    if (target < 30 || target > 120) {
+        AddConfigWarning("player", "parachuteResponseFps",
+                         "must be between 30 and 120; using 30.");
+        target = 30;
+    }
+    g_parachuteRate = static_cast<float>(target) / 30.0f;
     if (!InstallLiteralSet(g_literalSets[0])) {
         return false;
     }
-    Log("Installed parachute steering and easing at the original rate.");
+    const std::string message = "Installed parachute steering and easing at "
+        + std::to_string(target) + " FPS response.";
+    Log(message.c_str());
     return true;
 }
 

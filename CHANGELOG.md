@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.9.0
+
+- Added `parachuteResponseFps` to select parachute and freefall response
+  equivalent to stock 30-120 FPS, independent of the actual frame rate.
+- Fixed Catalyst's throw meter losing the mission's change of charging speed.
+
 ## 1.8.2
 
 - Changed `missionScripts` to cover Catalyst, whose crate throw meter filled

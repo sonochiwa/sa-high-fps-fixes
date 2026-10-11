@@ -5,10 +5,47 @@
 namespace scenarios {
 namespace {
 
+// The stock canopy instructions run in the game's interpreter with a held
+// roll target. The heading integrates the actual steering step for a second.
+namespace parachute {
+uint8_t* g_script = nullptr;
+float g_roll = 0.0f;
+float g_heading = 0.0f;
+
+bool Start() {
+    g_roll = 0.0f;
+    g_heading = 0.0f;
+    if (!game::LoadSleepingStreamedScript("PLCHUTE", "player_parachute.scm")) {
+        return false;
+    }
+    g_script = game::FindScript("PLCHUTE");
+    return g_script != nullptr;
+}
+
+bool Step(const Frame& frame) {
+    const float t = Elapsed(frame) - 1.0f;
+    if (t > 0.0f && t <= 1.0f) {
+        auto& scratch = Field<float>(g_script, game::kScriptLocals + 21 * 4);
+        scratch = 30.0f - g_roll;
+        game::ExecuteScriptCommand(g_script, 3228);
+        g_roll += scratch;
+        scratch = g_roll;
+        game::ExecuteScriptCommand(g_script, 3254);
+        g_heading += scratch;
+    }
+    if (!At(frame, 2.0f)) {
+        return false;
+    }
+    Record("parachute", "roll_after_second", g_roll);
+    Record("parachute", "heading_after_second", g_heading);
+    return true;
+}
+} // namespace parachute
+
 // Missions loaded from the stock main.scm and left asleep: each frame the
-// scenario reads the steps and thresholds the plugin wrote into the mission
-// and adds up what the mission's own instructions would do with them, from
-// one second on. The offsets are from the start of the mission.
+// scenario executes the throw meter and contact instructions in the game's
+// interpreter, or reads the helicopter steps and thresholds, from one second
+// on. The offsets are from the start of the mission.
 float ElapsedSince(const Frame& frame, float start) {
     return Elapsed(frame) - start;
 }
@@ -28,10 +65,14 @@ namespace catalyst {
 constexpr uint32_t kStart = 0xC0A67;
 constexpr uint32_t kEnd = 0xC5958;
 constexpr uint32_t kCrateContact = 12859;
+constexpr uint32_t kMeterAdd = 11105;
+constexpr uint32_t kResetStep = 11163;
 constexpr size_t kMeterStepLocal = 124;
 constexpr int32_t kMeterStep = 5;
 int32_t g_meter = 0;
 int32_t g_contact = 0;
+int32_t g_fastMeter = 0;
+uint8_t* g_script = nullptr;
 
 int32_t& MeterStep() {
     return At<int32_t>(game::kMissionLocals + kMeterStepLocal * sizeof(int32_t));
@@ -40,28 +81,63 @@ int32_t& MeterStep() {
 bool Start() {
     g_meter = 0;
     g_contact = 0;
+    g_fastMeter = 0;
     if (!game::LoadSleepingMission("RYDER3", kStart, kEnd)) {
         return false;
     }
     // As the mission sets it when it starts.
     MeterStep() = kMeterStep;
+    g_script = game::FindScript("RYDER3");
     return true;
 }
 
 bool Step(const Frame& frame) {
     const float t = ElapsedSince(frame, 1.0f);
     if (t > 0.0f && t <= 1.0f) {
-        g_meter += MeterStep();
-        g_contact += Int8Literal(kCrateContact);
+        At<int32_t>(game::kScriptSpace + 6874 * 4) = 0;
+        game::ExecuteScriptCommand(g_script, kMeterAdd);
+        g_meter += At<int32_t>(game::kScriptSpace + 6874 * 4);
+        At<int32_t>(game::kMissionLocals + 126 * 4) = 0;
+        game::ExecuteScriptCommand(g_script, kCrateContact);
+        g_contact += At<int32_t>(game::kMissionLocals + 126 * 4);
     }
-    if (!At(frame, 2.0f)) {
+    if (At(frame, 2.0f)) {
+        // Emptying the meter changes the mission's step to 50.
+        game::ExecuteScriptCommand(g_script, kResetStep);
+    }
+    if (t > 1.0f && t <= 2.0f) {
+        At<int32_t>(game::kScriptSpace + 6874 * 4) = 0;
+        game::ExecuteScriptCommand(g_script, kMeterAdd);
+        g_fastMeter += At<int32_t>(game::kScriptSpace + 6874 * 4);
+    }
+    if (!At(frame, 3.0f)) {
         return false;
     }
     Record("catalyst", "meter_rise_per_second", g_meter);
     Record("catalyst", "crate_contact_count_per_second", g_contact);
+    Record("catalyst", "after_empty_meter_rise_per_second", g_fastMeter);
+    Record("catalyst", "mission_step_after_empty", MeterStep());
     return true;
 }
 }  // namespace catalyst
+
+// A fresh game with the original mission awake, for a player to inspect it.
+namespace catalystMission {
+bool Start() {
+    if (!game::LoadSleepingMission("RYDER3", catalyst::kStart, catalyst::kEnd)) {
+        return false;
+    }
+    game::Teleport(game::Player(), {2459.0f, -1691.0f, 14.0f});
+    auto* script = game::FindScript("RYDER3");
+    Field<uint8_t>(script, game::kScriptMissionCleanup) = 1;
+    Field<int32_t>(script, game::kScriptWakeTime) = 0;
+    return true;
+}
+
+bool Step(const Frame&) {
+    return false;
+}
+} // namespace catalystMission
 
 // Interdiction, DES3: an attacking helicopter far from Mike's is pushed by a
 // literal a frame, the landing one is braked by a share of its speed a
@@ -117,6 +193,8 @@ bool Step(const Frame& frame) {
 }  // namespace interdiction
 
 const harness::Scenario kList[] = {
+    {"catalyst_mission", catalystMission::Start, catalystMission::Step, nullptr},
+    {"parachute", parachute::Start, parachute::Step, nullptr},
     {"catalyst", catalyst::Start, catalyst::Step, nullptr},
     {"interdiction", interdiction::Start, interdiction::Step, nullptr},
 };

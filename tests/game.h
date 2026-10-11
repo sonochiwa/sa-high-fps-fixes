@@ -88,6 +88,18 @@ constexpr size_t kScriptNext = 0x00;
 constexpr size_t kScriptName = 0x08;
 constexpr size_t kScriptNameSize = 8;
 constexpr size_t kScriptBaseIp = 0x10;
+constexpr size_t kScriptCurrentIp = 0x14;
+constexpr size_t kScriptLocals = 0x3C;
+constexpr size_t kScriptMission = 0xDC;
+constexpr size_t kScriptExternal = 0xC7;
+constexpr size_t kScriptMissionCleanup = 0xC6;
+// CTheScripts::StreamedScripts entries hold a loaded image, users and size.
+constexpr uintptr_t kStreamedScripts = 0xA47B60;
+constexpr size_t kStreamedScriptStride = 0x20;
+constexpr size_t kStreamedScriptSlots = 82;
+constexpr size_t kStreamedScriptUsers = 0x04;
+constexpr size_t kStreamedScriptSize = 0x1C;
+constexpr size_t kStreamedScriptCount = 0xA44;
 constexpr size_t kScriptWakeTime = 0xCC;
 // CTheScripts::MissionBlock and LocalVariablesForCurrentMission.
 constexpr uintptr_t kMissionBlock = 0xA7A6A0;
@@ -203,6 +215,8 @@ constexpr uintptr_t kRequestModel = 0x4087E0;
 constexpr uintptr_t kLoadAllRequestedModels = 0x40EA10;
 constexpr uintptr_t kTellHeliToGoToCoors = 0x6A2390;
 constexpr uintptr_t kStartNewScript = 0x464C20;
+// CRunningScript::ProcessOneCommand executes the instruction at m_IP.
+constexpr uintptr_t kProcessOneCommand = 0x469EB0;
 
 template <typename T>
 T& At(uintptr_t address) {
@@ -251,6 +265,9 @@ void MidRangeRandom(uintptr_t site, bool on);
 // script named `name` there that sleeps for good, so what runs on a mission
 // of that name sees its code without it running.
 bool LoadSleepingMission(const char* name, uint32_t start, uint32_t end);
+bool LoadSleepingStreamedScript(const char* name, const char* fileName);
+uint8_t* FindScript(const char* name);
+void ExecuteScriptCommand(uint8_t* script, uint32_t offset);
 // Shows the mission clock counting `variable` down from `milliseconds`.
 void StartCountdown(uint32_t variable, int32_t milliseconds);
 void StopCountdown(uint32_t variable);

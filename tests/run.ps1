@@ -18,7 +18,7 @@ param(
     [string[]]$Scenarios = @('timer', 'countdown', 'burning', 'explosion', 'teargas',
         'forklift', 'firetruck', 'parking', 'braking', 'cornering', 'sinking', 'hydraulics',
         'engine_revs', 'siren', 'plane', 'plane_gentle', 'plane_damaged', 'heli',
-        'ai_heli_follow', 'sniper', 'swim', 'swim_speed', 'catalyst', 'interdiction'),
+        'ai_heli_follow', 'sniper', 'swim', 'swim_speed', 'parachute', 'catalyst', 'interdiction'),
     [string[]]$Fps = @('30', '300'),
     [string[]]$Modes = @('stock', 'fixed'),
     [string]$Copies = $env:HFF_TEST_COPIES,
@@ -107,7 +107,7 @@ function Invoke-Run([string]$scenario, [int]$fps, [string]$mode) {
     Remove-Item $results -ErrorAction SilentlyContinue
     $env:HFF_AUTOTEST = $scenario
     $env:HFF_AUTOTEST_FPS = "$fps"
-    $process = Start-Process -FilePath $copy.Exe -WorkingDirectory $copy.Game -PassThru
+    $process = Start-Process -FilePath $copy.Exe -WorkingDirectory $copy.Game -WindowStyle Hidden -PassThru
     $watch = [Diagnostics.Stopwatch]::StartNew()
     $finished = $false
     while (-not $process.HasExited -and $watch.Elapsed.TotalSeconds -lt $TimeoutSeconds) {

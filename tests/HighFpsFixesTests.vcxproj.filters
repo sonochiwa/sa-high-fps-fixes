@@ -7,6 +7,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="HighFpsFixesTests.cpp" />
+    <ClCompile Include="..\src\core\hook.cpp" />
     <ClCompile Include="game.cpp" />
     <ClCompile Include="harness.cpp" />
     <ClCompile Include="aircraft_scenarios.cpp" />
@@ -37,5 +38,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="run.ps1" />
+    <None Include="preview.ps1" />
   </ItemGroup>
 </Project>

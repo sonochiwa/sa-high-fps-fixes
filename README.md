@@ -75,7 +75,8 @@ missing:
 | `bloodyFootprints` | `1` | Bloody footprints fade in real time. |
 | `drowningDamage` | `1` | Drowning damage at the original rate. |
 | `drunkSteerDelay` | `1` | Drunk steering delay at the original rate. |
-| `parachuteFlight` | `1` | Freefall and parachute steering turn and settle as at 30 FPS. |
+| `parachuteFlight` | `1` | Freefall and parachute steering use the selected response speed regardless of FPS. |
+| `parachuteResponseFps` | `30` | Response equivalent to stock FPS, any integer from 30 to 120; 60 gives twice the original response speed. Requires `parachuteFlight`. |
 | `jetPackFlame` | `1` | Jetpack flame ramps in real time. |
 | `fatCounter` | `1` | Fat and muscle change at the original rate. |
 | `waterBuoyancy` | `1` | Buoyancy no longer fails at high FPS. |

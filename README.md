@@ -130,6 +130,7 @@ missing:
 | `hydraulicStance` | `1` | A parked car with hydraulics settles to its idle stance after the same time at any FPS instead of dropping at once. |
 | `boatWaves` | `1` | Boats slam into waves, with their thud, as hard and as often as at 30 FPS. |
 | `swatRopes` | `1` | SWAT helicopter ropes stay out as long as at 30 FPS. |
+| `boatHandling` | `1` | Boats rise onto the plane, reach their top speed and turn as at 30 FPS instead of ploughing through the water. |
 | `[weapons]` | | |
 | `continuousWeaponParticles` | `1` | Extinguisher, spraycan and flamethrower particles stay visible without the frame limiter. |
 | `continuousWeaponAmmo` | `1` | Those weapons use ammunition at the original rate. |

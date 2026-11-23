@@ -88,6 +88,7 @@ constexpr int32_t kVehicleSubClassMonsterTruck = 1;
 constexpr int32_t kVehicleSubClassQuad = 2;
 constexpr int32_t kVehicleSubClassHeli = 3;
 constexpr int32_t kVehicleSubClassPlane = 4;
+constexpr int32_t kVehicleSubClassBoat = 5;
 constexpr int32_t kVehicleSubClassBike = 9;
 constexpr int32_t kVehicleSubClassBmx = 10;
 constexpr int32_t kVehicleSubClassTrailer = 11;

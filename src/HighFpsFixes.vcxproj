@@ -125,6 +125,7 @@
     <ClCompile Include="vehicles\aircraft.cpp" />
     <ClCompile Include="vehicles\attached_entity.cpp" />
     <ClCompile Include="vehicles\boat_engine.cpp" />
+    <ClCompile Include="vehicles\boat_handling.cpp" />
     <ClCompile Include="vehicles\boat_waves.cpp" />
     <ClCompile Include="vehicles\doors.cpp" />
     <ClCompile Include="vehicles\head_bop.cpp" />
@@ -246,6 +247,7 @@
     <ClInclude Include="vehicles\aircraft.h" />
     <ClInclude Include="vehicles\attached_entity.h" />
     <ClInclude Include="vehicles\boat_engine.h" />
+    <ClInclude Include="vehicles\boat_handling.h" />
     <ClInclude Include="vehicles\boat_waves.h" />
     <ClInclude Include="vehicles\doors.h" />
     <ClInclude Include="vehicles\head_bop.h" />

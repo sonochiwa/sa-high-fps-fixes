@@ -44,6 +44,8 @@ float Heading(const void* entity);
 float Roll(const void* entity);
 float AngleDelta(float to, float from);
 float Speed(const void* entity);
+// Sets an entity level, its nose along (x, y).
+void FaceLevel(void* entity, float x, float y);
 // Gives a vehicle the player is in a speed along its nose, in km/h.
 void Launch(uint8_t* vehicle, float kmh);
 

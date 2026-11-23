@@ -19,9 +19,10 @@ namespace hff {
 // rate at 30 FPS and `0.99^300` at 300, so a car sheds its rotation ten times
 // faster and reads as heavy and understeering. The function is reached from
 // `CPhysical::ProcessControl` by every vehicle class. The car fix keys on the
-// leaf class at +0x594 and the wheel contact count and leaves boats, trains
-// and a car or bike in the air with the stock constant; aircraft have a
-// switch of their own, below, because they need a second correction with it.
+// leaf class at +0x594 and the wheel contact count and leaves trains and a
+// car or bike in the air with the stock constant; aircraft have a switch of
+// their own, below, because they need a second correction with it, and boats
+// take theirs from the boat handling fix, with the planing in `water.h`.
 //
 // The 36 byte span is the three `fld / fmul [0x862CD0] / fstp` triples. `esi`
 // is `this` and the x87 stack is empty on entry.

@@ -1,7 +1,6 @@
 #include "scenario_tools.h"
 
 #include <cmath>
-#include <cstring>
 #include <iterator>
 
 namespace scenarios {
@@ -251,6 +250,81 @@ bool Step(const Frame& frame) {
 }
 }  // namespace sinking
 
+// A Speeder at rest on the open sea, nose out to sea. Under full throttle
+// for six seconds and full right lock for the two after: how far it goes in
+// the first three seconds and in the next three, and how far it turns in the
+// last two. Launched at 100 km/h with the throttle off: how far it coasts in
+// the first second and in the two after, which leaves the water's drag alone
+// acting on it. Distances, not speeds, as the hull bounces on the swell.
+namespace boat {
+constexpr int32_t kModel = 452;
+uint8_t* g_vehicle = nullptr;
+bool g_coast = false;
+Vector g_mark{};
+float g_heading = 0.0f;
+
+bool Start() {
+    g_coast = false;
+    g_vehicle = game::SpawnVehicle(kModel);
+    if (!g_vehicle || game::GroundZ(kSeaX, kSeaY) > -8.0f) {
+        return false;
+    }
+    game::PutPlayerIn(g_vehicle);
+    game::Teleport(g_vehicle, {kSeaX, kSeaY, 0.5f});
+    FaceLevel(g_vehicle, 0.0f, -1.0f);
+    Field<Vector>(g_vehicle, game::kPhysicalMoveSpeed) = {};
+    Field<Vector>(g_vehicle, game::kPhysicalTurnSpeed) = {};
+    Field<uint8_t>(g_vehicle, game::kVehicleEngineByte) |= game::kVehicleEngineOn;
+    g_mark = game::Position(g_vehicle);
+    return true;
+}
+
+bool StartCoast() {
+    if (!Start()) {
+        return false;
+    }
+    g_coast = true;
+    Launch(g_vehicle, 100.0f);
+    return true;
+}
+
+void Input(const Frame& frame, uint8_t* pad) {
+    Press(pad, game::kPadButtonCross);
+    if (Elapsed(frame) > 6.0f) {
+        Field<int16_t>(pad, game::kPadLeftStickX) = 128;
+    }
+}
+
+float Travelled() {
+    const Vector here = game::Position(g_vehicle);
+    const float distance = Distance(here, g_mark);
+    g_mark = here;
+    return distance;
+}
+
+bool Step(const Frame& frame) {
+    if (g_coast) {
+        if (At(frame, 1.0f)) {
+            Record("boat_coast", "distance_m_0s_to_1s", Travelled());
+        } else if (At(frame, 3.0f)) {
+            Record("boat_coast", "distance_m_1s_to_3s", Travelled());
+            return true;
+        }
+        return false;
+    }
+    if (At(frame, 3.0f)) {
+        Record("boat", "distance_m_0s_to_3s", Travelled());
+    } else if (At(frame, 6.0f)) {
+        Record("boat", "distance_m_3s_to_6s", Travelled());
+        g_heading = Heading(g_vehicle);
+    } else if (At(frame, 8.0f)) {
+        Record("boat", "heading_change_deg_6s_to_8s", AngleDelta(Heading(g_vehicle), g_heading));
+        return true;
+    }
+    return false;
+}
+}  // namespace boat
+
 // A lowrider with hydraulics standing still with its stance raised to the
 // top: how long it takes to settle to the idle stance.
 namespace hydraulics {
@@ -372,6 +446,8 @@ const harness::Scenario kList[] = {
     {"braking", braking::Start, braking::Step, braking::Input},
     {"cornering", cornering::Start, cornering::Step, cornering::Input},
     {"sinking", sinking::Start, sinking::Step, nullptr},
+    {"boat", boat::Start, boat::Step, boat::Input},
+    {"boat_coast", boat::StartCoast, boat::Step, nullptr},
     {"hydraulics", hydraulics::Start, hydraulics::Step, nullptr},
     {"engine_revs", engine_revs::Start, engine_revs::Step, engine_revs::Input},
     {"siren", siren::Start, siren::Step, siren::Input},

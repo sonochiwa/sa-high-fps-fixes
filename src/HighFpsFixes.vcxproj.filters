@@ -166,6 +166,9 @@
     <ClCompile Include="vehicles\boat_engine.cpp">
       <Filter>vehicles</Filter>
     </ClCompile>
+    <ClCompile Include="vehicles\boat_handling.cpp">
+      <Filter>vehicles</Filter>
+    </ClCompile>
     <ClCompile Include="vehicles\boat_waves.cpp">
       <Filter>vehicles</Filter>
     </ClCompile>
@@ -471,6 +474,9 @@
       <Filter>vehicles</Filter>
     </ClInclude>
     <ClInclude Include="vehicles\boat_engine.h">
+      <Filter>vehicles</Filter>
+    </ClInclude>
+    <ClInclude Include="vehicles\boat_handling.h">
       <Filter>vehicles</Filter>
     </ClInclude>
     <ClInclude Include="vehicles\boat_waves.h">

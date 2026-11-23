@@ -77,6 +77,19 @@ float Speed(const void* entity) {
     return std::sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
 }
 
+void FaceLevel(void* entity, float x, float y) {
+    auto* matrix = Field<uint8_t*>(entity, game::kEntityMatrix);
+    const float length = std::sqrt(x * x + y * y);
+    if (!matrix || length <= 0.0f) {
+        return;
+    }
+    x /= length;
+    y /= length;
+    *reinterpret_cast<Vector*>(matrix + game::kMatrixRight) = {y, -x, 0.0f};
+    *reinterpret_cast<Vector*>(matrix + game::kMatrixForward) = {x, y, 0.0f};
+    *reinterpret_cast<Vector*>(matrix + game::kMatrixUp) = {0.0f, 0.0f, 1.0f};
+}
+
 void Launch(uint8_t* vehicle, float kmh) {
     // A move speed is in metres per fiftieth of a second.
     const float speed = kmh / 3.6f / 50.0f;

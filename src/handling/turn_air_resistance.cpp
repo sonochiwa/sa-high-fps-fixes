@@ -24,6 +24,7 @@ enum class TurnDamping : uint8_t {
     stock,
     groundVehicle,
     aircraft,
+    boat,
 };
 
 SitePatch g_turnAirResistancePatch{};
@@ -31,10 +32,11 @@ std::array<SitePatch, 3> g_flyingTurnResistancePatches{};
 float g_turnAirResistanceStrength{1.0f};
 bool g_groundVehicleTurnResistance{};
 bool g_aircraftTurnResistance{};
+bool g_boatTurnResistance{};
 
 // Which correction the vehicle the air resistance is applied to takes: a car
-// or bike with a wheel on the ground, an aircraft, or none. A car in the air
-// rotates as it did before these fixes, and boats and trains keep the stock
+// or bike with a wheel on the ground, an aircraft, a boat, or none. A car in
+// the air rotates as it did before these fixes, and trains keep the stock
 // damping.
 TurnDamping ClassifyTurnDamping(const uint8_t* physical) {
     __try {
@@ -55,6 +57,8 @@ TurnDamping ClassifyTurnDamping(const uint8_t* physical) {
         case kVehicleSubClassHeli:
         case kVehicleSubClassPlane:
             return TurnDamping::aircraft;
+        case kVehicleSubClassBoat:
+            return TurnDamping::boat;
         default:
             return TurnDamping::stock;
         }
@@ -69,6 +73,8 @@ bool CorrectsTurnDamping(const uint8_t* physical) {
         return g_groundVehicleTurnResistance;
     case TurnDamping::aircraft:
         return g_aircraftTurnResistance;
+    case TurnDamping::boat:
+        return g_boatTurnResistance;
     default:
         return false;
     }
@@ -191,7 +197,7 @@ __declspec(naked) void FlyingTurnResistanceZThunk() {
     }
 }
 
-// The `0.99` site serves both switches; the first of them to install puts it
+// The `0.99` site serves every switch; the first of them to install puts it
 // in place.
 bool EnsureTurnAirResistanceSite(const char* fixName) {
     if (g_turnAirResistancePatch.installed) {
@@ -253,6 +259,14 @@ bool InstallAircraftTurnResistanceFix() {
     patches.Commit();
     g_aircraftTurnResistance = true;
     Log("Installed timestep-scaled turn resistance for aircraft.");
+    return true;
+}
+
+bool InstallBoatTurnResistance() {
+    if (!EnsureTurnAirResistanceSite("Boat turn resistance")) {
+        return false;
+    }
+    g_boatTurnResistance = true;
     return true;
 }
 

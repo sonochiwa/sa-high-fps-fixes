@@ -52,4 +52,42 @@ constexpr std::array<uint8_t, 6> kExpectedSinkStep{
 // their thud fade out. This is the `_ftol`.
 constexpr uintptr_t kBoatWaveHit = 0x006DCEE3;
 
+// Planing. `CVehicle::ProcessBoatControl` lifts a boat under throttle onto the
+// plane with
+//
+//     lift = |moveSpeed|^2 * aqPlaneForce * timeStep * buoyancy.z * 0.5f;
+//     lift = min(lift * gas, timeStep * aqPlaneLimit * mass / 125.0f);
+//     ApplyMoveForce(up * lift); ApplyTurnForce(up * lift, ...);
+//
+// The buoyancy force `cBuoyancy::ProcessBuoyancyBoat` returns already carries
+// the timestep, so the lift goes with the square of it: above 30 FPS it falls
+// short of the limit, the hull stays down in the water, and the drag, which
+// grows with the square of the immersion, holds a Speeder to 90 km/h at 300
+// FPS against 146 at 30. The patch replaces the `fmul` by the timestep with
+// one by the larger of the timestep and its 30 FPS value, which leaves the
+// lift one timestep, as the limit has.
+constexpr uintptr_t kBoatPlaningLift = 0x006DC23D;
+constexpr uintptr_t kBoatPlaningLiftReturn = 0x006DC243;
+// fmul dword ptr [0B7CB5Ch]
+constexpr std::array<uint8_t, 6> kExpectedBoatPlaningLift{
+    0xD8, 0x0D, 0x5C, 0xCB, 0xB7, 0x00
+};
+
+// Pitch settling. The same function damps a boat's pitch rate, the x of its
+// turn speed in its own frame, once per frame with
+//
+//     pitch += (turnRes.x^timeStep / (pitch^2 * 1000.0f + 1.0f) - 1) * pitch;
+//
+// The power keeps turnRes per second, but the divisor takes its share once a
+// frame, so above 30 FPS a pitching hull is held flat much harder and cannot
+// rise onto the plane. The patch replaces the `fadd 1.0` and the `fdivr` by
+// turnRes.x that follow `pitch^2 * 1000` with turnRes.x times
+// `(1 / (pitch^2 * 1000 + 1))^ratio`, the same share per second.
+constexpr uintptr_t kBoatPitchSettle = 0x006DCE04;
+constexpr uintptr_t kBoatPitchSettleReturn = 0x006DCE0E;
+// fadd dword ptr [858624h] / fdivr dword ptr [esp+3Ch]
+constexpr std::array<uint8_t, 10> kExpectedBoatPitchSettle{
+    0xD8, 0x05, 0x24, 0x86, 0x85, 0x00, 0xD8, 0x7C, 0x24, 0x3C
+};
+
 } // namespace hff

@@ -59,6 +59,7 @@
 #include "vehicles/aircraft.h"
 #include "vehicles/attached_entity.h"
 #include "vehicles/boat_engine.h"
+#include "vehicles/boat_handling.h"
 #include "vehicles/boat_waves.h"
 #include "vehicles/doors.h"
 #include "vehicles/head_bop.h"
@@ -220,6 +221,7 @@ constexpr FixSpec kVehicleFixes[] = {
      vehicles::InstallHydraulicStanceFix},
     {"vehicles", "boatWaves", "Boat wave fix", vehicles::InstallBoatWavesFix},
     {"vehicles", "swatRopes", "SWAT rope fix", vehicles::InstallSwatRopesFix},
+    {"vehicles", "boatHandling", "Boat handling fix", vehicles::InstallBoatHandlingFix},
 };
 
 constexpr FixSpec kWeaponFixes[] = {

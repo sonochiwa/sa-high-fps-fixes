@@ -247,6 +247,9 @@
     <ClCompile Include="weapons\chainsaw.cpp">
       <Filter>weapons</Filter>
     </ClCompile>
+    <ClCompile Include="weapons\gun_flash.cpp">
+      <Filter>weapons</Filter>
+    </ClCompile>
     <ClCompile Include="weapons\tear_gas.cpp">
       <Filter>weapons</Filter>
     </ClCompile>
@@ -555,6 +558,9 @@
       <Filter>weapons</Filter>
     </ClInclude>
     <ClInclude Include="weapons\chainsaw.h">
+      <Filter>weapons</Filter>
+    </ClInclude>
+    <ClInclude Include="weapons\gun_flash.h">
       <Filter>weapons</Filter>
     </ClInclude>
     <ClInclude Include="weapons\tear_gas.h">

@@ -73,6 +73,7 @@
 #include "vehicles/wheels.h"
 #include "weapons/area_shots.h"
 #include "weapons/chainsaw.h"
+#include "weapons/gun_flash.h"
 #include "weapons/tear_gas.h"
 #include "weapons/weapon_ammo.h"
 #include "weapons/weapon_particles.h"
@@ -234,6 +235,7 @@ constexpr FixSpec kWeaponFixes[] = {
     {"weapons", "chainsawStrikeRate", "Chainsaw strike rate fix",
      weapons::InstallChainsawStrikeRateFix},
     {"weapons", "tearGas", "Tear gas fix", weapons::InstallTearGasFix},
+    {"weapons", "gunFlash", "Gun flash fix", weapons::InstallGunFlashFix},
     {"particles", "emissionRate", "Particle emission rate fix",
      world::InstallParticleEmissionRateFix},
 };

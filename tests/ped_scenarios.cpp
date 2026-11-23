@@ -170,11 +170,56 @@ bool Step(const Frame& frame) {
 }
 }  // namespace push
 
+// The player holding a Desert Eagle whose muzzle flash is lit half a second
+// in, as a shot lights it: how many milliseconds it takes to fade out.
+namespace gun_flash {
+constexpr int32_t kWeapon = 24;
+constexpr int32_t kModel = 348;
+// CPed::DoGunFlash(duration in ms, left hand) and the right hand's flash
+// alpha, which it sets and the ped's ProcessControl fades.
+constexpr uintptr_t kDoGunFlash = 0x5DF340;
+constexpr size_t kGunFlashAlpha = 0x504;
+constexpr int32_t kFlashMs = 200;
+constexpr float kGiveUpSeconds = 3.0f;
+using DoGunFlashFn = bool(__thiscall*)(void*, int32_t, bool);
+float g_lit = -1.0f;
+
+bool Start() {
+    game::GiveWeapon(kWeapon, kModel, 100);
+    g_lit = -1.0f;
+    return true;
+}
+
+bool Step(const Frame& frame) {
+    uint8_t* player = game::Player();
+    const float t = Elapsed(frame);
+    if (g_lit < 0.0f) {
+        if (t >= 0.5f && reinterpret_cast<DoGunFlashFn>(kDoGunFlash)(player, kFlashMs, false)) {
+            g_lit = t;
+        } else if (t > kGiveUpSeconds) {
+            Record("gun_flash", "never_lit", 1.0);
+            return true;
+        }
+        return false;
+    }
+    if (Field<int16_t>(player, kGunFlashAlpha) <= 0) {
+        Record("gun_flash", "fade_ms", (t - g_lit) * 1000.0f);
+        return true;
+    }
+    if (t > g_lit + kGiveUpSeconds) {
+        Record("gun_flash", "fade_ms", kGiveUpSeconds * 1000.0f);
+        return true;
+    }
+    return false;
+}
+}  // namespace gun_flash
+
 const harness::Scenario kList[] = {
     {"sniper", sniper::Start, sniper::Step, sniper::Input},
     {"swim", swim::Start, swim::Step, nullptr},
     {"swim_speed", swim_speed::Start, swim_speed::Step, swim_speed::Input},
     {"push", push::Start, push::Step, push::Input},
+    {"gun_flash", gun_flash::Start, gun_flash::Step, nullptr},
 };
 
 }  // namespace

@@ -137,6 +137,7 @@ missing:
 | `continuousWeaponShots` | `1` | Those weapons hurt, paint, put out and start fires at the original rate. |
 | `chainsawStrikeRate` | `1` | Chainsaw hits fifteen times a second at any FPS. |
 | `tearGas` | `1` | Tear gas chokes as hard as at 30 FPS. |
+| `gunFlash` | `1` | Muzzle flashes fade in their set time at any FPS instead of lingering, above 1000 FPS until the next shot. |
 | `[particles]` | | |
 | `emissionRate` | `1` | Particle effects emit at the original rate. |
 | `[hud]` | | |

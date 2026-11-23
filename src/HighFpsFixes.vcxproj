@@ -152,6 +152,7 @@
     <ClCompile Include="bikes\takeoff_pitch.cpp" />
     <ClCompile Include="weapons\area_shots.cpp" />
     <ClCompile Include="weapons\chainsaw.cpp" />
+    <ClCompile Include="weapons\gun_flash.cpp" />
     <ClCompile Include="weapons\tear_gas.cpp" />
     <ClCompile Include="weapons\weapon_ammo.cpp" />
     <ClCompile Include="weapons\weapon_particles.cpp" />
@@ -274,6 +275,7 @@
     <ClInclude Include="bikes\takeoff_pitch.h" />
     <ClInclude Include="weapons\area_shots.h" />
     <ClInclude Include="weapons\chainsaw.h" />
+    <ClInclude Include="weapons\gun_flash.h" />
     <ClInclude Include="weapons\tear_gas.h" />
     <ClInclude Include="weapons\weapon_ammo.h" />
     <ClInclude Include="weapons\weapon_particles.h" />

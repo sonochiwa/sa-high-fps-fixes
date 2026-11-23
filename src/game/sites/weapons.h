@@ -92,4 +92,21 @@ constexpr float kChainsawParkMargin = 0.001f;
 // harder.
 constexpr uintptr_t kTearGasChokeRoll = 0x00738C19;
 
+// Muzzle flash fade. `CPed::DoGunFlash` sets a hand's flash alpha and the
+// amount it loses per millisecond; each frame the ped's ProcessControl at
+// 0x5E8CD0 takes off the frame's milliseconds:
+//
+//     ms = _ftol(timeStep * 0.02f * 1000.0f);
+//     if (alpha > step * ms) alpha -= step * _ftol(...same...); else alpha = 0;
+//
+// Truncated to whole milliseconds, a 3.3 ms frame at 300 FPS counts as 3, a
+// tenth short, and above 1000 FPS a frame counts as none, so the flash stays
+// lit until the next shot. These are the four `call _ftol`, two for each hand.
+// With the fraction carried, a flash fades in the time it was given at every
+// frame rate; at 30 FPS a 200 ms flash goes out on the frame at 200 ms rather
+// than the one after it, which the dropped third of a millisecond delayed.
+constexpr std::array<uintptr_t, 4> kGunFlashFadeFtol{
+    0x005E9027, 0x005E9036, 0x005E907E, 0x005E908D
+};
+
 } // namespace hff

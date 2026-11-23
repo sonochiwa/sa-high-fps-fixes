@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.10.0
+
+- Added `boatHandling`: boats rise onto the plane, reach their top speed and
+  turn as at 30 FPS. Above it a Speeder topped out at 90 km/h instead of 146
+  and turned a third less.
+- Added `gunFlash`: muzzle flashes fade in the time they were given. Above
+  1000 FPS they stayed lit until the next shot.
+- Changed `hudTiming` to cover the runway light on a plane's radar, which
+  raced across it above 30 FPS.
+- Fixed entering any plane but the Vortex crashing the game on some machines,
+  and the rudder of those planes answering five times too fast on the rest,
+  since 1.7.0.
+- Fixed `pedPushVehicle` halving the push of a sprinting player on a car even
+  at 30 FPS.
+
 ## 1.9.0
 
 - Added `parachuteResponseFps` to select parachute and freefall response

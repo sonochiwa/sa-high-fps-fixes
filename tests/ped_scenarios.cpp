@@ -110,10 +110,71 @@ bool Step(const Frame& frame) {
 }
 }  // namespace swim_speed
 
+// The player sprinting into the back of a parked Manana on the airport
+// tarmac and leaning on it: how far the car has rolled after two seconds and
+// in the two after. In SA-MP this is how a stalled car is shoved, and above
+// 30 FPS it moves much more easily than at 30.
+namespace push {
+constexpr int32_t kModel = 410;
+// CPed::m_fCurrentRotation and m_fAimingRotation; zero faces north.
+constexpr size_t kPedCurrentRotation = 0x558;
+constexpr size_t kPedAimingRotation = 0x55C;
+constexpr float kCarAhead = 4.0f;
+constexpr float kPlayerBehindCar = 4.5f;
+uint8_t* g_vehicle = nullptr;
+Vector g_mark{};
+
+bool Start() {
+    uint8_t* player = game::Player();
+    const Vector site = game::Position(player);
+    g_vehicle = game::SpawnVehicle(kModel);
+    if (!g_vehicle) {
+        return false;
+    }
+    const float z = game::GroundZ(site.x, site.y + kCarAhead);
+    game::Teleport(g_vehicle, {site.x, site.y + kCarAhead, z + 1.0f});
+    FaceLevel(g_vehicle, 0.0f, 1.0f);
+    Field<Vector>(g_vehicle, game::kPhysicalMoveSpeed) = {};
+    Field<Vector>(g_vehicle, game::kPhysicalTurnSpeed) = {};
+    game::Teleport(player, {site.x, site.y + kCarAhead - kPlayerBehindCar, z + 1.0f});
+    Field<float>(player, kPedCurrentRotation) = 0.0f;
+    Field<float>(player, kPedAimingRotation) = 0.0f;
+    FaceLevel(player, 0.0f, 1.0f);
+    game::ShowPlayer();
+    g_mark = game::Position(g_vehicle);
+    return true;
+}
+
+void Input(const Frame&, uint8_t* pad) {
+    Field<int16_t>(pad, game::kPadLeftStickY) = -128;
+    Press(pad, game::kPadButtonCross);
+}
+
+// Along the ground only: the car settles onto its wheels after the teleport.
+float Rolled() {
+    Vector here = game::Position(g_vehicle);
+    here.z = g_mark.z;
+    const float distance = Distance(here, g_mark);
+    g_mark = game::Position(g_vehicle);
+    return distance;
+}
+
+bool Step(const Frame& frame) {
+    if (At(frame, 2.0f)) {
+        Record("push", "car_moved_m_0s_to_2s", Rolled());
+    } else if (At(frame, 4.0f)) {
+        Record("push", "car_moved_m_2s_to_4s", Rolled());
+        return true;
+    }
+    return false;
+}
+}  // namespace push
+
 const harness::Scenario kList[] = {
     {"sniper", sniper::Start, sniper::Step, sniper::Input},
     {"swim", swim::Start, swim::Step, nullptr},
     {"swim_speed", swim_speed::Start, swim_speed::Step, swim_speed::Input},
+    {"push", push::Start, push::Step, push::Input},
 };
 
 }  // namespace

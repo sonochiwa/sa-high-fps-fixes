@@ -1,6 +1,7 @@
 #include "player/ped_push.h"
 
 #include "core/log.h"
+#include "core/memory.h"
 #include "core/patch.h"
 #include "core/timestep.h"
 #include "game/addresses.h"
@@ -32,6 +33,20 @@ uint32_t g_pedPushLastFrame{};
 float g_pedPushCarry{};
 bool g_pedPushOriginalRateFrame{true};
 
+// The share of an original frame this whole frame is. `CPhysical::
+// ProcessCollision` steps a fast ped through its collisions with
+// `ms_fTimeStep` set to the part of the frame each step has reached, so a
+// sprinting ped's push read it as half a frame even at 30 FPS and was let
+// through on every other frame only. The unclipped timestep is left alone by
+// those steps.
+float FrameRatio() {
+    const float timeStep = ReadGameFloat(kTimerTimeStepNonClipped, kOriginalTimeStep);
+    if (!std::isfinite(timeStep) || timeStep <= 0.0f) {
+        return 1.0f;
+    }
+    return std::clamp(timeStep / kOriginalTimeStep, 0.0f, 1.0f);
+}
+
 bool ShouldApplyOriginalRatePedPush() {
     if (InsideOriginalTimeStep()) {
         return true;
@@ -39,7 +54,7 @@ bool ShouldApplyOriginalRatePedPush() {
     const uint32_t frame = *reinterpret_cast<const uint32_t*>(kFrameCounter);
     if (frame != g_pedPushLastFrame) {
         g_pedPushLastFrame = frame;
-        const float ratio = std::clamp(TimeStepRatio(), 0.0f, 1.0f);
+        const float ratio = FrameRatio();
         g_pedPushCarry += ratio;
         if (g_pedPushCarry >= 1.0f) {
             g_pedPushCarry -= std::floor(g_pedPushCarry);

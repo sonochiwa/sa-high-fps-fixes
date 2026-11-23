@@ -95,22 +95,35 @@ constexpr std::array<uint8_t, 10> kExpectedBikeSteerInput{
 };
 // `CPlane::ProcessControlInputs` (0x6CADD0) slews its three control surfaces
 // the same way, with the 0.2 at 0x858CC4, a constant shared with other code
-// and therefore read rather than written. In every one of the four sites
+// and therefore read rather than written. At these first three sites,
 // `[esp+N]` holds the copy of the timestep made just before it.
-constexpr std::array<uintptr_t, 4> kPlaneSteerInput{
-    0x006CAF2C, 0x006CB06C, 0x006CB0B1, 0x006CB1AD
+constexpr std::array<uintptr_t, 3> kPlaneSteerInput{
+    0x006CAF2C, 0x006CB06C, 0x006CB0B1
 };
 constexpr uintptr_t kPlaneSteerInputReturn0 = 0x006CAF36;
 constexpr uintptr_t kPlaneSteerInputReturn1 = 0x006CB076;
 constexpr uintptr_t kPlaneSteerInputReturn2 = 0x006CB0BB;
 constexpr uintptr_t kPlaneSteerInputReturn3 = 0x006CB1B7;
 constexpr uintptr_t kPlaneSteerInputConstant = 0x00858CC4;
-constexpr std::array<std::array<uint8_t, 10>, 4> kExpectedPlaneSteerInput{{
+constexpr std::array<std::array<uint8_t, 10>, 3> kExpectedPlaneSteerInput{{
     {0xD8, 0x4C, 0x24, 0x18, 0xD8, 0x0D, 0xC4, 0x8C, 0x85, 0x00},
     {0xD8, 0x4C, 0x24, 0x18, 0xD8, 0x0D, 0xC4, 0x8C, 0x85, 0x00},
-    {0xD8, 0x4C, 0x24, 0x14, 0xD8, 0x0D, 0xC4, 0x8C, 0x85, 0x00},
     {0xD8, 0x4C, 0x24, 0x14, 0xD8, 0x0D, 0xC4, 0x8C, 0x85, 0x00},
 }};
+// The rudder, m_fLeftRightSkid, is the fourth. Only the Vortex reaches its
+// `fmul [esp+14h]` at 0x6CB1AD by falling through. Every other plane computes
+// `(target - raw) * ms_fTimeStep` in its own branch, one for look left and one
+// for the rest, and jumps from 0x6CB238 or 0x6CB24D straight to the
+// `fmul [0.2]` at 0x6CB1B1. A jump written at 0x6CB1AD, as 1.7.0 to 1.9.0
+// did, has those branches land on the last byte of its displacement; what
+// that byte executes as depends on where the plugin is loaded, so entering a
+// plane crashed on some machines and on the rest the rudder lost its 0.2. The
+// patch starts at 0x6CB1B1, where every path arrives with the timestep
+// already applied.
+constexpr uintptr_t kPlaneRudderSteerInput = 0x006CB1B1;
+constexpr std::array<uint8_t, 6> kExpectedPlaneRudderSteerInput{
+    0xD8, 0x0D, 0xC4, 0x8C, 0x85, 0x00
+};
 
 // Gear change inertia. `cTransmission::CalculateDriveAcceleration` (0x6D05E0)
 // models engine inertia from how far the car moved through the current

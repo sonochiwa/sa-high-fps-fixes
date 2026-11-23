@@ -12,7 +12,10 @@ namespace {
 // gentle variant moves the stick a sixth of the way. The damaged variant has
 // every moving part damaged, which bleeds the controls away each frame, jolts
 // them by a random amount and makes the engine sputter at a random pace; the
-// random draws are held at the middle of their range so the run repeats.
+// random draws are held at the middle of their range so the run repeats. The
+// rudder variant holds the rudder left instead of rolling: every plane but
+// the Vortex eases its rudder through the branches that enter the shared
+// multiply at 0x6CB1B1, the path 1.7.0 to 1.9.0 jumped into mid-patch.
 namespace plane {
 constexpr int32_t kModel = 513;
 constexpr size_t kEngineByte = 0x428;
@@ -20,8 +23,10 @@ constexpr uint8_t kEngineOn = 0x10;
 constexpr int32_t kFirstPart = 12;
 constexpr int32_t kLastPart = 20;
 constexpr int32_t kDamaged = 2;
-// CPlane::m_fSteeringLeftRight, the eased roll input.
+// CPlane::m_fSteeringLeftRight, the eased roll input, and m_fLeftRightSkid,
+// the eased rudder input, which CPad look left (LeftShoulder2) sends to -1.
 constexpr size_t kRollInput = 0x990;
+constexpr size_t kRudderInput = 0x988;
 // The `call rand` sites in CPlane::ProcessFlyingCarStuff: the sputter pace,
 // then the jolts in the damage switch.
 constexpr uintptr_t kDamageJolts[] = {0x6CB800, 0x6CBA28, 0x6CBAF4, 0x6CBB62,
@@ -29,6 +34,7 @@ constexpr uintptr_t kDamageJolts[] = {0x6CB800, 0x6CBA28, 0x6CBAF4, 0x6CBB62,
 uint8_t* g_vehicle = nullptr;
 const char* g_name = "plane";
 int16_t g_stick = 128;
+bool g_rudder = false;
 float g_lastRoll = 0.0f;
 float g_rolled = 0.0f;
 float g_heading = 0.0f;
@@ -38,6 +44,7 @@ uint32_t g_inputFrames = 0;
 bool Start() {
     g_name = "plane";
     g_stick = 128;
+    g_rudder = false;
     g_vehicle = game::SpawnVehicle(kModel);
     if (!g_vehicle) {
         return false;
@@ -78,11 +85,24 @@ bool StartDamaged() {
     return true;
 }
 
+bool StartRudder() {
+    if (!Start()) {
+        return false;
+    }
+    g_rudder = true;
+    g_name = "plane_rudder";
+    return true;
+}
+
 void Input(const Frame& frame, uint8_t* pad) {
     Press(pad, game::kPadButtonCross);
     const float t = Elapsed(frame);
     if (t > 1.0f && t <= 2.0f) {
-        Field<int16_t>(pad, game::kPadLeftStickX) = g_stick;
+        if (g_rudder) {
+            Press(pad, game::kPadLeftShoulder2);
+        } else {
+            Field<int16_t>(pad, game::kPadLeftStickX) = g_stick;
+        }
     }
 }
 
@@ -92,7 +112,7 @@ bool Step(const Frame& frame) {
     g_lastRoll = roll;
     const float t = Elapsed(frame);
     if (t > 1.0f && t <= 2.0f) {
-        g_inputSum += Field<float>(g_vehicle, kRollInput);
+        g_inputSum += Field<float>(g_vehicle, g_rudder ? kRudderInput : kRollInput);
         ++g_inputFrames;
     }
     if (At(frame, 1.0f)) {
@@ -102,7 +122,8 @@ bool Step(const Frame& frame) {
         g_inputFrames = 0;
     } else if (At(frame, 2.0f)) {
         Record(g_name, "roll_deg_during_input", g_rolled);
-        Record(g_name, "roll_input_average", g_inputSum / static_cast<float>(g_inputFrames));
+        Record(g_name, g_rudder ? "rudder_input_average" : "roll_input_average",
+               g_inputSum / static_cast<float>(g_inputFrames));
         g_rolled = 0.0f;
     } else if (At(frame, 3.0f)) {
         Record(g_name, "roll_deg_after_release", g_rolled);
@@ -209,6 +230,7 @@ const harness::Scenario kList[] = {
     {"plane", plane::Start, plane::Step, plane::Input},
     {"plane_gentle", plane::StartGentle, plane::Step, plane::Input},
     {"plane_damaged", plane::StartDamaged, plane::Step, plane::Input},
+    {"plane_rudder", plane::StartRudder, plane::Step, plane::Input},
     {"heli", heli::Start, heli::Step, nullptr},
     {"ai_heli_follow", ai_heli_follow::Start, ai_heli_follow::Step, nullptr},
 };

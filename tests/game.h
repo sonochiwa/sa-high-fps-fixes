@@ -63,6 +63,7 @@ constexpr uintptr_t kPad = 0xB73458;
 constexpr size_t kPadLeftStickX = 0x00;
 constexpr size_t kPadLeftStickY = 0x02;
 constexpr size_t kPadRightStickY = 0x06;
+constexpr size_t kPadLeftShoulder2 = 0x0A;
 constexpr size_t kPadRightShoulder1 = 0x0C;
 constexpr size_t kPadButtonSquare = 0x1C;
 constexpr size_t kPadButtonCross = 0x20;

@@ -17,7 +17,7 @@
 param(
     [string[]]$Scenarios = @('timer', 'countdown', 'burning', 'explosion', 'teargas',
         'forklift', 'firetruck', 'parking', 'braking', 'cornering', 'sinking', 'hydraulics',
-        'engine_revs', 'siren', 'plane', 'plane_gentle', 'plane_damaged', 'heli',
+        'engine_revs', 'siren', 'plane', 'plane_gentle', 'plane_damaged', 'plane_rudder', 'heli',
         'ai_heli_follow', 'sniper', 'swim', 'swim_speed', 'parachute', 'catalyst', 'interdiction'),
     [string[]]$Fps = @('30', '300'),
     [string[]]$Modes = @('stock', 'fixed'),

@@ -16,7 +16,8 @@ namespace hff::handling {
 namespace {
 
 std::array<SitePatch, 4> g_steerInputPatches{};
-std::array<SitePatch, 4> g_planeSteerInputPatches{};
+std::array<SitePatch, 3> g_planeSteerInputPatches{};
+SitePatch g_planeRudderSteerInputPatch{};
 
 // The fraction of the remaining steering error closed this frame. The game
 // closes `k * timeStep` of it in one linear step; the exponential form keeps
@@ -42,6 +43,14 @@ float __cdecl GetBikeSteerInputGain() {
 
 float __cdecl GetPlaneSteerInputGain() {
     return SteerInputGain(ReadGameFloat(kPlaneSteerInputConstant, 0.2f));
+}
+
+// Native rudder branches have already multiplied by the timestep before
+// entering the shared constant multiply. Normalize that existing factor
+// before applying the same exponential response as the other surfaces.
+float __cdecl GetPlaneRudderSteerInputGain() {
+    const float timeStep = ReadGameFloat(kTimerTimeStep, kOriginalTimeStep);
+    return timeStep > 0.0f ? GetPlaneSteerInputGain() / timeStep : 0.0f;
 }
 
 // Each replaces the `fmul [esp+..] / fmul [0.2]` pair with `(target - raw)`
@@ -162,7 +171,7 @@ __declspec(naked) void PlaneSteerInput3Thunk() {
         push eax
         push ecx
         push edx
-        call GetPlaneSteerInputGain
+        call GetPlaneRudderSteerInputGain
         pop edx
         pop ecx
         pop eax
@@ -176,12 +185,14 @@ __declspec(naked) void PlaneSteerInput3Thunk() {
 // with the stock step without taking the fix from cars and bikes.
 void InstallPlaneSteerInputRate() {
     PatchSet patches("Plane steer input rate fix");
-    const std::array<const void*, 4> thunks{
-        &PlaneSteerInput0Thunk, &PlaneSteerInput1Thunk,
-        &PlaneSteerInput2Thunk, &PlaneSteerInput3Thunk,
+    const std::array<const void*, 3> thunks{
+        &PlaneSteerInput0Thunk, &PlaneSteerInput1Thunk, &PlaneSteerInput2Thunk,
     };
     if (!InstallJumpTable(patches, g_planeSteerInputPatches, kPlaneSteerInput,
-                          thunks, kExpectedPlaneSteerInput)) {
+                          thunks, kExpectedPlaneSteerInput) ||
+        !patches.Track(InstallJump(g_planeRudderSteerInputPatch, kPlaneRudderSteerInput,
+                                  &PlaneSteerInput3Thunk, kExpectedPlaneRudderSteerInput),
+                       g_planeRudderSteerInputPatch)) {
         Log("Steer input rate fix: CPlane::ProcessControlInputs bytes do not "
             "match GTA SA 1.0 US; planes keep the stock step.");
         return;

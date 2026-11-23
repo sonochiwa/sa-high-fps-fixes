@@ -93,7 +93,7 @@ missing:
 | `physicsSleepRate` | `1` | Vehicle physics sleep in real time. |
 | `wheelFriction` | `1` | Cars and bikes brake and coast as at 30 FPS. |
 | `classicHandling` | `0` | `1` restores the handling of versions before 1.3.0, planted as at a high frame rate; the eight keys below are then ignored. |
-| `turnAirResistance` | `1` | Cars and bikes turn as at 30 FPS instead of heavily above it. Boats and airborne cars are left as they are. |
+| `turnAirResistance` | `1` | Cars and bikes turn as at 30 FPS instead of heavily above it. Airborne cars are left as they are; boats are corrected by `boatHandling`. |
 | `turnAirResistanceStrength` | `100` | Percent of that correction and of `aircraftTurnResistance`: `100` is the 30 FPS feel, `0` the stock one. |
 | `aircraftTurnResistance` | `1` | Planes and helicopters turn and settle as at 30 FPS. |
 | `steerInputRate` | `1` | Keyboard and pad steering of cars, bikes and planes reaches full lock in the same time at any FPS. |

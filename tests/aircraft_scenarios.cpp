@@ -143,6 +143,58 @@ bool Step(const Frame& frame) {
 }
 }  // namespace plane
 
+// A stunt plane 300 m above the Los Santos runway, where the radar draws the
+// yellow approach light that runs down the runway in 100 unit steps: how many
+// steps it takes a second, counted from one second to three. The game steps
+// the light on its pause mode clock, which this harness keeps on wall time;
+// the scenario sets that clock from the frame count instead, as a machine
+// drawing this frame rate would see it, so the stock count repeats too.
+namespace airstrip_light {
+constexpr int32_t kModel = 513;
+// The Los Santos entry of the airstrip table and the light's position along
+// it, a static of CRadar::DrawEntityBlip.
+constexpr float kRunwayX = 1750.0f;
+constexpr float kRunwayY = -2494.0f;
+constexpr uintptr_t kLightPosition = 0xBAA37C;
+using RadarFn = void(__cdecl*)();
+uint8_t* g_vehicle = nullptr;
+uint32_t g_clockStart = 0;
+int16_t g_lastPosition = 0;
+uint32_t g_steps = 0;
+
+bool Start() {
+    g_vehicle = game::SpawnVehicle(kModel);
+    if (!g_vehicle) {
+        return false;
+    }
+    game::PutPlayerIn(g_vehicle);
+    game::Teleport(g_vehicle, {kRunwayX, kRunwayY, 300.0f});
+    Field<uint8_t>(g_vehicle, game::kVehicleEngineByte) |= game::kVehicleEngineOn;
+    g_clockStart = game::At<uint32_t>(game::kTimerPauseModeTime);
+    g_lastPosition = game::At<int16_t>(kLightPosition);
+    g_steps = 0;
+    return true;
+}
+
+bool Step(const Frame& frame) {
+    const float t = Elapsed(frame);
+    game::At<uint32_t>(game::kTimerPauseModeTime) =
+        g_clockStart + static_cast<uint32_t>(t * 1000.0f);
+    reinterpret_cast<RadarFn>(game::kRadarDrawMap)();
+    reinterpret_cast<RadarFn>(game::kRadarDrawBlips)();
+    const int16_t position = game::At<int16_t>(kLightPosition);
+    if (t > 1.0f && t <= 3.0f && position != g_lastPosition) {
+        ++g_steps;
+    }
+    g_lastPosition = position;
+    if (At(frame, 3.0f)) {
+        Record("airstrip_light", "steps_per_s", static_cast<float>(g_steps) / 2.0f);
+        return true;
+    }
+    return false;
+}
+}  // namespace airstrip_light
+
 // A helicopter on the apron with its engine started: how fast its rotor turns
 // one and three seconds later.
 namespace heli {
@@ -231,6 +283,7 @@ const harness::Scenario kList[] = {
     {"plane_gentle", plane::StartGentle, plane::Step, plane::Input},
     {"plane_damaged", plane::StartDamaged, plane::Step, plane::Input},
     {"plane_rudder", plane::StartRudder, plane::Step, plane::Input},
+    {"airstrip_light", airstrip_light::Start, airstrip_light::Step, nullptr},
     {"heli", heli::Start, heli::Step, nullptr},
     {"ai_heli_follow", ai_heli_follow::Start, ai_heli_follow::Step, nullptr},
 };

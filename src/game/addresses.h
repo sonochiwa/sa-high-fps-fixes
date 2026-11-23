@@ -29,6 +29,10 @@ constexpr std::array<GameProfile, 2> kGameProfiles{{
 constexpr uintptr_t kTimerTimeStep = 0x00B7CB5C;
 constexpr uintptr_t kTimerTimeStepNonClipped = 0x00B7CB58;
 constexpr uintptr_t kTimerTimeInMilliseconds = 0x00B7CB84;
+constexpr uintptr_t kTimerTimeInMillisecondsPauseMode = 0x00B7CB7C;
+// CTimer::m_CodePause and m_UserPause, one byte each.
+constexpr uintptr_t kTimerCodePause = 0x00B7CB48;
+constexpr uintptr_t kTimerUserPause = 0x00B7CB49;
 constexpr uintptr_t kFrameCounter = 0x00B7CB4C;
 constexpr float kOriginalTimeStep = 50.0f / 30.0f;
 

@@ -162,6 +162,7 @@
     <ClCompile Include="world\particle_emission.cpp" />
     <ClCompile Include="world\police.cpp" />
     <ClCompile Include="world\samp_objects.cpp" />
+    <ClCompile Include="hud\airstrip_light.cpp" />
     <ClCompile Include="hud\flash_rate.cpp" />
     <ClCompile Include="hud\map_zoom.cpp" />
     <ClCompile Include="hud\money_counter.cpp" />
@@ -282,6 +283,7 @@
     <ClInclude Include="world\particle_emission.h" />
     <ClInclude Include="world\police.h" />
     <ClInclude Include="world\samp_objects.h" />
+    <ClInclude Include="hud\airstrip_light.h" />
     <ClInclude Include="hud\flash_rate.h" />
     <ClInclude Include="hud\map_zoom.h" />
     <ClInclude Include="hud\money_counter.h" />

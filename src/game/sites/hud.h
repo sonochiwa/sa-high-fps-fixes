@@ -43,6 +43,32 @@ constexpr std::array<uint8_t, 6> kExpectedMoneyStepStore{
     0x89, 0x96, 0xBC, 0x00, 0x00, 0x00
 };
 
+// Airstrip approach light. Flying any plane but the Vortex,
+// `CRadar::SetupAirstripBlips` keeps a blip on the nearest of the four
+// runways, and `CRadar::DrawEntityBlip` draws a yellow light that runs down
+// that runway's approach in 100 unit steps, wrapping from the far end back to
+// the near one:
+//
+//     if (radarDistance >= 1.0f
+//         || timeInMsPauseMode - lastStepTime > 3) {
+//         position += 100;
+//         lastStepTime = timeInMsPauseMode;
+//     }
+//
+// The 3 ms gate passes on every frame at 30 FPS, so the light takes one step
+// a frame, and off the radar it steps on every frame at any rate. At 300 FPS it
+// steps on most frames, so it flies across the radar in a few frames and comes
+// back sooner. The gate, from the `fcom` of the radar distance to the `je` that
+// steps when the light is off the radar, is replaced with one step per
+// original frame; the time test behind it is left unreached.
+constexpr uintptr_t kAirstripLightGate = 0x00587574;
+constexpr uintptr_t kAirstripLightStep = 0x00587590;
+constexpr uintptr_t kAirstripLightHold = 0x005875FD;
+// fcom dword ptr [858C20h] / fnstsw ax / test ah,1 / je 587590h
+constexpr std::array<uint8_t, 13> kExpectedAirstripLightGate{
+    0xD8, 0x15, 0x20, 0x8C, 0x85, 0x00, 0xDF, 0xE0, 0xF6, 0xC4, 0x01, 0x74, 0x0F
+};
+
 // Pause menu map zoom. The map input block gates every zoom and pan step behind
 // a 20 ms tick:
 //

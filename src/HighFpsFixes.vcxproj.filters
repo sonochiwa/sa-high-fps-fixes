@@ -277,6 +277,9 @@
     <ClCompile Include="world\samp_objects.cpp">
       <Filter>world</Filter>
     </ClCompile>
+    <ClCompile Include="hud\airstrip_light.cpp">
+      <Filter>hud</Filter>
+    </ClCompile>
     <ClCompile Include="hud\flash_rate.cpp">
       <Filter>hud</Filter>
     </ClCompile>
@@ -580,6 +583,9 @@
     </ClInclude>
     <ClInclude Include="world\samp_objects.h">
       <Filter>world</Filter>
+    </ClInclude>
+    <ClInclude Include="hud\airstrip_light.h">
+      <Filter>hud</Filter>
     </ClInclude>
     <ClInclude Include="hud\flash_rate.h">
       <Filter>hud</Filter>

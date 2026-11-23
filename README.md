@@ -139,7 +139,7 @@ missing:
 | `[particles]` | | |
 | `emissionRate` | `1` | Particle effects emit at the original rate. |
 | `[hud]` | | |
-| `hudTiming` | `1` | Health, armor, breath, wanted-star and radar flashes blink at the original rate. |
+| `hudTiming` | `1` | Health, armor, breath, wanted-star and radar flashes blink at the original rate, and the runway light on a plane's radar runs at its original pace. |
 | `disableFlashing` | `0` | `1` keeps the radar and the low-health bar permanently visible. |
 | `[audio]` | | |
 | `engineRevs` | `1` | The engine note follows the throttle as fast as at 30 FPS instead of jumping to it. |

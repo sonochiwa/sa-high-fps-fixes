@@ -53,6 +53,13 @@ constexpr uintptr_t kTimerPauseModeTime = 0xB7CB7C;
 constexpr uintptr_t kTimerNonClipped = 0xB7CB80;
 constexpr uintptr_t kTimerTime = 0xB7CB84;
 
+// CRadar::DrawMap and CRadar::DrawBlips, which CHud::DrawRadar calls in that
+// order; this harness does not render, so a scenario that needs the radar
+// calls them itself. DrawMap sets the radar's range and origin that DrawBlips
+// projects with.
+constexpr uintptr_t kRadarDrawMap = 0x586B00;
+constexpr uintptr_t kRadarDrawBlips = 0x588050;
+
 // CPad::UpdatePads, CGame::Process.
 constexpr uintptr_t kUpdatePads = 0x541DD0;
 constexpr uintptr_t kGameProcess = 0x53BEE0;

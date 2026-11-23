@@ -38,6 +38,7 @@
 #include "handling/suspension.h"
 #include "handling/turn_air_resistance.h"
 #include "handling/wheel_slip.h"
+#include "hud/airstrip_light.h"
 #include "hud/flash_rate.h"
 #include "hud/map_zoom.h"
 #include "hud/money_counter.h"
@@ -266,17 +267,19 @@ constexpr FixSpec kWorldFixes[] = {
     {"menu", "mapZoomWheel", "Map zoom wheel fix", hud::InstallMapZoomWheelFix},
 };
 
-// One switch over three mechanisms: the flash clock, the money counter step
-// and the 46 timed-text accumulators. They are separate patches but one
-// symptom to a player, so they are configured together.
+// One switch over four mechanisms: the flash clock, the money counter step,
+// the 46 timed-text accumulators and the radar's airstrip light. They are
+// separate patches but one symptom to a player, so they are configured
+// together.
 void InstallHudFixes() {
     if (!ReadSetting("hud", "hudTiming", true)) {
-        CountDisabled(3, "HUD timing fixes disabled by configuration.");
+        CountDisabled(4, "HUD timing fixes disabled by configuration.");
         return;
     }
     CountInstall(hud::InstallMoneyCounterFix());
     CountInstall(hud::InstallHudFlashRateFix());
     CountInstall(timers::InstallHudTimersFix());
+    CountInstall(hud::InstallAirstripLightFix());
 }
 
 void InstallFramerateFixes() {
